@@ -1,49 +1,93 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Очистные сооружения под ключ в Узбекистане",
+
+  description:
+    "SUVSANOAT реализует комплексные проекты очистных сооружений и водоподготовки под ключ в Узбекистане: проектирование, производство, поставка, монтаж, пусконаладка, автоматизация и сервис.",
+
+  alternates: {
+    canonical: "/catalog/integrated-solutions",
+  },
+
+  openGraph: {
+    title: "Очистные сооружения под ключ в Узбекистане | SUVSANOAT",
+    description:
+      "Комплексные инженерные решения для очистки сточных вод и водоподготовки: от проектирования до запуска и сервисного обслуживания.",
+    url: "https://suvsanoat.uz/catalog/integrated-solutions",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/integrated-solutions.png",
+        width: 1200,
+        height: 630,
+        alt: "Комплексные очистные сооружения под ключ SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Очистные сооружения под ключ | SUVSANOAT",
+    description:
+      "Проектирование, производство, поставка, монтаж и запуск очистных сооружений и систем водоподготовки.",
+    images: ["/integrated-solutions.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function IntegratedSolutionsPage() {
   const solutions = [
     {
       number: "01",
-      title: "Очистные сооружения",
-      text: "Комплексные системы очистки коммунальных и промышленных сточных вод с подбором технологии под фактический состав стоков.",
+      title: "Анализ исходных данных",
+      text: "Изучение технического задания, производительности, состава воды или сточных вод и требований заказчика.",
     },
     {
       number: "02",
-      title: "Водоподготовка",
-      text: "Системы подготовки технической и технологической воды: фильтрация, ультрафильтрация, обратный осмос и реагентная обработка.",
+      title: "Технологическое проектирование",
+      text: "Подбор технологии и разработка оптимальной технологической схемы для конкретного объекта.",
     },
     {
       number: "03",
-      title: "Насосные станции",
-      text: "Подбор насосного оборудования, трубопроводной обвязки, арматуры и систем управления для технологических процессов.",
+      title: "Проектирование оборудования",
+      text: "Определение состава, характеристик и параметров технологического оборудования.",
     },
     {
       number: "04",
-      title: "Резервуары и ёмкости",
-      text: "Железобетонные, металлические и полимерные резервуары для усреднения, биологической очистки, хранения воды, осадка и реагентов.",
+      title: "Производство",
+      text: "Изготовление и комплектация оборудования в соответствии с разработанным инженерным решением.",
     },
     {
       number: "05",
-      title: "Трубопроводы и арматура",
-      text: "Комплектные технологические трубопроводные системы, запорная и регулирующая арматура, фитинги и соединительные элементы.",
+      title: "Комплектация объекта",
+      text: "Формирование единого комплекта механического, технологического, электрического и вспомогательного оборудования.",
     },
     {
       number: "06",
-      title: "Автоматизация",
-      text: "Шкафы управления, PLC, датчики, частотные преобразователи и диспетчеризация для автоматической работы комплекса.",
+      title: "Поставка",
+      text: "Организация поставки оборудования и комплектующих непосредственно на объект заказчика.",
     },
     {
       number: "07",
-      title: "Электротехническая часть",
-      text: "Комплектация силового оборудования, распределительных шкафов и систем управления технологическими потребителями.",
+      title: "Монтаж и шеф-монтаж",
+      text: "Монтаж оборудования или техническое сопровождение монтажных работ на объекте.",
     },
     {
       number: "08",
-      title: "Монтаж и шеф-монтаж",
-      text: "Техническое сопровождение монтажа оборудования и инженерных систем непосредственно на объекте.",
+      title: "Автоматизация",
+      text: "Шкафы управления, PLC, КИПиА и автоматическое управление технологическими процессами.",
     },
     {
       number: "09",
       title: "Пусконаладка",
-      text: "Проверка оборудования, настройка технологических режимов, автоматизации и запуск комплекса в эксплуатацию.",
+      text: "Запуск оборудования, настройка технологических режимов и проверка работы всей системы.",
     },
     {
       number: "10",
@@ -95,7 +139,11 @@ export default function IntegratedSolutionsPage() {
     <main className="categoryPage">
       {/* HEADER */}
       <header className="categoryHeader">
-        <a href="/" className="categoryLogo" aria-label="SUVSANOAT — главная">
+        <a
+          href="/"
+          className="categoryLogo"
+          aria-label="SUVSANOAT — главная"
+        >
           <img src="/logo.png" alt="SUVSANOAT" />
         </a>
 
@@ -117,7 +165,7 @@ export default function IntegratedSolutionsPage() {
         <div className="categoryHeroImage">
           <img
             src="/integrated-solutions.png"
-            alt="Комплексные инженерные решения SUVSANOAT"
+            alt="Комплексные очистные сооружения под ключ SUVSANOAT"
           />
         </div>
 
@@ -143,17 +191,24 @@ export default function IntegratedSolutionsPage() {
           </h1>
 
           <p>
-            Комплексные инженерные решения для очистки сточных вод и
-            водоподготовки — от разработки технологической схемы и комплектации
-            оборудования до монтажа, запуска и сервисного сопровождения.
+            Комплексные инженерные решения для очистки сточных вод
+            и водоподготовки — от разработки технологической схемы
+            и комплектации оборудования до монтажа, запуска
+            и сервисного сопровождения.
           </p>
 
           <div className="categoryHeroButtons">
-            <a href="#solutions-list" className="categoryPrimaryButton">
+            <a
+              href="#solutions-list"
+              className="categoryPrimaryButton"
+            >
               Смотреть решения <span>→</span>
             </a>
 
-            <a href="/#contacts" className="categorySecondaryButton">
+            <a
+              href="/#contacts"
+              className="categorySecondaryButton"
+            >
               Обсудить проект
             </a>
           </div>
@@ -162,7 +217,7 @@ export default function IntegratedSolutionsPage() {
         <div className="categoryHeroStats">
           <div>
             <strong>ПОД КЛЮЧ</strong>
-            <span>единая инженерная система</span>
+            <span>полный цикл проекта</span>
           </div>
 
           <div>
@@ -171,13 +226,13 @@ export default function IntegratedSolutionsPage() {
           </div>
 
           <div>
-            <strong>ПОЛНЫЙ ЦИКЛ</strong>
-            <span>проект · поставка · запуск</span>
+            <strong>1 СИСТЕМА</strong>
+            <span>единая ответственность</span>
           </div>
 
           <div>
-            <strong>СЕРВИС</strong>
-            <span>сопровождение после запуска</span>
+            <strong>24 / 7</strong>
+            <span>техническое сопровождение</span>
           </div>
         </div>
       </section>
@@ -190,52 +245,59 @@ export default function IntegratedSolutionsPage() {
 
         <div className="categoryIntroGrid">
           <h2>
-            Все элементы
+            От исходных данных
             <br />
-            работают вместе.
+            до работающего объекта.
           </h2>
 
           <div>
             <p>
-              Очистные сооружения — это не отдельный насос, резервуар или
-              мембранная установка. Эффективность объекта зависит от того,
-              насколько правильно все технологические и инженерные системы
-              объединены в единый комплекс.
+              Очистные сооружения — это не набор отдельных единиц
+              оборудования. Насосы, резервуары, биологические реакторы,
+              мембраны, системы аэрации, дозирование и автоматика должны
+              работать как единый технологический комплекс.
             </p>
 
             <p>
-              SUVSANOAT рассматривает объект как целую систему: технологию,
-              резервуары, оборудование, трубопроводы, электрику,
-              автоматизацию и эксплуатационные требования.
+              SUVSANOAT объединяет все основные этапы реализации проекта:
+              инженерные расчёты, подбор технологии, комплектацию,
+              производство, поставку, монтаж, автоматизацию,
+              пусконаладку и сервис.
             </p>
           </div>
         </div>
       </section>
 
       {/* SOLUTIONS */}
-      <section className="categoryEquipment" id="solutions-list">
+      <section
+        className="categoryEquipment"
+        id="solutions-list"
+      >
         <div className="categorySectionHeader">
           <div>
             <span className="categorySectionLabel">
-              СОСТАВ КОМПЛЕКСНОГО РЕШЕНИЯ
+              ПОЛНЫЙ ЦИКЛ
             </span>
 
             <h2>
-              От технологии
+              Всё необходимое
               <br />
-              до запуска.
+              в одном проекте.
             </h2>
           </div>
 
           <p>
-            Комплектуем объект как единую инженерную систему и определяем
-            необходимый состав оборудования в зависимости от конкретной задачи.
+            Комплексный подход снижает риски несогласованности оборудования
+            и позволяет рассматривать объект как единую инженерную систему.
           </p>
         </div>
 
         <div className="categoryEquipmentGrid">
           {solutions.map((item) => (
-            <article className="categoryEquipmentCard" key={item.number}>
+            <article
+              className="categoryEquipmentCard"
+              key={item.number}
+            >
               <div className="categoryEquipmentTop">
                 <span>{item.number}</span>
                 <b>↗</b>
@@ -245,7 +307,7 @@ export default function IntegratedSolutionsPage() {
               <p>{item.text}</p>
 
               <a href="/#contacts">
-                Обсудить решение <span>→</span>
+                Обсудить проект <span>→</span>
               </a>
             </article>
           ))}
@@ -255,25 +317,28 @@ export default function IntegratedSolutionsPage() {
       {/* PROCESS */}
       <section className="waterProcessSection">
         <span className="categorySectionLabel">
-          ЭТАПЫ РЕАЛИЗАЦИИ
+          РЕАЛИЗАЦИЯ ПРОЕКТА
         </span>
 
         <div className="waterProcessHeader">
           <h2>
-            От исходных данных
+            Пять этапов
             <br />
-            до работающего объекта.
+            до запуска объекта.
           </h2>
 
           <p>
-            Каждый этап связан с предыдущим. Это позволяет заранее согласовать
-            технологию, оборудование и инженерную инфраструктуру объекта.
+            Каждый проект начинается с исходных данных и заканчивается
+            настройкой системы в реальных эксплуатационных условиях.
           </p>
         </div>
 
         <div className="waterProcess">
           {process.map((step, index) => (
-            <div key={step.number} style={{ display: "contents" }}>
+            <div
+              key={step.number}
+              style={{ display: "contents" }}
+            >
               <article className="waterProcessStep">
                 <span>{step.number}</span>
                 <strong>{step.title}</strong>
@@ -281,39 +346,12 @@ export default function IntegratedSolutionsPage() {
               </article>
 
               {index < process.length - 1 && (
-                <div className="waterProcessArrow">→</div>
+                <div className="waterProcessArrow">
+                  →
+                </div>
               )}
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* FULL CYCLE */}
-      <section className="categoryIntro">
-        <span className="categorySectionLabel">
-          ЕДИНАЯ ОТВЕТСТВЕННОСТЬ
-        </span>
-
-        <div className="categoryIntroGrid">
-          <h2>
-            Один подрядчик.
-            <br />
-            Весь цикл проекта.
-          </h2>
-
-          <div>
-            <p>
-              Единый подход снижает риск несовместимости оборудования,
-              ошибок при монтаже и несогласованности между отдельными
-              инженерными системами.
-            </p>
-
-            <p>
-              Заказчик получает не набор отдельных компонентов, а
-              согласованное решение, рассчитанное под производительность,
-              характеристики воды и условия эксплуатации конкретного объекта.
-            </p>
-          </div>
         </div>
       </section>
 
@@ -326,23 +364,28 @@ export default function IntegratedSolutionsPage() {
             </span>
 
             <h2>
-              Решения
+              Решения для
               <br />
-              для разных объектов.
+              разных объектов.
             </h2>
           </div>
 
           <p>
-            Реализуем инженерные системы для новых объектов, реконструкции и
-            модернизации существующих очистных сооружений и систем
-            водоподготовки.
+            Проектируем новые системы и решения для реконструкции
+            и модернизации существующих очистных сооружений.
           </p>
         </div>
 
         <div className="categoryApplicationGrid">
           {applications.map((item, index) => (
-            <div className="categoryApplicationItem" key={item}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
+            <div
+              className="categoryApplicationItem"
+              key={item}
+            >
+              <span>
+                {String(index + 1).padStart(2, "0")}
+              </span>
+
               <strong>{item}</strong>
             </div>
           ))}
@@ -352,24 +395,28 @@ export default function IntegratedSolutionsPage() {
       {/* CTA */}
       <section className="categoryCTA">
         <div>
-          <span>НАЧАТЬ ПРОЕКТ</span>
+          <span>
+            НАЧАТЬ ПРОЕКТ
+          </span>
 
           <h2>
-            Есть техническое
+            Нужны очистные
             <br />
-            задание?
+            сооружения под ключ?
           </h2>
         </div>
 
         <div className="categoryCTARight">
           <p>
-            Отправьте техническое задание, анализы воды или сточных вод,
-            требуемую производительность, чертежи или имеющиеся исходные
-            данные. Подготовим предварительную концепцию комплексного решения.
+            Отправьте производительность, техническое задание,
+            анализы воды или сточных вод и требования к результату.
+            Подготовим предварительную технологическую концепцию
+            и состав оборудования.
           </p>
 
           <a href="/#contacts">
-            ПОЛУЧИТЬ ПРЕДВАРИТЕЛЬНОЕ РЕШЕНИЕ <span>→</span>
+            ПОЛУЧИТЬ ТЕХНИЧЕСКОЕ ПРЕДЛОЖЕНИЕ{" "}
+            <span>→</span>
           </a>
         </div>
       </section>
@@ -377,18 +424,27 @@ export default function IntegratedSolutionsPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
-            <img src="/logo.png" alt="SUVSANOAT" />
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
+            <img
+              src="/logo.png"
+              alt="SUVSANOAT"
+            />
           </a>
 
           <p>
             Инженерные системы очистки воды
-            <br />и сточных вод.
+            <br />
+            и сточных вод.
           </p>
         </div>
 
         <div>
           <span>НАВИГАЦИЯ</span>
+
           <a href="/#catalog">Каталог</a>
           <a href="/#solutions">Решения</a>
           <a href="/#technologies">Технологии</a>

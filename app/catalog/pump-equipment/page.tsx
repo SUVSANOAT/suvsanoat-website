@@ -1,3 +1,47 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Насосное оборудование в Узбекистане — насосы и КНС",
+
+  description:
+    "SUVSANOAT поставляет насосное оборудование в Узбекистане: канализационные, дренажные, центробежные и многоступенчатые насосы, насосные станции и КНС. Инженерный подбор по расходу и напору.",
+
+  alternates: {
+    canonical: "/catalog/pump-equipment",
+  },
+
+  openGraph: {
+    title: "Насосное оборудование в Узбекистане | SUVSANOAT",
+    description:
+      "Промышленные насосы, насосные станции и КНС для водоснабжения, водоподготовки и очистных сооружений.",
+    url: "https://suvsanoat.uz/catalog/pump-equipment",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/pump-equipment.png",
+        width: 1200,
+        height: 630,
+        alt: "Промышленное насосное оборудование SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Насосное оборудование в Узбекистане | SUVSANOAT",
+    description:
+      "Насосы, насосные станции и КНС для промышленных и инфраструктурных объектов.",
+    images: ["/pump-equipment.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function PumpEquipmentPage() {
   const equipment = [
     {
@@ -61,24 +105,24 @@ export default function PumpEquipmentPage() {
     {
       number: "04",
       title: "Автоматизация",
-      text: "Подбираем шкаф управления, датчики, защиту и частотное регулирование.",
+      text: "Подбираем шкаф управления, частотное регулирование, датчики и системы защиты.",
     },
     {
       number: "05",
       title: "Поставка и запуск",
-      text: "Комплектуем оборудование и обеспечиваем техническое сопровождение запуска.",
+      text: "Комплектуем оборудование, поставляем на объект и выполняем пусконаладку.",
     },
   ];
 
   const applications = [
     "Очистные сооружения",
-    "Водоподготовка",
     "Канализационные насосные станции",
-    "Промышленные предприятия",
     "Системы водоснабжения",
-    "Жилые комплексы",
-    "Коммерческие объекты",
-    "Инфраструктурные объекты",
+    "Системы водоподготовки",
+    "Промышленные предприятия",
+    "Дренажные системы",
+    "Системы обратного осмоса",
+    "Технологические процессы",
   ];
 
   return (
@@ -107,7 +151,7 @@ export default function PumpEquipmentPage() {
         <div className="categoryHeroImage">
           <img
             src="/pump-equipment.png"
-            alt="Промышленное насосное оборудование SUVSANOAT"
+            alt="Промышленное насосное оборудование SUVSANOAT в Узбекистане"
           />
         </div>
 
@@ -206,9 +250,7 @@ export default function PumpEquipmentPage() {
       <section className="categoryEquipment" id="equipment">
         <div className="categorySectionHeader">
           <div>
-            <span className="categorySectionLabel">
-              ОБОРУДОВАНИЕ
-            </span>
+            <span className="categorySectionLabel">ОБОРУДОВАНИЕ</span>
 
             <h2>
               Насосное оборудование
@@ -245,9 +287,7 @@ export default function PumpEquipmentPage() {
 
       {/* PROCESS */}
       <section className="waterProcessSection">
-        <span className="categorySectionLabel">
-          ИНЖЕНЕРНЫЙ ПОДБОР
-        </span>
+        <span className="categorySectionLabel">ИНЖЕНЕРНЫЙ ПОДБОР</span>
 
         <div className="waterProcessHeader">
           <h2>
@@ -298,8 +338,8 @@ export default function PumpEquipmentPage() {
           </div>
 
           <p>
-            Подбираем насосное оборудование как для новых объектов, так и
-            для модернизации существующих инженерных систем.
+            Подбираем насосное оборудование для новых объектов,
+            реконструкции и модернизации существующих инженерных систем.
           </p>
         </div>
 
@@ -317,20 +357,20 @@ export default function PumpEquipmentPage() {
       {/* CTA */}
       <section className="categoryCTA">
         <div>
-          <span>ПОДБОР НАСОСА</span>
+          <span>ПОДБОР НАСОСНОГО ОБОРУДОВАНИЯ</span>
 
           <h2>
-            Подберём насос
+            Рассчитаем насос
             <br />
-            под вашу систему.
+            под ваш объект.
           </h2>
         </div>
 
         <div className="categoryCTARight">
           <p>
-            Отправьте требуемую производительность, напор, назначение системы
-            и характеристики перекачиваемой жидкости. Подготовим
-            предварительный подбор оборудования.
+            Отправьте требуемый расход, напор, характеристики жидкости
+            и условия эксплуатации. Подберём насосное оборудование,
+            автоматику и необходимую комплектацию.
           </p>
 
           <a href="/#contacts">
@@ -342,7 +382,11 @@ export default function PumpEquipmentPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
             <img src="/logo.png" alt="SUVSANOAT" />
           </a>
 

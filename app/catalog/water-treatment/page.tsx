@@ -1,3 +1,47 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Водоподготовка в Узбекистане — системы очистки воды",
+
+  description:
+    "SUVSANOAT проектирует и поставляет системы водоподготовки в Узбекистане. Обратный осмос RO, ультрафильтрация UF, умягчение, фильтрация, обезжелезивание, деминерализация и дозирование реагентов.",
+
+  alternates: {
+    canonical: "/catalog/water-treatment",
+  },
+
+  openGraph: {
+    title: "Водоподготовка в Узбекистане | SUVSANOAT",
+    description:
+      "Промышленные системы водоподготовки и очистки воды: RO, UF, фильтрация, умягчение, обезжелезивание и деминерализация.",
+    url: "https://suvsanoat.uz/catalog/water-treatment",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/water-treatment.png",
+        width: 1200,
+        height: 630,
+        alt: "Промышленная водоподготовка SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Водоподготовка в Узбекистане | SUVSANOAT",
+    description:
+      "Проектирование и поставка промышленных систем очистки и подготовки воды.",
+    images: ["/water-treatment.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function WaterTreatmentPage() {
   const equipment = [
     {
@@ -65,7 +109,11 @@ export default function WaterTreatmentPage() {
     <main className="categoryPage">
       {/* HEADER */}
       <header className="categoryHeader">
-        <a href="/" className="categoryLogo" aria-label="SUVSANOAT — главная">
+        <a
+          href="/"
+          className="categoryLogo"
+          aria-label="SUVSANOAT — главная"
+        >
           <img src="/logo.png" alt="SUVSANOAT" />
         </a>
 
@@ -74,7 +122,11 @@ export default function WaterTreatmentPage() {
           <a href="/#catalog">Каталог</a>
           <a href="/#solutions">Решения</a>
           <a href="/#technologies">Технологии</a>
-          <a href="/#contacts" className="categoryContactButton">
+
+          <a
+            href="/#contacts"
+            className="categoryContactButton"
+          >
             Получить расчёт
           </a>
         </nav>
@@ -85,7 +137,7 @@ export default function WaterTreatmentPage() {
         <div className="categoryHeroImage">
           <img
             src="/water-treatment.png"
-            alt="Промышленная система водоподготовки SUVSANOAT"
+            alt="Промышленная система водоподготовки SUVSANOAT в Узбекистане"
           />
         </div>
 
@@ -117,11 +169,17 @@ export default function WaterTreatmentPage() {
           </p>
 
           <div className="categoryHeroButtons">
-            <a href="/#contacts" className="categoryPrimaryButton">
+            <a
+              href="/#contacts"
+              className="categoryPrimaryButton"
+            >
               Получить расчёт <span>→</span>
             </a>
 
-            <a href="#equipment" className="categorySecondaryButton">
+            <a
+              href="#equipment"
+              className="categorySecondaryButton"
+            >
               Смотреть оборудование
             </a>
           </div>
@@ -152,7 +210,9 @@ export default function WaterTreatmentPage() {
 
       {/* INTRO */}
       <section className="categoryIntro">
-        <div className="categorySectionLabel">ВОДОПОДГОТОВКА</div>
+        <div className="categorySectionLabel">
+          ВОДОПОДГОТОВКА
+        </div>
 
         <div className="categoryIntroGrid">
           <h2>
@@ -177,10 +237,16 @@ export default function WaterTreatmentPage() {
       </section>
 
       {/* EQUIPMENT */}
-      <section className="categoryEquipment" id="equipment">
+      <section
+        className="categoryEquipment"
+        id="equipment"
+      >
         <div className="categorySectionHeader">
           <div>
-            <span className="categorySectionLabel">ОБОРУДОВАНИЕ</span>
+            <span className="categorySectionLabel">
+              ОБОРУДОВАНИЕ
+            </span>
+
             <h2>
               Комплексные системы
               <br />
@@ -196,13 +262,17 @@ export default function WaterTreatmentPage() {
 
         <div className="categoryEquipmentGrid">
           {equipment.map((item) => (
-            <article className="categoryEquipmentCard" key={item.number}>
+            <article
+              className="categoryEquipmentCard"
+              key={item.number}
+            >
               <div className="categoryEquipmentTop">
                 <span>{item.number}</span>
                 <b>{item.code}</b>
               </div>
 
               <h3>{item.title}</h3>
+
               <p>{item.text}</p>
 
               <a href="/#contacts">
@@ -236,39 +306,57 @@ export default function WaterTreatmentPage() {
           <div className="waterProcessStep">
             <span>01</span>
             <strong>ИСХОДНАЯ ВОДА</strong>
-            <p>Скважина, водопровод, поверхностный источник</p>
+            <p>
+              Скважина, водопровод, поверхностный источник
+            </p>
           </div>
 
-          <div className="waterProcessArrow">→</div>
+          <div className="waterProcessArrow">
+            →
+          </div>
 
           <div className="waterProcessStep">
             <span>02</span>
             <strong>АНАЛИЗ</strong>
-            <p>Определение состава и основных показателей</p>
+            <p>
+              Определение состава и основных показателей
+            </p>
           </div>
 
-          <div className="waterProcessArrow">→</div>
+          <div className="waterProcessArrow">
+            →
+          </div>
 
           <div className="waterProcessStep">
             <span>03</span>
             <strong>ПРЕДОЧИСТКА</strong>
-            <p>Фильтрация и предварительная подготовка</p>
+            <p>
+              Фильтрация и предварительная подготовка
+            </p>
           </div>
 
-          <div className="waterProcessArrow">→</div>
+          <div className="waterProcessArrow">
+            →
+          </div>
 
           <div className="waterProcessStep">
             <span>04</span>
             <strong>RO / UF / IX</strong>
-            <p>Основная ступень технологической очистки</p>
+            <p>
+              Основная ступень технологической очистки
+            </p>
           </div>
 
-          <div className="waterProcessArrow">→</div>
+          <div className="waterProcessArrow">
+            →
+          </div>
 
           <div className="waterProcessStep">
             <span>05</span>
             <strong>ГОТОВАЯ ВОДА</strong>
-            <p>Параметры воды согласно требованиям объекта</p>
+            <p>
+              Вода с требуемыми показателями качества
+            </p>
           </div>
         </div>
       </section>
@@ -277,25 +365,33 @@ export default function WaterTreatmentPage() {
       <section className="categoryApplications">
         <div className="categorySectionHeader">
           <div>
-            <span className="categorySectionLabel">ПРИМЕНЕНИЕ</span>
+            <span className="categorySectionLabel">
+              ОБЛАСТИ ПРИМЕНЕНИЯ
+            </span>
 
             <h2>
-              Решения для различных
+              Для промышленности
               <br />
-              отраслей.
+              и инфраструктуры.
             </h2>
           </div>
 
           <p>
-            Конфигурация системы определяется назначением воды,
-            производительностью и требованиями производства.
+            Системы водоподготовки проектируются под требования
+            конкретного объекта и требуемые показатели качества воды.
           </p>
         </div>
 
         <div className="categoryApplicationGrid">
           {applications.map((item, index) => (
-            <div className="categoryApplicationItem" key={item}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
+            <div
+              className="categoryApplicationItem"
+              key={item}
+            >
+              <span>
+                {String(index + 1).padStart(2, "0")}
+              </span>
+
               <strong>{item}</strong>
             </div>
           ))}
@@ -305,24 +401,27 @@ export default function WaterTreatmentPage() {
       {/* CTA */}
       <section className="categoryCTA">
         <div>
-          <span>ПОЛУЧИТЬ ТЕХНИЧЕСКОЕ РЕШЕНИЕ</span>
+          <span>
+            ПОДБОР СИСТЕМЫ ВОДОПОДГОТОВКИ
+          </span>
 
           <h2>
-            Нужна система
+            Рассчитаем систему
             <br />
-            водоподготовки?
+            для вашего объекта.
           </h2>
         </div>
 
         <div className="categoryCTARight">
           <p>
             Отправьте анализ исходной воды, требуемую производительность
-            и показатели воды на выходе. Подберём технологию и подготовим
-            предварительное техническое предложение.
+            и показатели воды на выходе. Подберём технологическую схему
+            и подготовим предварительное техническое решение.
           </p>
 
           <a href="/#contacts">
-            Получить расчёт <span>→</span>
+            ПОЛУЧИТЬ ПРЕДВАРИТЕЛЬНЫЙ РАСЧЁТ{" "}
+            <span>→</span>
           </a>
         </div>
       </section>
@@ -330,24 +429,58 @@ export default function WaterTreatmentPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
-            <img src="/logo.png" alt="SUVSANOAT" />
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
+            <img
+              src="/logo.png"
+              alt="SUVSANOAT"
+            />
           </a>
 
-          <p>Инженерные системы очистки и подготовки воды.</p>
-        </div>
-
-        <div>
-          <span>КОНТАКТЫ</span>
-          <a href="tel:+998773043400">+998 77 304 34 00</a>
-          <a href="mailto:suvsanoat@gmail.com">suvsanoat@gmail.com</a>
+          <p>
+            Инженерные системы очистки воды
+            <br />
+            и сточных вод.
+          </p>
         </div>
 
         <div>
           <span>НАВИГАЦИЯ</span>
-          <a href="/">Главная</a>
-          <a href="/#catalog">Каталог</a>
-          <a href="/#contacts">Получить расчёт</a>
+
+          <a href="/#catalog">
+            Каталог
+          </a>
+
+          <a href="/#solutions">
+            Решения
+          </a>
+
+          <a href="/#technologies">
+            Технологии
+          </a>
+
+          <a href="/#services">
+            Услуги
+          </a>
+
+          <a href="/#contacts">
+            Контакты
+          </a>
+        </div>
+
+        <div>
+          <span>СВЯЗАТЬСЯ</span>
+
+          <a href="tel:+998773043400">
+            +998 77 304 34 00
+          </a>
+
+          <a href="mailto:suvsanoat@gmail.com">
+            suvsanoat@gmail.com
+          </a>
         </div>
       </footer>
     </main>

@@ -1,3 +1,47 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Механическая очистка сточных вод в Узбекистане",
+
+  description:
+    "SUVSANOAT поставляет оборудование механической очистки сточных вод в Узбекистане: механические, барабанные и шнековые решётки, песколовки, жироуловители, нефтеуловители и компакторы отходов.",
+
+  alternates: {
+    canonical: "/catalog/mechanical-treatment",
+  },
+
+  openGraph: {
+    title: "Механическая очистка сточных вод | SUVSANOAT",
+    description:
+      "Оборудование механической очистки сточных вод: решётки, песколовки, жироуловители, нефтеуловители и системы удаления отходов.",
+    url: "https://suvsanoat.uz/catalog/mechanical-treatment",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/mechanical-treatment.png",
+        width: 1200,
+        height: 630,
+        alt: "Механическая очистка сточных вод SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Механическая очистка сточных вод | SUVSANOAT",
+    description:
+      "Промышленное оборудование для механической очистки сточных вод в Узбекистане.",
+    images: ["/mechanical-treatment.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function MechanicalTreatmentPage() {
   const equipment = [
     {
@@ -85,7 +129,11 @@ export default function MechanicalTreatmentPage() {
     <main className="categoryPage">
       {/* HEADER */}
       <header className="categoryHeader">
-        <a href="/" className="categoryLogo" aria-label="SUVSANOAT — главная">
+        <a
+          href="/"
+          className="categoryLogo"
+          aria-label="SUVSANOAT — главная"
+        >
           <img src="/logo.png" alt="SUVSANOAT" />
         </a>
 
@@ -96,7 +144,10 @@ export default function MechanicalTreatmentPage() {
           <a href="/#services">Услуги</a>
           <a href="/#contacts">Контакты</a>
 
-          <a href="/#contacts" className="categoryContactButton">
+          <a
+            href="/#contacts"
+            className="categoryContactButton"
+          >
             Получить расчёт
           </a>
         </nav>
@@ -107,7 +158,7 @@ export default function MechanicalTreatmentPage() {
         <div className="categoryHeroImage">
           <img
             src="/mechanical-treatment.png"
-            alt="Механическая очистка сточных вод SUVSANOAT"
+            alt="Оборудование механической очистки сточных вод SUVSANOAT"
           />
         </div>
 
@@ -139,11 +190,17 @@ export default function MechanicalTreatmentPage() {
           </p>
 
           <div className="categoryHeroButtons">
-            <a href="#equipment" className="categoryPrimaryButton">
+            <a
+              href="#equipment"
+              className="categoryPrimaryButton"
+            >
               Смотреть оборудование <span>→</span>
             </a>
 
-            <a href="/#contacts" className="categorySecondaryButton">
+            <a
+              href="/#contacts"
+              className="categorySecondaryButton"
+            >
               Получить расчёт
             </a>
           </div>
@@ -203,7 +260,10 @@ export default function MechanicalTreatmentPage() {
       </section>
 
       {/* EQUIPMENT */}
-      <section className="categoryEquipment" id="equipment">
+      <section
+        className="categoryEquipment"
+        id="equipment"
+      >
         <div className="categorySectionHeader">
           <div>
             <span className="categorySectionLabel">
@@ -225,14 +285,16 @@ export default function MechanicalTreatmentPage() {
 
         <div className="categoryEquipmentGrid">
           {equipment.map((item) => (
-            <article className="categoryEquipmentCard" key={item.number}>
+            <article
+              className="categoryEquipmentCard"
+              key={item.number}
+            >
               <div className="categoryEquipmentTop">
                 <span>{item.number}</span>
                 <b>↗</b>
               </div>
 
               <h3>{item.title}</h3>
-
               <p>{item.text}</p>
 
               <a href="/#contacts">
@@ -246,14 +308,14 @@ export default function MechanicalTreatmentPage() {
       {/* PROCESS */}
       <section className="waterProcessSection">
         <span className="categorySectionLabel">
-          ТЕХНОЛОГИЧЕСКАЯ СХЕМА
+          ТЕХНОЛОГИЧЕСКАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ
         </span>
 
         <div className="waterProcessHeader">
           <h2>
-            От входного потока
+            От входа
             <br />
-            к дальнейшей очистке.
+            до основной очистки.
           </h2>
 
           <p>
@@ -307,8 +369,13 @@ export default function MechanicalTreatmentPage() {
 
         <div className="categoryApplicationGrid">
           {applications.map((item, index) => (
-            <div className="categoryApplicationItem" key={item}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
+            <div
+              className="categoryApplicationItem"
+              key={item}
+            >
+              <span>
+                {String(index + 1).padStart(2, "0")}
+              </span>
 
               <strong>{item}</strong>
             </div>
@@ -319,7 +386,9 @@ export default function MechanicalTreatmentPage() {
       {/* CTA */}
       <section className="categoryCTA">
         <div>
-          <span>ПОДБОР ОБОРУДОВАНИЯ</span>
+          <span>
+            ПОДБОР ОБОРУДОВАНИЯ
+          </span>
 
           <h2>
             Подберём оборудование
@@ -336,7 +405,8 @@ export default function MechanicalTreatmentPage() {
           </p>
 
           <a href="/#contacts">
-            ПОЛУЧИТЬ ПРЕДВАРИТЕЛЬНЫЙ РАСЧЁТ <span>→</span>
+            ПОЛУЧИТЬ ПРЕДВАРИТЕЛЬНЫЙ РАСЧЁТ{" "}
+            <span>→</span>
           </a>
         </div>
       </section>
@@ -344,8 +414,15 @@ export default function MechanicalTreatmentPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
-            <img src="/logo.png" alt="SUVSANOAT" />
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
+            <img
+              src="/logo.png"
+              alt="SUVSANOAT"
+            />
           </a>
 
           <p>
@@ -358,11 +435,25 @@ export default function MechanicalTreatmentPage() {
         <div>
           <span>НАВИГАЦИЯ</span>
 
-          <a href="/#catalog">Каталог</a>
-          <a href="/#solutions">Решения</a>
-          <a href="/#technologies">Технологии</a>
-          <a href="/#services">Услуги</a>
-          <a href="/#contacts">Контакты</a>
+          <a href="/#catalog">
+            Каталог
+          </a>
+
+          <a href="/#solutions">
+            Решения
+          </a>
+
+          <a href="/#technologies">
+            Технологии
+          </a>
+
+          <a href="/#services">
+            Услуги
+          </a>
+
+          <a href="/#contacts">
+            Контакты
+          </a>
         </div>
 
         <div>

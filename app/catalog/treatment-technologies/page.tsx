@@ -1,109 +1,141 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Технологии очистки сточных вод — MBR, SBR, MBBR, DAF",
+
+  description:
+    "SUVSANOAT проектирует системы очистки сточных вод на базе технологий MBR, SBR, MBBR, A/O, A²/O, ANBR, DAF, UF и RO. Подбор технологии очистки для промышленных и коммунальных объектов в Узбекистане.",
+
+  alternates: {
+    canonical: "/catalog/treatment-technologies",
+  },
+
+  openGraph: {
+    title: "Технологии очистки сточных вод | SUVSANOAT",
+    description:
+      "MBR, SBR, MBBR, A/O, A²/O, ANBR, DAF, ультрафильтрация и обратный осмос для современных очистных сооружений.",
+    url: "https://suvsanoat.uz/catalog/treatment-technologies",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/treatment-technologies.png",
+        width: 1200,
+        height: 630,
+        alt: "Технологии очистки сточных вод MBR SBR MBBR SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Технологии очистки сточных вод | SUVSANOAT",
+    description:
+      "MBR, SBR, MBBR, A/O, A²/O, ANBR, DAF, UF и RO для очистки сточных вод.",
+    images: ["/treatment-technologies.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function TreatmentTechnologiesPage() {
   const technologies = [
     {
       number: "01",
-      code: "MBR",
-      title: "Мембранный биореактор",
-      text: "Биологическая очистка в сочетании с мембранным разделением. Обеспечивает высокое качество очищенной воды и позволяет значительно сократить площадь сооружений.",
+      title: "MBR",
+      subtitle: "Membrane Bioreactor",
+      text: "Мембранный биореактор объединяет биологическую очистку и мембранное разделение, обеспечивая высокое качество очищенной воды и компактность сооружений.",
     },
     {
       number: "02",
-      code: "SBR",
-      title: "Реактор периодического действия",
-      text: "Биологическая очистка в одном реакторе с последовательными фазами наполнения, аэрации, отстаивания и отвода очищенной воды.",
+      title: "SBR",
+      subtitle: "Sequencing Batch Reactor",
+      text: "Последовательный биологический реактор выполняет основные стадии очистки в одном резервуаре по заданным временным циклам.",
     },
     {
       number: "03",
-      code: "MBBR",
-      title: "Биоплёночная технология",
-      text: "Очистка с использованием подвижной загрузки, на поверхности которой развивается активная биоплёнка. Подходит для переменных органических нагрузок.",
+      title: "MBBR",
+      subtitle: "Moving Bed Biofilm Reactor",
+      text: "Технология с подвижной биозагрузкой обеспечивает развитие активной биоплёнки и позволяет увеличить эффективность биологической очистки.",
     },
     {
       number: "04",
-      code: "A/O",
-      title: "Аноксидно-аэробная очистка",
-      text: "Комбинация аноксидной и аэробной зон для биологического удаления органических загрязнений и соединений азота.",
+      title: "A/O",
+      subtitle: "Anoxic / Oxic",
+      text: "Комбинация аноксидной и аэробной зон для удаления органических загрязнений и соединений азота.",
     },
     {
       number: "05",
-      code: "A²/O",
-      title: "Удаление азота и фосфора",
-      text: "Многоступенчатая биологическая схема с анаэробной, аноксидной и аэробной зонами для глубокой очистки сточных вод.",
+      title: "A²/O",
+      subtitle: "Anaerobic / Anoxic / Oxic",
+      text: "Многостадийная биологическая технология для удаления органических загрязнений, азота и фосфора.",
     },
     {
       number: "06",
-      code: "ANBR",
-      title: "Анаэробный биореактор",
-      text: "Анаэробная технология для сточных вод с высокой концентрацией органических загрязнений и снижения нагрузки на последующие стадии очистки.",
+      title: "ANBR",
+      subtitle: "Anaerobic Bioreactor",
+      text: "Анаэробная технология для обработки высококонцентрированных промышленных сточных вод с высокой органической нагрузкой.",
     },
     {
       number: "07",
-      code: "DAF",
-      title: "Напорная флотация",
-      text: "Физико-химическое удаление взвешенных веществ, масел, жиров и других загрязнений с помощью микропузырьков воздуха.",
+      title: "DAF",
+      subtitle: "Dissolved Air Flotation",
+      text: "Напорная флотация применяется для удаления взвешенных веществ, масел, жиров и других трудноосаждаемых загрязнений.",
     },
     {
       number: "08",
-      code: "UF",
-      title: "Ультрафильтрация",
-      text: "Мембранная технология для удаления взвешенных веществ, коллоидных частиц и микроорганизмов на стадии глубокой доочистки воды.",
+      title: "UF",
+      subtitle: "Ultrafiltration",
+      text: "Мембранная ультрафильтрация удаляет взвешенные вещества, коллоиды и микроорганизмы и применяется для глубокой доочистки воды.",
     },
     {
       number: "09",
-      code: "RO",
-      title: "Обратный осмос",
-      text: "Глубокая мембранная очистка воды от растворённых солей и других примесей для получения воды требуемого качества.",
-    },
-    {
-      number: "10",
-      code: "PHYS-CHEM",
-      title: "Физико-химическая очистка",
-      text: "Коагуляция, флокуляция, нейтрализация, флотация и другие процессы для обработки сложных промышленных сточных вод.",
-    },
-    {
-      number: "11",
-      code: "REUSE",
-      title: "Повторное использование воды",
-      text: "Комплексная доочистка очищенных сточных вод для их возврата в техническое водоснабжение и технологические процессы предприятия.",
+      title: "RO",
+      subtitle: "Reverse Osmosis",
+      text: "Обратный осмос используется для глубокой очистки, снижения минерализации и подготовки воды для повторного или технологического использования.",
     },
   ];
 
-  const process = [
+  const selection = [
     {
       number: "01",
-      title: "Анализы",
-      text: "Изучаем состав исходной воды или сточных вод и фактические концентрации загрязнений.",
+      title: "Состав сточных вод",
+      text: "Анализируем органические, химические, взвешенные и специфические загрязнения.",
     },
     {
       number: "02",
-      title: "Требования",
-      text: "Определяем необходимое качество очищенной воды и условия её сброса или повторного использования.",
+      title: "Производительность",
+      text: "Определяем средний, максимальный и пиковый расход сточных вод.",
     },
     {
       number: "03",
-      title: "Технология",
-      text: "Подбираем оптимальную комбинацию механических, биологических, физико-химических и мембранных процессов.",
+      title: "Требования на выходе",
+      text: "Учитываем нормативы сброса или требования к повторному использованию очищенной воды.",
     },
     {
       number: "04",
-      title: "Расчёт",
-      text: "Определяем объёмы сооружений, нагрузки, оборудование и основные эксплуатационные параметры системы.",
+      title: "Условия объекта",
+      text: "Учитываем доступную площадь, существующую инфраструктуру и режим эксплуатации.",
     },
     {
       number: "05",
-      title: "Реализация",
-      text: "Проектируем, комплектуем и запускаем технологическую систему как единый комплекс.",
+      title: "Эксплуатационные расходы",
+      text: "Сравниваем энергопотребление, реагенты, обслуживание и образование осадка.",
     },
   ];
 
   const applications = [
     "Коммунальные сточные воды",
-    "Текстильные предприятия",
-    "Пищевые производства",
+    "Текстильная промышленность",
+    "Пищевая промышленность",
     "Молочные предприятия",
-    "Мясокомбинаты",
-    "Птицефабрики",
-    "Сложные промышленные стоки",
+    "Мясопереработка",
+    "Нефтесодержащие стоки",
+    "Высококонцентрированные стоки",
     "Повторное использование воды",
   ];
 
@@ -111,7 +143,11 @@ export default function TreatmentTechnologiesPage() {
     <main className="categoryPage">
       {/* HEADER */}
       <header className="categoryHeader">
-        <a href="/" className="categoryLogo" aria-label="SUVSANOAT — главная">
+        <a
+          href="/"
+          className="categoryLogo"
+          aria-label="SUVSANOAT — главная"
+        >
           <img src="/logo.png" alt="SUVSANOAT" />
         </a>
 
@@ -133,7 +169,7 @@ export default function TreatmentTechnologiesPage() {
         <div className="categoryHeroImage">
           <img
             src="/treatment-technologies.png"
-            alt="Технологии очистки воды и сточных вод SUVSANOAT"
+            alt="Технологии очистки сточных вод MBR SBR MBBR DAF SUVSANOAT"
           />
         </div>
 
@@ -153,18 +189,18 @@ export default function TreatmentTechnologiesPage() {
           </div>
 
           <h1>
-            Не одна технология.
-            <br />
             Правильная технология.
+            <br />
+            Стабильный результат.
           </h1>
 
           <p>
-            Подбираем технологическую схему под состав сточных вод,
-            производительность объекта и требования к качеству очищенной воды.
+            Современные биологические, физико-химические и мембранные
+            технологии для очистки коммунальных и промышленных сточных вод.
           </p>
 
           <div className="categoryHeroButtons">
-            <a href="#technologies-list" className="categoryPrimaryButton">
+            <a href="#technologies" className="categoryPrimaryButton">
               Смотреть технологии <span>→</span>
             </a>
 
@@ -176,23 +212,23 @@ export default function TreatmentTechnologiesPage() {
 
         <div className="categoryHeroStats">
           <div>
-            <strong>MBR · SBR</strong>
+            <strong>MBR</strong>
+            <span>мембранная очистка</span>
+          </div>
+
+          <div>
+            <strong>SBR / MBBR</strong>
             <span>биологическая очистка</span>
           </div>
 
           <div>
-            <strong>MBBR · A²/O</strong>
-            <span>удаление органики и биогенов</span>
+            <strong>DAF</strong>
+            <span>физико-химическая очистка</span>
           </div>
 
           <div>
-            <strong>DAF · UF · RO</strong>
-            <span>физико-химическая и мембранная очистка</span>
-          </div>
-
-          <div>
-            <strong>REUSE</strong>
-            <span>повторное использование воды</span>
+            <strong>UF / RO</strong>
+            <span>глубокая доочистка</span>
           </div>
         </div>
       </section>
@@ -200,64 +236,79 @@ export default function TreatmentTechnologiesPage() {
       {/* INTRO */}
       <section className="categoryIntro">
         <span className="categorySectionLabel">
-          ИНЖЕНЕРНЫЙ ПОДХОД
+          ИНЖЕНЕРНЫЕ ТЕХНОЛОГИИ
         </span>
 
         <div className="categoryIntroGrid">
           <h2>
-            Технология зависит
+            Не существует
             <br />
-            от воды.
+            одной технологии для всех.
           </h2>
 
           <div>
             <p>
-              Универсальной технологической схемы для всех объектов не
-              существует. Состав сточных вод, расход, режим работы предприятия
-              и требования к очищенной воде определяют архитектуру всей
-              системы.
+              Состав сточных вод разных предприятий может существенно
+              отличаться. Поэтому технологическая схема должна подбираться
+              на основании исходных данных и требуемого качества очищенной
+              воды.
             </p>
 
             <p>
-              SUVSANOAT комбинирует механические, биологические,
-              физико-химические и мембранные процессы для получения
-              технически и экономически обоснованного решения.
+              SUVSANOAT комбинирует механические, физико-химические,
+              биологические и мембранные процессы для создания комплексной
+              системы очистки под конкретный объект.
             </p>
           </div>
         </div>
       </section>
 
       {/* TECHNOLOGIES */}
-      <section className="categoryEquipment" id="technologies-list">
+      <section className="categoryEquipment" id="technologies">
         <div className="categorySectionHeader">
           <div>
             <span className="categorySectionLabel">
-              ТЕХНОЛОГИИ SUVSANOAT
+              ТЕХНОЛОГИИ
             </span>
 
             <h2>
-              От биореактора
+              Современные методы
               <br />
-              до повторного использования.
+              очистки воды и стоков.
             </h2>
           </div>
 
           <p>
-            Отдельные технологии могут использоваться самостоятельно или
-            объединяться в многоступенчатую технологическую схему в зависимости
-            от задачи объекта.
+            Технологии могут применяться отдельно или объединяться
+            в многоступенчатую технологическую схему.
           </p>
         </div>
 
         <div className="categoryEquipmentGrid">
           {technologies.map((item) => (
-            <article className="categoryEquipmentCard" key={item.number}>
+            <article
+              className="categoryEquipmentCard"
+              key={item.number}
+            >
               <div className="categoryEquipmentTop">
                 <span>{item.number}</span>
-                <b>{item.code}</b>
+                <b>{item.title}</b>
               </div>
 
               <h3>{item.title}</h3>
+
+              <strong
+                style={{
+                  display: "block",
+                  marginBottom: "14px",
+                  fontSize: "12px",
+                  letterSpacing: "0.08em",
+                  opacity: 0.55,
+                }}
+              >
+                {item.subtitle}
+              </strong>
+
               <p>{item.text}</p>
 
               <a href="/#contacts">
@@ -268,7 +319,7 @@ export default function TreatmentTechnologiesPage() {
         </div>
       </section>
 
-      {/* PROCESS */}
+      {/* SELECTION */}
       <section className="waterProcessSection">
         <span className="categorySectionLabel">
           ПОДБОР ТЕХНОЛОГИИ
@@ -276,19 +327,20 @@ export default function TreatmentTechnologiesPage() {
 
         <div className="waterProcessHeader">
           <h2>
-            От анализа
+            Решение начинается
             <br />
-            до технологической схемы.
+            с исходных данных.
           </h2>
 
           <p>
-            Решение принимается не по названию технологии, а по исходным
-            данным объекта и требуемому результату очистки.
+            Выбор технологии определяется не названием процесса,
+            а реальными характеристиками сточных вод и требованиями
+            конкретного объекта.
           </p>
         </div>
 
         <div className="waterProcess">
-          {process.map((step, index) => (
+          {selection.map((step, index) => (
             <div key={step.number} style={{ display: "contents" }}>
               <article className="waterProcessStep">
                 <span>{step.number}</span>
@@ -296,7 +348,7 @@ export default function TreatmentTechnologiesPage() {
                 <p>{step.text}</p>
               </article>
 
-              {index < process.length - 1 && (
+              {index < selection.length - 1 && (
                 <div className="waterProcessArrow">→</div>
               )}
             </div>
@@ -313,21 +365,24 @@ export default function TreatmentTechnologiesPage() {
             </span>
 
             <h2>
-              Для простых
+              Для разных типов
               <br />
-              и сложных стоков.
+              сточных вод.
             </h2>
           </div>
 
           <p>
-            Разрабатываем технологические схемы для коммунальных объектов и
-            предприятий с различным составом и концентрацией загрязнений.
+            Технологическая схема разрабатывается с учётом отрасли,
+            состава загрязнений, режима работы и требований к очищенной воде.
           </p>
         </div>
 
         <div className="categoryApplicationGrid">
           {applications.map((item, index) => (
-            <div className="categoryApplicationItem" key={item}>
+            <div
+              className="categoryApplicationItem"
+              key={item}
+            >
               <span>{String(index + 1).padStart(2, "0")}</span>
               <strong>{item}</strong>
             </div>
@@ -338,24 +393,27 @@ export default function TreatmentTechnologiesPage() {
       {/* CTA */}
       <section className="categoryCTA">
         <div>
-          <span>ИНЖЕНЕРНЫЙ ПОДБОР</span>
+          <span>
+            ПОДБОР ТЕХНОЛОГИИ
+          </span>
 
           <h2>
-            Подберём технологию
+            Разработаем схему
             <br />
-            под ваш объект.
+            под ваши сточные воды.
           </h2>
         </div>
 
         <div className="categoryCTARight">
           <p>
-            Отправьте анализы сточных вод, производительность и требования к
-            очищенной воде. Подготовим предварительную технологическую схему и
-            определим необходимый состав оборудования.
+            Отправьте производительность, анализы сточных вод,
+            техническое задание и требования к воде на выходе.
+            Подберём технологию и подготовим предварительную
+            технологическую схему.
           </p>
 
           <a href="/#contacts">
-            ПОЛУЧИТЬ ПРЕДВАРИТЕЛЬНОЕ РЕШЕНИЕ <span>→</span>
+            ПОЛУЧИТЬ ТЕХНИЧЕСКОЕ РЕШЕНИЕ <span>→</span>
           </a>
         </div>
       </section>
@@ -363,18 +421,24 @@ export default function TreatmentTechnologiesPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
             <img src="/logo.png" alt="SUVSANOAT" />
           </a>
 
           <p>
             Инженерные системы очистки воды
-            <br />и сточных вод.
+            <br />
+            и сточных вод.
           </p>
         </div>
 
         <div>
           <span>НАВИГАЦИЯ</span>
+
           <a href="/#catalog">Каталог</a>
           <a href="/#solutions">Решения</a>
           <a href="/#technologies">Технологии</a>

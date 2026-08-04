@@ -1,3 +1,47 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Очистные сооружения в Узбекистане — очистка сточных вод",
+
+  description:
+    "SUVSANOAT проектирует и поставляет очистные сооружения в Узбекистане для бытовых и промышленных сточных вод. MBR, SBR, MBBR, A/O, A²/O, ANBR. Проектирование, производство, поставка, монтаж и пусконаладка.",
+
+  alternates: {
+    canonical: "/catalog/wastewater",
+  },
+
+  openGraph: {
+    title: "Очистные сооружения в Узбекистане | SUVSANOAT",
+    description:
+      "Проектирование и поставка промышленных, коммунальных и локальных очистных сооружений. Современные технологии очистки сточных вод.",
+    url: "https://suvsanoat.uz/catalog/wastewater",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/wastewater-treatment.png",
+        width: 1200,
+        height: 630,
+        alt: "Очистные сооружения и очистка сточных вод SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Очистные сооружения в Узбекистане | SUVSANOAT",
+    description:
+      "Проектирование и поставка систем очистки бытовых и промышленных сточных вод.",
+    images: ["/wastewater-treatment.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function WastewaterPage() {
   const solutions = [
     {
@@ -100,7 +144,7 @@ export default function WastewaterPage() {
         <div className="wwHeroBackground">
           <img
             src="/wastewater-treatment.png"
-            alt="Очистные сооружения SUVSANOAT"
+            alt="Очистные сооружения в Узбекистане SUVSANOAT"
           />
         </div>
 
@@ -121,7 +165,7 @@ export default function WastewaterPage() {
           <p className="wwHeroText">
             Проектирование, производство и поставка комплексных
             очистных сооружений для коммунальных, промышленных
-            и инфраструктурных объектов.
+            и инфраструктурных объектов в Узбекистане.
           </p>
 
           <div className="wwHeroActions">
@@ -188,6 +232,7 @@ export default function WastewaterPage() {
         <div className="wwSectionHeader">
           <div>
             <div className="wwSectionLabel">КОМПЛЕКСНЫЕ РЕШЕНИЯ</div>
+
             <h2>
               Очистные сооружения
               <br />
@@ -221,54 +266,35 @@ export default function WastewaterPage() {
         <div className="wwShowcaseImage">
           <img
             src="/wastewater-treatment.png"
-            alt="Комплексные очистные сооружения"
+            alt="Комплексные очистные сооружения SUVSANOAT"
           />
-
-          <div className="wwShowcaseGradient" />
-
-          <div className="wwShowcaseText">
-            <span>МАСШТАБИРУЕМЫЕ РЕШЕНИЯ</span>
-
-            <h2>
-              От локальной станции
-              <br />
-              до промышленного комплекса.
-            </h2>
-
-            <p>
-              Производительность систем — от 5 до 200 000 м³/сутки.
-            </p>
-          </div>
         </div>
       </section>
 
       {/* TECHNOLOGIES */}
       <section className="wwTechnologies">
-        <div className="wwSectionHeader wwDarkHeader">
+        <div className="wwSectionHeader">
           <div>
-            <div className="wwSectionLabel">ТЕХНОЛОГИИ</div>
+            <div className="wwSectionLabel">ТЕХНОЛОГИИ ОЧИСТКИ</div>
+
             <h2>
               Технология подбирается
               <br />
-              под задачу.
+              под состав сточных вод.
             </h2>
           </div>
 
           <p>
-            Не привязываемся к одной технологии.
-            Подбираем оптимальную технологическую схему
-            исходя из параметров конкретного объекта.
+            Используем современные биологические и мембранные технологии
+            в зависимости от характеристик объекта и требуемого качества
+            очищенной воды.
           </p>
         </div>
 
         <div className="wwTechnologyGrid">
-          {technologies.map((technology, index) => (
+          {technologies.map((technology) => (
             <article className="wwTechnologyCard" key={technology.name}>
-              <span className="wwTechNumber">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-
-              <strong>{technology.name}</strong>
+              <div className="wwTechnologyName">{technology.name}</div>
 
               <h3>{technology.title}</h3>
 
@@ -278,15 +304,45 @@ export default function WastewaterPage() {
         </div>
       </section>
 
+      {/* ENGINEERING */}
+      <section className="wwEngineering">
+        <div className="wwEngineeringGrid">
+          <div>
+            <div className="wwSectionLabel">ИНЖЕНЕРНЫЙ ПОДХОД</div>
+
+            <h2>
+              От анализа стоков
+              <br />
+              до стабильной работы.
+            </h2>
+          </div>
+
+          <div className="wwEngineeringText">
+            <p>
+              Эффективность очистных сооружений зависит не только от
+              оборудования, но и от правильного выбора технологической схемы,
+              расчёта нагрузок и согласованной работы всех этапов очистки.
+            </p>
+
+            <p>
+              SUVSANOAT рассматривает объект как единую инженерную систему:
+              от поступления сточных вод до их очистки, обеззараживания,
+              обработки осадка и возможного повторного использования воды.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* PROCESS */}
       <section className="wwProcess">
         <div className="wwSectionHeader">
           <div>
-            <div className="wwSectionLabel">РЕАЛИЗАЦИЯ ПРОЕКТА</div>
+            <div className="wwSectionLabel">ЭТАПЫ РЕАЛИЗАЦИИ</div>
+
             <h2>
               От исходных данных
               <br />
-              до запуска.
+              до запуска объекта.
             </h2>
           </div>
 
@@ -361,9 +417,11 @@ export default function WastewaterPage() {
 
           <div className="wwFooterContact">
             <span>СВЯЗАТЬСЯ</span>
+
             <a href="tel:+998773043400">
               +998 77 304 34 00
             </a>
+
             <a href="mailto:suvsanoat@gmail.com">
               suvsanoat@gmail.com
             </a>

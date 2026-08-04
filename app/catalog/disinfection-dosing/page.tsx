@@ -1,3 +1,47 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Дезинфекция воды и дозирование реагентов в Узбекистане",
+
+  description:
+    "SUVSANOAT поставляет системы дезинфекции воды и дозирования реагентов в Узбекистане: УФ-установки, станции гипохлорита натрия, электролизные установки, дозирующие насосы и автоматизацию.",
+
+  alternates: {
+    canonical: "/catalog/disinfection-dosing",
+  },
+
+  openGraph: {
+    title: "Дезинфекция и дозирование реагентов | SUVSANOAT",
+    description:
+      "УФ-обеззараживание, хлорирование, электролизные установки и автоматические станции дозирования реагентов.",
+    url: "https://suvsanoat.uz/catalog/disinfection-dosing",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/disinfection-dosing.png",
+        width: 1200,
+        height: 630,
+        alt: "Дезинфекция воды и дозирование реагентов SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Дезинфекция и дозирование | SUVSANOAT",
+    description:
+      "Системы обеззараживания воды, хлорирования и автоматического дозирования реагентов.",
+    images: ["/disinfection-dosing.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function DisinfectionDosingPage() {
   const equipment = [
     {
@@ -56,29 +100,29 @@ export default function DisinfectionDosingPage() {
     {
       number: "03",
       title: "Расчёт дозы",
-      text: "Определяем необходимую производительность оборудования и расход реагента.",
+      text: "Определяем необходимую производительность и параметры подачи реагента.",
     },
     {
       number: "04",
       title: "Автоматизация",
-      text: "Настраиваем контроль параметров и автоматическое управление процессом.",
+      text: "Организуем контроль параметров и автоматическое регулирование процесса.",
     },
     {
       number: "05",
-      title: "Запуск",
-      text: "Выполняем настройку оборудования и проверяем рабочие параметры системы.",
+      title: "Поставка и запуск",
+      text: "Комплектуем систему, поставляем оборудование и выполняем пусконаладку.",
     },
   ];
 
   const applications = [
-    "Питьевая вода",
     "Очистные сооружения",
-    "Промышленные стоки",
-    "Водоподготовка",
+    "Питьевое водоснабжение",
+    "Системы водоподготовки",
+    "Промышленные предприятия",
+    "Пищевые производства",
+    "Бассейны и водные объекты",
     "Повторное использование воды",
-    "Бассейны и резервуары",
-    "Пищевые предприятия",
-    "Инфраструктурные объекты",
+    "Технологические процессы",
   ];
 
   return (
@@ -107,7 +151,7 @@ export default function DisinfectionDosingPage() {
         <div className="categoryHeroImage">
           <img
             src="/disinfection-dosing.png"
-            alt="Оборудование для дезинфекции и дозирования SUVSANOAT"
+            alt="Системы дезинфекции воды и дозирования реагентов SUVSANOAT"
           />
         </div>
 
@@ -129,12 +173,12 @@ export default function DisinfectionDosingPage() {
           <h1>
             Безопасная вода.
             <br />
-            Точная дозировка.
+            Точное дозирование.
           </h1>
 
           <p>
-            Системы обеззараживания и автоматического дозирования реагентов
-            для питьевой воды, очистных сооружений и промышленных
+            Системы дезинфекции и автоматического дозирования реагентов
+            для очистных сооружений, водоподготовки и промышленных
             технологических процессов.
           </p>
 
@@ -152,22 +196,22 @@ export default function DisinfectionDosingPage() {
         <div className="categoryHeroStats">
           <div>
             <strong>UV</strong>
-            <span>ультрафиолет</span>
+            <span>УФ-обеззараживание</span>
           </div>
 
           <div>
-            <strong>NaClO</strong>
+            <strong>NaOCl</strong>
             <span>гипохлорит натрия</span>
           </div>
 
           <div>
-            <strong>АВТОМАТИЗАЦИЯ</strong>
-            <span>контроль дозирования</span>
+            <strong>AUTO</strong>
+            <span>автоматическое дозирование</span>
           </div>
 
           <div>
-            <strong>ПОД КЛЮЧ</strong>
-            <span>подбор · поставка · запуск</span>
+            <strong>24 / 7</strong>
+            <span>контроль процесса</span>
           </div>
         </div>
       </section>
@@ -175,26 +219,27 @@ export default function DisinfectionDosingPage() {
       {/* INTRO */}
       <section className="categoryIntro">
         <span className="categorySectionLabel">
-          ДЕЗИНФЕКЦИЯ И ХИМИЧЕСКОЕ ДОЗИРОВАНИЕ
+          ДЕЗИНФЕКЦИЯ И ДОЗИРОВАНИЕ
         </span>
 
         <div className="categoryIntroGrid">
           <h2>
             Контроль качества
             <br />
-            на финальном этапе.
+            на каждом этапе.
           </h2>
 
           <div>
             <p>
-              Обеззараживание является важным этапом подготовки питьевой воды,
-              очистки сточных вод и повторного использования очищенной воды.
+              Дезинфекция является важным этапом водоподготовки и очистки
+              сточных вод. Выбор метода зависит от качества исходной воды,
+              требуемой степени обеззараживания и условий эксплуатации.
             </p>
 
             <p>
-              SUVSANOAT подбирает оборудование с учётом производительности,
-              качества исходной воды, требуемой степени обеззараживания,
-              расхода реагентов и необходимого уровня автоматизации.
+              SUVSANOAT подбирает УФ-установки, системы хлорирования,
+              электролизное оборудование и станции дозирования реагентов
+              с автоматическим контролем технологических параметров.
             </p>
           </div>
         </div>
@@ -207,15 +252,15 @@ export default function DisinfectionDosingPage() {
             <span className="categorySectionLabel">ОБОРУДОВАНИЕ</span>
 
             <h2>
-              От УФ-реактора
+              Дезинфекция
               <br />
-              до станции дозирования.
+              и точное дозирование.
             </h2>
           </div>
 
           <p>
-            Комплектуем системы обеззараживания, приготовления и дозирования
-            химических реагентов для объектов различной производительности.
+            От отдельных дозирующих насосов до полностью автоматизированных
+            систем обеззараживания и приготовления реагентов.
           </p>
         </div>
 
@@ -228,7 +273,6 @@ export default function DisinfectionDosingPage() {
               </div>
 
               <h3>{item.title}</h3>
-
               <p>{item.text}</p>
 
               <a href="/#contacts">
@@ -241,19 +285,21 @@ export default function DisinfectionDosingPage() {
 
       {/* PROCESS */}
       <section className="waterProcessSection">
-        <span className="categorySectionLabel">ИНЖЕНЕРНЫЙ ПОДБОР</span>
+        <span className="categorySectionLabel">
+          ИНЖЕНЕРНЫЙ ПОДБОР
+        </span>
 
         <div className="waterProcessHeader">
           <h2>
             От анализа воды
             <br />
-            до точной дозировки.
+            до автоматического контроля.
           </h2>
 
           <p>
-            Метод обеззараживания и количество реагента определяются
-            характеристиками воды, производительностью объекта и требованиями
-            к качеству обработанной воды.
+            Метод обеззараживания и параметры дозирования определяются
+            характеристиками воды, производительностью и требованиями
+            конкретного объекта.
           </p>
         </div>
 
@@ -262,9 +308,7 @@ export default function DisinfectionDosingPage() {
             <div key={step.number} style={{ display: "contents" }}>
               <article className="waterProcessStep">
                 <span>{step.number}</span>
-
                 <strong>{step.title}</strong>
-
                 <p>{step.text}</p>
               </article>
 
@@ -285,14 +329,15 @@ export default function DisinfectionDosingPage() {
             </span>
 
             <h2>
-              Для воды
-              <br />и сточных вод.
+              Чистая вода
+              <br />
+              для разных объектов.
             </h2>
           </div>
 
           <p>
-            Системы применяются как на самостоятельных объектах
-            водоподготовки, так и в составе комплексных очистных сооружений.
+            Системы дезинфекции и дозирования интегрируются в новые
+            и существующие комплексы водоподготовки и очистки сточных вод.
           </p>
         </div>
 
@@ -309,7 +354,7 @@ export default function DisinfectionDosingPage() {
       {/* CTA */}
       <section className="categoryCTA">
         <div>
-          <span>ПОДБОР ОБОРУДОВАНИЯ</span>
+          <span>ПОДБОР СИСТЕМЫ</span>
 
           <h2>
             Рассчитаем систему
@@ -320,9 +365,9 @@ export default function DisinfectionDosingPage() {
 
         <div className="categoryCTARight">
           <p>
-            Отправьте производительность объекта, анализ воды или сточных вод
-            и требования к качеству обработанной воды. Подготовим
-            предварительное техническое решение.
+            Отправьте производительность, анализ воды или техническое
+            задание. Подберём метод обеззараживания, дозирующее оборудование,
+            автоматику и необходимую комплектацию.
           </p>
 
           <a href="/#contacts">
@@ -334,18 +379,24 @@ export default function DisinfectionDosingPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
             <img src="/logo.png" alt="SUVSANOAT" />
           </a>
 
           <p>
             Инженерные системы очистки воды
-            <br />и сточных вод.
+            <br />
+            и сточных вод.
           </p>
         </div>
 
         <div>
           <span>НАВИГАЦИЯ</span>
+
           <a href="/#catalog">Каталог</a>
           <a href="/#solutions">Решения</a>
           <a href="/#technologies">Технологии</a>

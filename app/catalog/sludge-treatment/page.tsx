@@ -1,3 +1,47 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Обработка и обезвоживание осадка в Узбекистане",
+
+  description:
+    "SUVSANOAT поставляет оборудование для обработки и обезвоживания осадка в Узбекистане: шнековые и ленточные прессы, фильтр-прессы, декантерные центрифуги, сгустители и полимерные станции.",
+
+  alternates: {
+    canonical: "/catalog/sludge-treatment",
+  },
+
+  openGraph: {
+    title: "Обработка и обезвоживание осадка | SUVSANOAT",
+    description:
+      "Оборудование для сгущения, кондиционирования, обезвоживания и транспортировки осадка очистных сооружений.",
+    url: "https://suvsanoat.uz/catalog/sludge-treatment",
+    siteName: "SUVSANOAT",
+    type: "website",
+    locale: "ru_RU",
+    images: [
+      {
+        url: "/sludge-treatment.png",
+        width: 1200,
+        height: 630,
+        alt: "Оборудование для обработки и обезвоживания осадка SUVSANOAT",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Обработка осадка | SUVSANOAT",
+    description:
+      "Оборудование для сгущения и механического обезвоживания осадка очистных сооружений.",
+    images: ["/sludge-treatment.png"],
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
 export default function SludgeTreatmentPage() {
   const equipment = [
     {
@@ -107,7 +151,7 @@ export default function SludgeTreatmentPage() {
         <div className="categoryHeroImage">
           <img
             src="/sludge-treatment.png"
-            alt="Оборудование для обработки осадка SUVSANOAT"
+            alt="Оборудование для обработки и обезвоживания осадка SUVSANOAT"
           />
         </div>
 
@@ -292,9 +336,8 @@ export default function SludgeTreatmentPage() {
           </div>
 
           <p>
-            Оборудование может использоваться как в составе новых очистных
-            сооружений, так и при модернизации существующих систем обработки
-            осадка.
+            Оборудование применяется для обработки осадка биологической
+            и физико-химической очистки сточных вод.
           </p>
         </div>
 
@@ -322,9 +365,9 @@ export default function SludgeTreatmentPage() {
 
         <div className="categoryCTARight">
           <p>
-            Отправьте производительность очистных сооружений, количество
-            образующегося осадка и имеющиеся исходные данные. Подберём
-            оборудование и подготовим предварительное техническое решение.
+            Отправьте количество осадка, влажность, режим работы
+            и характеристики технологического процесса. Подберём оборудование
+            для сгущения, кондиционирования и обезвоживания.
           </p>
 
           <a href="/#contacts">
@@ -336,18 +379,24 @@ export default function SludgeTreatmentPage() {
       {/* FOOTER */}
       <footer className="categoryFooter">
         <div>
-          <a href="/" className="categoryFooterLogo">
+          <a
+            href="/"
+            className="categoryFooterLogo"
+            aria-label="SUVSANOAT — главная"
+          >
             <img src="/logo.png" alt="SUVSANOAT" />
           </a>
 
           <p>
             Инженерные системы очистки воды
-            <br />и сточных вод.
+            <br />
+            и сточных вод.
           </p>
         </div>
 
         <div>
           <span>НАВИГАЦИЯ</span>
+
           <a href="/#catalog">Каталог</a>
           <a href="/#solutions">Решения</a>
           <a href="/#technologies">Технологии</a>
