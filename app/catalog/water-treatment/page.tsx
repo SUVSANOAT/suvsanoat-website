@@ -123,10 +123,7 @@ export default function WaterTreatmentPage() {
           <a href="/#solutions">Решения</a>
           <a href="/#technologies">Технологии</a>
 
-          <a
-            href="/#contacts"
-            className="categoryContactButton"
-          >
+          <a href="/#contacts" className="categoryContactButton">
             Получить расчёт
           </a>
         </nav>
@@ -137,7 +134,7 @@ export default function WaterTreatmentPage() {
         <div className="categoryHeroImage">
           <img
             src="/water-treatment.png"
-            alt="Промышленная система водоподготовки SUVSANOAT в Узбекистане"
+            alt="Промышленная система водоподготовки и очистки воды SUVSANOAT в Узбекистане"
           />
         </div>
 
@@ -157,9 +154,9 @@ export default function WaterTreatmentPage() {
           </div>
 
           <h1>
-            Вода нужного
+            Водоподготовка
             <br />
-            качества.
+            и очистка воды.
           </h1>
 
           <p>
@@ -169,17 +166,11 @@ export default function WaterTreatmentPage() {
           </p>
 
           <div className="categoryHeroButtons">
-            <a
-              href="/#contacts"
-              className="categoryPrimaryButton"
-            >
+            <a href="/#contacts" className="categoryPrimaryButton">
               Получить расчёт <span>→</span>
             </a>
 
-            <a
-              href="#equipment"
-              className="categorySecondaryButton"
-            >
+            <a href="#equipment" className="categorySecondaryButton">
               Смотреть оборудование
             </a>
           </div>
