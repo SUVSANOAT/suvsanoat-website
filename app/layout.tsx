@@ -148,6 +148,11 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
+
+  // Яндекс Вебмастер
+  verification: {
+    yandex: "a9edbcbcfbe7d834",
+  },
 };
 
 export default function RootLayout({
