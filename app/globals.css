@@ -3276,3 +3276,49 @@ html {
   }
 }
 
+
+/* =========================================================
+   SERVICES MEGA MENU — VIEWPORT POSITION FIX
+========================================================= */
+
+@media (min-width: 951px) {
+  .servicesMegaMenu {
+    position: fixed;
+    top: 92px;
+    left: 50%;
+    right: auto;
+    width: min(1100px, calc(100vw - 40px));
+    max-width: calc(100vw - 40px);
+    grid-template-columns: minmax(0, 1fr) 300px;
+    transform: translateX(-50%) translateY(10px);
+  }
+
+  .navDropdown:hover .servicesMegaMenu {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .servicesMegaContent {
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .serviceMegaColumn {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 951px) and (max-width: 1200px) {
+  .servicesMegaMenu {
+    width: calc(100vw - 30px);
+    max-width: calc(100vw - 30px);
+    grid-template-columns: minmax(0, 1fr) 250px;
+  }
+
+  .servicesMegaContent {
+    padding: 18px;
+  }
+
+  .serviceMegaColumn {
+    padding: 18px 16px;
+  }
+}
