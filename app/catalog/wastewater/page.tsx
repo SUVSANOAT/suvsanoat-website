@@ -157,9 +157,9 @@ export default function WastewaterPage() {
           </div>
 
           <h1>
-            Инженерные решения
+            Очистные сооружения
             <br />
-            для очистки сточных вод.
+            для сточных вод.
           </h1>
 
           <p className="wwHeroText">
