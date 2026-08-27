@@ -4,6 +4,11 @@ export const translations = {
   ru: {
     language: "RU",
 
+    category: {
+      home: "ГЛАВНАЯ",
+      catalog: "КАТАЛОГ",
+    },
+
     nav: {
       catalog: "Каталог",
       solutions: "Решения",
@@ -346,6 +351,11 @@ export const translations = {
 
   uz: {
     language: "UZ",
+
+    category: {
+      home: "BOSH SAHIFA",
+      catalog: "KATALOG",
+    },
 
     nav: {
       catalog: "Katalog",
@@ -690,6 +700,11 @@ export const translations = {
   en: {
     language: "EN",
 
+    category: {
+      home: "HOME",
+      catalog: "CATALOG",
+    },
+
     nav: {
       catalog: "Catalog",
       solutions: "Solutions",
@@ -1032,6 +1047,11 @@ export const translations = {
 
   zh: {
     language: "中文",
+
+    category: {
+      home: "首页",
+      catalog: "产品目录",
+    },
 
     nav: {
       catalog: "产品目录",

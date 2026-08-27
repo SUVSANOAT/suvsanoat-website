@@ -3739,3 +3739,9 @@ html {
   object-position: center;
   margin: 8px 0 10px 0;
 }
+/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКА НА ВНУТРЕННИХ СТРАНИЦАХ */
+.langSwitch{display:flex;align-items:center;gap:3px;padding:3px;border:1px solid rgba(255,255,255,.18);border-radius:6px}
+.langSwitch button{border:0;border-radius:4px;padding:7px 8px;cursor:pointer;font-size:11px;font-weight:800;background:transparent;color:#fff;transition:background .2s ease,color .2s ease}
+.langSwitch button:hover{background:rgba(255,255,255,.14)}
+.langSwitch button.active{background:#fff;color:#07141f}
+@media(max-width:650px){.langSwitch{padding:2px;gap:2px}.langSwitch button{padding:5px 5px;font-size:9px}}
