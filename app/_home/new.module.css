@@ -947,3 +947,574 @@
     display: none;
   }
 }
+
+/* ---------------- ИКОНКА В КАРТОЧКЕ КАТАЛОГА ---------------- */
+
+.catIcon {
+  display: block;
+  width: 30px;
+  height: 30px;
+  margin-top: 20px;
+  color: var(--accent);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.catCard:hover .catIcon {
+  transform: scale(1.15) translateY(-2px);
+}
+
+/* ---------------- ТЕХНОЛОГИИ ---------------- */
+
+.tech {
+  padding: 130px 6%;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+}
+
+.techGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.techCard {
+  position: relative;
+  padding: 34px 30px 40px;
+  background: var(--bg1);
+  overflow: hidden;
+  transition: background 0.35s ease;
+}
+
+.techCard::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), #9ce8ff);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.techCard:hover {
+  background: var(--bg3);
+}
+
+.techCard:hover::after {
+  width: 100%;
+}
+
+.techIcon {
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 22px;
+  color: var(--accent);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.techCard:hover .techIcon {
+  transform: scale(1.14) translateY(-3px);
+}
+
+.techCard b {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.techCard h3 {
+  font-size: 18px;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+
+.techCard p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ---------------- ОТРАСЛИ ---------------- */
+
+.industries {
+  padding: 130px 6%;
+  background: var(--bg2);
+}
+
+.industryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.industryCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 26px 26px;
+  background: var(--bg2);
+  transition: background 0.32s ease, padding-left 0.32s ease;
+}
+
+.industryCard:hover {
+  background: var(--bg3);
+  padding-left: 34px;
+}
+
+.industryCard span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.industryCard strong {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+/* ---------------- ЭТАПЫ РАБОТ ---------------- */
+
+.services {
+  padding: 130px 6%;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+}
+
+.stepGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.stepCard {
+  position: relative;
+  padding: 28px 20px 32px;
+  background: var(--bg1);
+  transition: background 0.35s ease, transform 0.35s ease;
+}
+
+.stepCard:hover {
+  background: var(--bg3);
+  transform: translateY(-4px);
+  z-index: 2;
+}
+
+.stepIcon {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 18px;
+  color: var(--accent);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.stepCard:hover .stepIcon {
+  transform: scale(1.15) translateY(-2px);
+}
+
+.stepCard b {
+  display: block;
+  color: rgba(242, 245, 246, 0.28);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.stepCard h3 {
+  font-size: 15px;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+
+.stepCard p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ---------------- КОНТАКТЫ ---------------- */
+
+.contacts {
+  padding: 130px 6%;
+  background: var(--bg2);
+  border-top: 1px solid var(--line);
+}
+
+.contactGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 60px;
+  align-items: start;
+}
+
+.contactInfo h2 {
+  font-size: clamp(38px, 4.2vw, 60px);
+  line-height: 1;
+  letter-spacing: -2.4px;
+  margin: 0 0 20px;
+}
+
+.contactIntro {
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0 0 34px;
+}
+
+.contactRow {
+  display: grid;
+  gap: 5px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.contactRow span {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+}
+
+.contactRow a,
+.contactRow b {
+  color: var(--text);
+  font-size: 16px;
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.contactRow a:hover {
+  color: var(--accent);
+}
+
+.contactNeeds {
+  margin-top: 30px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.contactNeeds span {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  margin-bottom: 14px;
+}
+
+.contactNeeds ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+/* форма */
+
+.formBox {
+  padding: 38px 38px 42px;
+  border: 1px solid var(--line);
+  background: var(--bg3);
+}
+
+.formTop span {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+}
+
+.formTop h3 {
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin: 0 0 12px;
+}
+
+.formTop p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 28px;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field > span {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 14px 15px;
+  border: 1px solid rgba(242, 245, 246, 0.16);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(242, 245, 246, 0.3);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(62, 195, 230, 0.14);
+}
+
+.field select option {
+  background: #14202a;
+  color: var(--text);
+}
+
+.formHelp {
+  padding: 16px 18px;
+  border-left: 2px solid var(--accent);
+  background: rgba(62, 195, 230, 0.07);
+}
+
+.formHelp span {
+  display: block;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  margin-bottom: 7px;
+}
+
+.formHelp p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 24px;
+  border: 0;
+  background: var(--accent);
+  color: var(--bg1);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.submit:hover {
+  filter: brightness(1.12);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.privacy {
+  color: rgba(242, 245, 246, 0.28);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.formSuccess {
+  padding: 26px 0 6px;
+  text-align: center;
+}
+
+.successMark {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(70, 217, 160, 0.16);
+  color: var(--ok);
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.formSuccess > span {
+  display: block;
+  color: var(--ok);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.formSuccess h3 {
+  font-size: 24px;
+  line-height: 1.15;
+  margin: 0 0 12px;
+}
+
+.formSuccess p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 24px;
+}
+
+.formSuccess button {
+  padding: 14px 24px;
+  border: 1px solid rgba(242, 245, 246, 0.28);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+
+.formSuccess button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---------------- ПЛАВАЮЩИЕ КНОПКИ ---------------- */
+
+.floating {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 90;
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.floatTg,
+.floatTel {
+  padding: 13px 20px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.floatTg {
+  background: var(--accent);
+  color: var(--bg1);
+}
+
+.floatTel {
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.floatTg:hover,
+.floatTel:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+/* ---------------- АДАПТИВ НОВЫХ РАЗДЕЛОВ ---------------- */
+
+@media (max-width: 1200px) {
+  .techGrid,
+  .industryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stepGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .contactGrid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 720px) {
+  .tech,
+  .industries,
+  .services,
+  .contacts {
+    padding: 80px 22px;
+  }
+
+  .techGrid,
+  .industryGrid,
+  .stepGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formBox {
+    padding: 26px 22px 30px;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .floating {
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .floatTg,
+  .floatTel {
+    padding: 11px 15px;
+    font-size: 11px;
+  }
+}

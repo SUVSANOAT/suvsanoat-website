@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import EquipIcon from "../components/EquipIcon";
 import type { Language } from "../translations";
 import {
   SOLIDS,
@@ -53,6 +54,18 @@ const CATEGORY_LINKS = [
   "/catalog/valves-pipelines",
   "/catalog/treatment-technologies",
   "/catalog/integrated-solutions",
+];
+
+/** Иконки: каталог, технологии, этапы работ */
+const CATEGORY_ICONS = [
+  "water", "ro", "screen", "pump", "uv", "sludge",
+  "diffuser", "tank", "plc", "valve", "bio", "turnkey",
+];
+
+const TECH_ICONS = ["membrane", "cycle", "carriers", "ro"];
+
+const SERVICE_ICONS = [
+  "lab", "plan", "factory", "truck", "wrench", "plc", "gear",
 ];
 
 const VB = VIEW_BOX.split(" ").map(Number);
@@ -647,6 +660,8 @@ export default function NewHome() {
 
   const [object, setObject] = useState("");
   const [progress, setProgress] = useState(0);
+  const [formSent, setFormSent] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [calm, setCalm] = useState(false);
 
@@ -779,6 +794,45 @@ export default function NewHome() {
     [router, calm]
   );
 
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    const data = {
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+      objectType: formData.get("objectType"),
+      capacity: formData.get("capacity"),
+      message: formData.get("message"),
+    };
+
+    try {
+      setFormLoading(true);
+
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || t.contacts.error);
+      }
+
+      form.reset();
+      setFormSent(true);
+    } catch (error) {
+      console.error("Contact form error:", error);
+      alert(t.contacts.error);
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
   const plant = (dim: boolean) => (
     <>
       {SOLIDS.map((solid, index) => {
@@ -816,7 +870,9 @@ export default function NewHome() {
 
         <nav className={s.nav}>
           <a href="#catalog">{t.nav.catalog}</a>
-          <a href="#make">{t.nav.technologies}</a>
+          <a href="#technologies">{t.nav.technologies}</a>
+          <a href="#solutions">{t.nav.solutions}</a>
+          <a href="#services">{t.nav.services}</a>
           <a href="/engineering">{t.nav.engineering}</a>
           <a href="#contacts">{t.nav.contacts}</a>
 
@@ -1044,6 +1100,12 @@ export default function NewHome() {
           {t.categories.map((title, index) => (
             <a className={s.catCard} href={CATEGORY_LINKS[index]} key={title}>
               <span>{String(index + 1).padStart(2, "0")}</span>
+
+              <EquipIcon
+                name={CATEGORY_ICONS[index] ?? "water"}
+                className={s.catIcon}
+              />
+
               <h3>{title}</h3>
               <i className={s.catArrow}>↗</i>
             </a>
@@ -1051,26 +1113,237 @@ export default function NewHome() {
         </div>
       </section>
 
-      {/* ФИНАЛ */}
-      <section className={s.cta} id="contacts">
-        <div className={s.ctaInner}>
-          <h2>{lines(c.ctaTitle)}</h2>
-
+      {/* ТЕХНОЛОГИИ */}
+      <section className={s.tech} id="technologies">
+        <div className={s.secHead}>
           <div>
-            <p>{c.ctaText}</p>
+            <div className={s.secLabel}>{t.technologies.label}</div>
+            <h2>{lines(t.technologies.title)}</h2>
+          </div>
 
-            <div className={s.ctaLinks}>
-              <a className={s.ctaPrimary} href="/#contacts">
-                {c.ctaPrimary}
-              </a>
+          <p>{t.technologies.text}</p>
+        </div>
 
-              <a className={s.ctaSecondary} href="/engineering">
-                {c.ctaSecondary}
-              </a>
+        <div className={s.techGrid}>
+          {t.technologies.cards.map((card, index) => (
+            <article className={s.techCard} key={card.code}>
+              <EquipIcon
+                name={TECH_ICONS[index] ?? "bio"}
+                className={s.techIcon}
+              />
+
+              <b>{card.code}</b>
+              <h3>{card.title}</h3>
+              <p>{card.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* ОТРАСЛИ */}
+      <section className={s.industries} id="solutions">
+        <div className={s.secHead}>
+          <div>
+            <div className={s.secLabel}>{t.solutions.label}</div>
+            <h2>{lines(t.solutions.title)}</h2>
+          </div>
+
+          <p>{t.solutions.text}</p>
+        </div>
+
+        <div className={s.industryGrid}>
+          {t.solutions.industries.map((name, index) => (
+            <div className={s.industryCard} key={name}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{name}</strong>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ЭТАПЫ РАБОТ */}
+      <section className={s.services} id="services">
+        <div className={s.secHead}>
+          <div>
+            <div className={s.secLabel}>{t.services.label}</div>
+            <h2>{lines(t.services.title)}</h2>
+          </div>
+
+          <p>{t.services.text}</p>
+        </div>
+
+        <div className={s.stepGrid}>
+          {t.services.steps.map((step, index) => (
+            <article className={s.stepCard} key={step.title}>
+              <EquipIcon
+                name={SERVICE_ICONS[index] ?? "gear"}
+                className={s.stepIcon}
+              />
+
+              <b>{String(index + 1).padStart(2, "0")}</b>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* КОНТАКТЫ */}
+      <section className={s.contacts} id="contacts">
+        <div className={s.contactGrid}>
+          <div className={s.contactInfo}>
+            <div className={s.secLabel}>{t.contacts.label}</div>
+
+            <h2>{lines(t.contacts.title)}</h2>
+
+            <p className={s.contactIntro}>{t.contacts.intro}</p>
+
+            <div className={s.contactRow}>
+              <span>{t.contacts.phone}</span>
+              <a href="tel:+998773043400">+998 77 304 34 00</a>
+            </div>
+
+            <div className={s.contactRow}>
+              <span>{t.contacts.email}</span>
+              <a href="mailto:suvsanoat@gmail.com">suvsanoat@gmail.com</a>
+            </div>
+
+            <div className={s.contactRow}>
+              <span>{t.contacts.workRegion}</span>
+              <b>{t.contacts.regions.join(" · ")}</b>
+            </div>
+
+            <div className={s.contactRow}>
+              <span>{t.contacts.directions}</span>
+              <b>{t.contacts.directionItems.join(" · ")}</b>
+            </div>
+
+            <div className={s.contactNeeds}>
+              <span>{t.contacts.requirementsTitle}</span>
+
+              <ul>
+                {t.contacts.requirements.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className={s.formBox}>
+            <div className={s.formTop}>
+              <span>{t.contacts.formLabel}</span>
+              <h3>{lines(t.contacts.formTitle)}</h3>
+              <p>{t.contacts.formText}</p>
+            </div>
+
+            {formSent ? (
+              <div className={s.formSuccess}>
+                <div className={s.successMark}>✓</div>
+                <span>{t.contacts.successLabel}</span>
+                <h3>{t.contacts.successTitle}</h3>
+                <p>{t.contacts.successText}</p>
+
+                <button type="button" onClick={() => setFormSent(false)}>
+                  {t.contacts.sendAgain}
+                </button>
+              </div>
+            ) : (
+              <form className={s.form} onSubmit={handleSubmit}>
+                <div className={s.formRow}>
+                  <label className={s.field}>
+                    <span>{t.contacts.nameLabel}</span>
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder={t.contacts.namePlaceholder}
+                      required
+                    />
+                  </label>
+
+                  <label className={s.field}>
+                    <span>{t.contacts.phoneLabel}</span>
+                    <input type="tel" name="phone" placeholder="+998" required />
+                  </label>
+                </div>
+
+                <div className={s.formRow}>
+                  <label className={s.field}>
+                    <span>{t.contacts.objectLabel}</span>
+
+                    <select name="objectType" defaultValue="">
+                      <option value="" disabled>
+                        {t.contacts.objectPlaceholder}
+                      </option>
+
+                      {(
+                        Object.keys(t.contacts.objectTypes) as Array<
+                          keyof typeof t.contacts.objectTypes
+                        >
+                      ).map((key) => (
+                        <option value={key} key={key}>
+                          {t.contacts.objectTypes[key]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className={s.field}>
+                    <span>{t.contacts.capacityLabel}</span>
+                    <input
+                      type="text"
+                      name="capacity"
+                      placeholder={t.contacts.capacityPlaceholder}
+                    />
+                  </label>
+                </div>
+
+                <label className={`${s.field} ${s.fieldFull}`}>
+                  <span>{t.contacts.messageLabel}</span>
+                  <textarea
+                    name="message"
+                    rows={5}
+                    placeholder={t.contacts.messagePlaceholder}
+                  />
+                </label>
+
+                <div className={s.formHelp}>
+                  <span>{t.contacts.canPrepare}</span>
+                  <p>{t.contacts.canPrepareText}</p>
+                </div>
+
+                <button
+                  type="submit"
+                  className={s.submit}
+                  disabled={formLoading}
+                >
+                  <span>
+                    {formLoading ? t.contacts.submitting : t.contacts.submit}
+                  </span>
+                  <b>{formLoading ? "..." : "→"}</b>
+                </button>
+
+                <p className={s.privacy}>{t.contacts.privacy}</p>
+              </form>
+            )}
           </div>
         </div>
       </section>
+
+      {/* ПЛАВАЮЩИЕ КНОПКИ */}
+      <div className={s.floating}>
+        <a
+          className={s.floatTg}
+          href="https://t.me/suvsanoat"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Telegram
+        </a>
+
+        <a className={s.floatTel} href="tel:+998773043400">
+          +998 77 304 34 00
+        </a>
+      </div>
 
       {leaving && <div className={s.flood} aria-hidden="true" />}
 
