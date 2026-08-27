@@ -747,7 +747,7 @@
 
 .rangeRight {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
@@ -766,7 +766,8 @@
 
 .rangeChip b {
   display: block;
-  font-size: 17px;
+  font-size: 16px;
+  line-height: 1.25;
   font-weight: 900;
   letter-spacing: -0.4px;
   margin-bottom: 5px;
@@ -790,7 +791,7 @@
 
 @media (max-width: 560px) {
   .rangeRight {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 

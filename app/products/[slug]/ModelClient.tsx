@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLanguage } from "../../LanguageContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import EquipIcon from "../../components/EquipIcon";
-import { MODELS, TEXT, type Model } from "../data";
+import { MODELS, TEXT, LINE_ICON, type Model } from "../data";
 import s from "../products.module.css";
 
 function lines(text: string) {
@@ -35,30 +35,48 @@ export default function ModelClient({ model }: { model: Model }) {
     (item) => item.line === model.line && item.slug !== model.slug
   );
 
+  const icon = LINE_ICON[model.line];
+
+  /* Часть подписей у линеек разная: у жироуловителя «площадь зеркала»,
+     у нефтеуловителя «эффективная площадь сепарации». Линейка может
+     переопределить любую подпись через line.labels. */
+  const L = (key: keyof typeof c.specLabels) =>
+    line.labels?.[key] ?? c.specLabels[key];
+
+  const unit = language === "zh" ? "m³/h" : "м³/ч";
+
   const specs: { label: string; value: string }[] = [
-    { label: c.specLabels.q, value: `${num(model.q)} м³/ч` },
+    ...(model.ns !== undefined
+      ? [
+          {
+            label: L("ns"),
+            value: `${num(model.ns)} ${language === "zh" ? "l/s" : "л/с"}`,
+          },
+        ]
+      : []),
+    { label: L("q"), value: `${num(model.q)} ${unit}` },
     {
-      label: c.specLabels.size,
+      label: L("size"),
       value: `${model.length} × ${model.width} × ${model.height} мм`,
     },
-    { label: c.specLabels.volumeGross, value: `${num(model.volumeGross)} м³` },
-    { label: c.specLabels.volumeWork, value: `${num(model.volumeWork)} м³` },
-    { label: c.specLabels.retention, value: `${model.retention} мин` },
-    { label: c.specLabels.area, value: `${num(model.area)} м²` },
+    { label: L("volumeGross"), value: `${num(model.volumeGross)} м³` },
+    { label: L("volumeWork"), value: `${num(model.volumeWork)} м³` },
+    { label: L("retention"), value: `${model.retention} мин` },
+    { label: L("area"), value: `${num(model.area)} м²` },
     {
-      label: c.specLabels.load,
+      label: L("load"),
       value: `${num(model.load)} м/ч (${num(model.loadMm)} мм/с)`,
     },
-    { label: c.specLabels.fat, value: `${num(model.fat)} м³` },
-    { label: c.specLabels.sludge, value: `${num(model.sludge)} м³` },
-    { label: c.specLabels.material, value: line.materialValue },
-    { label: c.specLabels.laminate, value: `${model.laminate} мм` },
-    { label: c.specLabels.mass, value: `${model.mass} кг` },
-    { label: c.specLabels.dn, value: `DN${model.dn}` },
-    { label: c.specLabels.hatches, value: `${model.hatches}` },
-    { label: c.specLabels.vent, value: line.ventValue },
-    { label: c.specLabels.power, value: line.powerValue },
-    { label: c.specLabels.install, value: line.installValue },
+    { label: L("fat"), value: `${num(model.fat)} м³` },
+    { label: L("sludge"), value: `${num(model.sludge)} м³` },
+    { label: L("material"), value: line.materialValue },
+    { label: L("laminate"), value: `${model.laminate} мм` },
+    { label: L("mass"), value: `${model.mass} кг` },
+    { label: L("dn"), value: `DN${model.dn}` },
+    { label: L("hatches"), value: `${model.hatches}` },
+    { label: L("vent"), value: line.ventValue },
+    { label: L("power"), value: line.powerValue },
+    { label: L("install"), value: line.installValue },
   ];
 
   return (
@@ -102,10 +120,10 @@ export default function ModelClient({ model }: { model: Model }) {
           <b>{model.code}</b>
         </div>
 
-        <EquipIcon name="grit" className={s.topIcon} />
+        <EquipIcon name={icon} className={s.topIcon} />
 
         <div className={s.label}>
-          {line.modelWord} · {num(model.q)} м³/ч
+          {line.modelWord} · {num(model.q)} {unit}
         </div>
 
         <h1>{model.code}</h1>
@@ -217,18 +235,20 @@ export default function ModelClient({ model }: { model: Model }) {
               href={`/products/${item.slug}`}
               key={item.slug}
             >
-              <EquipIcon name="grit" className={s.modelIcon} />
+              <EquipIcon name={icon} className={s.modelIcon} />
 
               <b className={s.modelCode}>{item.code}</b>
 
-              <span className={s.modelQ}>{num(item.q)} м³/ч</span>
+              <span className={s.modelQ}>
+                {num(item.q)} {unit}
+              </span>
 
               <div className={s.modelMini}>
                 <span>
                   {item.length} × {item.width} × {item.height} мм
                 </span>
                 <span>
-                  {c.specLabels.volumeWork}: {num(item.volumeWork)} м³
+                  {L("volumeWork")}: {num(item.volumeWork)} м³
                 </span>
                 <span>DN{item.dn}</span>
               </div>

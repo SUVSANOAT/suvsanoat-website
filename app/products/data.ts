@@ -10,7 +10,7 @@
 
 import type { Language } from "../translations";
 
-export type LineKey = "grease-traps";
+export type LineKey = "grease-traps" | "oil-separators";
 
 export type Model = {
   slug: string;
@@ -18,6 +18,8 @@ export type Model = {
   line: LineKey;
   /** расчётный расход, м³/ч */
   q: number;
+  /** номинальный расход NS, л/с — для сепараторов по EN 858-2 */
+  ns?: number;
   /** габариты корпуса, мм */
   length: number;
   width: number;
@@ -32,7 +34,7 @@ export type Model = {
   /** гидравлическая нагрузка, м/ч и мм/с */
   load: number;
   loadMm: number;
-  /** объём накопления жира, м³ */
+  /** объём накопления уловленного продукта (жир, нефтепродукт), м³ */
   fat: number;
   /** объём приёмно-шламовой зоны, м³ */
   sludge: number;
@@ -113,7 +115,122 @@ export const MODELS: Model[] = [
     fat: 2.6, sludge: 5.85,
     laminate: 8, mass: 823, dn: 200, hatches: 4,
   },
+  /* ---------------- НЕФТЕУЛОВИТЕЛИ ----------------
+     Расчёт: скорость всплытия капли по Стоксу.
+     d = 100 мкм, ро_н = 850 кг/м3, T = 15 C -> v = 2,58 м/ч.
+     Эффективная площадь набирается коалесцентно-ламельным пакетом
+     (шаг 20 мм, угол 60 гр -> 25 м2 на 1 м3 пакета), запас 1,5.
+     Удельная нагрузка по всему ряду 1,72 м/ч.
+     Приёмно-шламовая камера 200 л на 1 л/с, сбор нефтепродуктов 15 л на 1 л/с. */
+  {
+    slug: "nef-1-5",
+    code: "НЕФ-1,5",
+    line: "oil-separators",
+    q: 5.4, ns: 1.5,
+    length: 1250, width: 800, height: 1300,
+    volumeGross: 1.3, volumeWork: 1.0, retention: 11,
+    area: 3.1, load: 1.72, loadMm: 0.48,
+    fat: 0.02, sludge: 0.3,
+    laminate: 6, mass: 100, dn: 110, hatches: 1,
+  },
+  {
+    slug: "nef-3",
+    code: "НЕФ-3",
+    line: "oil-separators",
+    q: 10.8, ns: 3,
+    length: 1350, width: 900, height: 1400,
+    volumeGross: 1.7, volumeWork: 1.34, retention: 7,
+    area: 6.3, load: 1.72, loadMm: 0.48,
+    fat: 0.04, sludge: 0.6,
+    laminate: 6, mass: 120, dn: 160, hatches: 1,
+  },
+  {
+    slug: "nef-6",
+    code: "НЕФ-6",
+    line: "oil-separators",
+    q: 21.6, ns: 6,
+    length: 1650, width: 1100, height: 1550,
+    volumeGross: 2.81, volumeWork: 2.27, retention: 6,
+    area: 12.6, load: 1.72, loadMm: 0.48,
+    fat: 0.09, sludge: 1.2,
+    laminate: 7, mass: 195, dn: 200, hatches: 2,
+  },
+  {
+    slug: "nef-10",
+    code: "НЕФ-10",
+    line: "oil-separators",
+    q: 36, ns: 10,
+    length: 2100, width: 1300, height: 1650,
+    volumeGross: 4.5, volumeWork: 3.69, retention: 6,
+    area: 20.9, load: 1.72, loadMm: 0.48,
+    fat: 0.15, sludge: 2,
+    laminate: 7, mass: 265, dn: 250, hatches: 2,
+  },
+  {
+    slug: "nef-15",
+    code: "НЕФ-15",
+    line: "oil-separators",
+    q: 54, ns: 15,
+    length: 2550, width: 1500, height: 1750,
+    volumeGross: 6.69, volumeWork: 5.55, retention: 6,
+    area: 31.4, load: 1.72, loadMm: 0.48,
+    fat: 0.22, sludge: 3,
+    laminate: 8, mass: 390, dn: 315, hatches: 2,
+  },
+  {
+    slug: "nef-20",
+    code: "НЕФ-20",
+    line: "oil-separators",
+    q: 72, ns: 20,
+    length: 2900, width: 1700, height: 1800,
+    volumeGross: 8.87, volumeWork: 7.39, retention: 6,
+    area: 41.8, load: 1.72, loadMm: 0.48,
+    fat: 0.3, sludge: 4,
+    laminate: 8, mass: 470, dn: 355, hatches: 3,
+  },
 ];
+
+/**
+ * Данные для серверных метаданных и разметки поисковых систем.
+ * Живут отдельно от TEXT, потому что metadata собирается на сервере
+ * и языкового контекста там нет — страница выдаётся на русском.
+ */
+export type LineSeo = {
+  noun: string;
+  category: string;
+  unit: string;
+  material: string;
+  short: string;
+};
+
+export const LINE_SEO: Record<LineKey, LineSeo> = {
+  "grease-traps": {
+    noun: "Жироуловитель",
+    category: "Жироуловители",
+    unit: "м³/ч",
+    material: "Стеклопластик",
+    short: "жироуловитель",
+  },
+  "oil-separators": {
+    noun: "Нефтеуловитель",
+    category: "Нефтеуловители",
+    unit: "л/с",
+    material: "Стеклопластик",
+    short: "нефтеуловитель",
+  },
+};
+
+/** Иконка линейки (имя из app/components/EquipIcon.tsx) */
+export const LINE_ICON: Record<LineKey, string> = {
+  "grease-traps": "grit",
+  "oil-separators": "lamella",
+};
+
+/** Главный размерный признак модели для заголовков (рус.) */
+export const modelSize = (model: Model) =>
+  model.ns !== undefined
+    ? `${String(model.ns).replace(".", ",")} л/с`
+    : `${String(model.q).replace(".", ",")} м³/ч`;
 
 export const findModel = (slug: string) =>
   MODELS.find((model) => model.slug === slug);
@@ -129,6 +246,7 @@ export const lineModels = (line: LineKey) =>
 
 export type SpecLabels = {
   q: string;
+  ns: string;
   size: string;
   volumeGross: string;
   volumeWork: string;
@@ -149,6 +267,8 @@ export type SpecLabels = {
 
 export type LineText = {
   name: string;
+  /** подписи, которые отличаются от общих для этой линейки */
+  labels?: Partial<SpecLabels>;
   tagline: string;
   intro: string[];
   forWhom: { title: string; text: string }[];
@@ -200,6 +320,7 @@ export const TEXT: Record<Language, ProductsText> = {
       "Типоразмерные ряды рассчитаны по нормам и проверены по гидравлике. Каждая модель — не «примерно такой размер», а результат расчёта: время пребывания, нагрузка на зеркало и объём накопления проверены для всего ряда.",
     specLabels: {
       q: "Расчётный расход",
+      ns: "Номинальный расход NS",
       size: "Габариты (Д × Ш × В)",
       volumeGross: "Геометрический объём",
       volumeWork: "Рабочий объём",
@@ -294,6 +415,90 @@ export const TEXT: Record<Language, ProductsText> = {
         allModels: "Все модели линейки",
         backToLine: "К линейке",
       },
+      "oil-separators": {
+        name: "Нефтеуловители",
+        labels: {
+          area: "Эффективная площадь сепарации",
+          load: "Удельная нагрузка",
+          fat: "Объём накопления нефтепродуктов",
+          sludge: "Приёмно-шламовая камера",
+        },
+        tagline:
+          "Отделение нефтепродуктов и взвеси от стоков автомоек, АЗС, паркингов и производственных площадок",
+        intro: [
+          "Стоки с автомоек, АЗС, паркингов и открытых площадок несут нефтепродукты, песок и мелкую взвесь. Попадая в канализацию, нефтепродукты образуют плёнку и подавляют биологическую очистку на городских сооружениях; попадая в грунт — загрязняют почву и грунтовые воды.",
+          "Нефтеуловитель ставится на выпуске площадки и работает самотёком. Три ступени в одном корпусе: приёмно-шламовая камера, зона гравитационного отделения крупных капель и коалесцентно-ламельный модуль, который собирает мелкие капли в крупные и выводит их на поверхность.",
+          "Ряд рассчитан по скорости всплытия капли (формула Стокса). Для капли 100 мкм при плотности нефтепродукта 850 кг/м³ и температуре воды 15 °C скорость всплытия составляет 2,58 м/ч. Удельная нагрузка на эффективную площадь по всему ряду принята 1,72 м/ч — с полуторным запасом к расчётной скорости.",
+          "Типоразмер обозначается номинальным расходом в литрах в секунду, как принято в EN 858-2: НЕФ-10 — это 10 л/с, то есть 36 м³/ч.",
+        ],
+        forWhom: [
+          { title: "Автомойки", text: "Стоки постов: нефтепродукты, песок, абразив. Ставится в паре с песколовкой." },
+          { title: "АЗС и АГНКС", text: "Площадка заправки и сливная площадка автоцистерн." },
+          { title: "Паркинги и стоянки", text: "Мойка полов, талая вода, капёж с автомобилей." },
+          { title: "СТО и автосервисы", text: "Посты мойки агрегатов, зона замены масла." },
+          { title: "Промышленные площадки", text: "Открытые склады, площадки стоянки техники." },
+          { title: "Ливневая канализация", text: "Выпуски с проездов, дорог и разворотных площадок." },
+        ],
+        includes: [
+          "Корпус из стеклопластика с рёбрами жёсткости",
+          "Приёмно-шламовая камера с успокоителем входного потока",
+          "Коалесцентно-ламельный модуль, шаг пластин 20 мм",
+          "Полупогружные перегородки и выходной сифон",
+          "Горловины и крышки по количеству люков",
+          "Присоединительные патрубки с уплотнительными манжетами",
+          "Вентиляционный стояк с дефлектором",
+          "Паспорт изделия и руководство по эксплуатации",
+        ],
+        notIncluded: [
+          "Земляные работы и разработка котлована",
+          "Бетонная подготовка и обетонирование корпуса",
+          "Железобетонная разгрузочная плита при установке под проездом",
+          "Наружные сети канализации до и после изделия",
+          "Автоматический запорный поплавок — опция",
+          "Сорбционный блок доочистки — опция",
+          "Периодическая откачка нефтепродуктов и шлама",
+        ],
+        limits: [
+          {
+            title: "Норматив 1,0 мг/л гравитацией не достигается",
+            text: "Постановление КМ РУз № 11 от 03.02.2010 нормирует нефтепродукты на уровне 1,0 мг/л. Коалесцентный сепаратор устойчиво даёт 5 мг/л — это класс I по EN 858-1, лучший результат для безреагентной схемы. Для единиц мг/л нужен сорбционный блок после сепаратора, и его ресурс считается отдельно.",
+          },
+          {
+            title: "Эмульсия не разделяется",
+            text: "Автошампуни, обезжириватели и активная пена переводят нефтепродукт в стойкую эмульсию, которая проходит сепаратор насквозь. Это свойство физики процесса, а не конструкции изделия. При активной химии нужна коагуляция или напорная флотация.",
+          },
+          {
+            title: "Песок обязательно задерживать до пакета",
+            text: "Абразив забивает ламельный модуль и снижает эффективность. Приёмно-шламовая камера в составе изделия рассчитана на 200 литров на 1 л/с. При высоком выносе песка — автомойка, стройплощадка, грунтовые проезды — нужна отдельная песколовка перед нефтеуловителем.",
+          },
+          {
+            title: "Расчётный расход — не диаметр трубы",
+            text: "Для ливневых стоков расход считается по интенсивности дождя и площади водосбора согласно КМК 2.04.03-19, для автомойки — по числу одновременно работающих постов. Подбор «по диаметру существующей трубы» даёт ошибку в разы в обе стороны.",
+          },
+        ],
+        useTitle: "Где применяется",
+        limitsTitle: "Что нужно знать до заказа",
+        includesTitle: "Входит в поставку",
+        notIncludedTitle: "Не входит в поставку",
+        howToChoose:
+          "Для автомойки типоразмер определяется числом одновременно работающих постов: один аппарат высокого давления даёт 1,2–1,8 м³/ч. Для АЗС, паркинга и ливневых выпусков — площадью водосбора и расчётной интенсивностью дождя по КМК 2.04.03-19. Пришлите план площадки с отметками и назначением покрытий — вернём расчёт расхода и подбор типоразмера.",
+        materialValue: "стеклопластик, изофталевая полиэфирная смола",
+        ventValue: "стояк DN110 с дефлектором",
+        powerValue: "отсутствует, работа самотёком",
+        installValue: "подземная, в бетонной обойме",
+        modelWord: "Нефтеуловитель",
+        ctaTitle: "Посчитаем расход\nпо вашей площадке.",
+        ctaText:
+          "Пришлите план площадки, площадь и тип покрытий, отметку канализации в точке врезки. Вернём расчёт расчётного расхода, подбор типоразмера и исполнительную схему для строительной части.",
+        ctaButton: "ЗАПРОСИТЬ ПОДБОР",
+        priceLabel: "СТОИМОСТЬ",
+        priceText:
+          "Стоимость зависит от комплектации, класса нагрузки на люки, наличия сорбционного блока и объёма монтажных работ. Отправьте заявку — ответим в течение рабочего дня.",
+        tableTitle: "Типоразмерный ряд",
+        specsTitle: "Технические характеристики",
+        allModels: "Все модели линейки",
+        backToLine: "К линейке",
+      },
     },
   },
   uz: {
@@ -307,6 +512,7 @@ export const TEXT: Record<Language, ProductsText> = {
       "Tipo‘lcham qatorlari me'yorlar bo‘yicha hisoblangan va gidravlika bo‘yicha tekshirilgan. Har bir model «taxminan shunday o‘lcham» emas, balki hisob natijasi: turib qolish vaqti, ko‘zgu yuzasiga yuklama va to‘planish hajmi butun qator uchun tekshirib chiqilgan.",
     specLabels: {
       q: "Hisobiy sarf",
+      ns: "Nominal sarf NS",
       size: "Gabaritlar (U × K × B)",
       volumeGross: "Geometrik hajm",
       volumeWork: "Ishchi hajm",
@@ -401,6 +607,90 @@ export const TEXT: Record<Language, ProductsText> = {
         allModels: "Liniyaning barcha modellari",
         backToLine: "Liniyaga qaytish",
       },
+      "oil-separators": {
+        name: "Neft tutgichlar",
+        labels: {
+          area: "Samarali separatsiya yuzasi",
+          load: "Solishtirma yuklama",
+          fat: "Neft mahsulotlari to‘planish hajmi",
+          sludge: "Qabul-shlam kamerasi",
+        },
+        tagline:
+          "Avtoyuvish shoxobchalari, ShAQSh, avtoturargohlar va ishlab chiqarish maydonchalari oqavasidan neft mahsulotlari va muallaq zarralarni ajratish",
+        intro: [
+          "Avtoyuvish shoxobchalari, ShAQSh, avtoturargohlar va ochiq maydonchalar oqavasi neft mahsulotlari, qum va mayda muallaq zarralarni olib keladi. Kanalizatsiyaga tushganda neft mahsulotlari parda hosil qiladi va shahar inshootlaridagi biologik tozalashni bo‘g‘adi; tuproqqa tushganda tuproq va yer osti suvlarini ifloslantiradi.",
+          "Neft tutgich maydoncha chiqishiga o‘rnatiladi va o‘z oqimi bilan ishlaydi. Bitta korpusda uch bosqich: qabul-shlam kamerasi, yirik tomchilarni gravitatsion ajratish zonasi va mayda tomchilarni yiriklashtirib yuzaga chiqaradigan koalessent-lamel moduli.",
+          "Qator tomchining suzib chiqish tezligi bo‘yicha (Stoks formulasi) hisoblangan. 100 mkm tomcha uchun neft mahsuloti zichligi 850 kg/m³ va suv harorati 15 °C bo‘lganda suzib chiqish tezligi 2,58 m/soat. Butun qator bo‘yicha samarali yuzaga solishtirma yuklama 1,72 m/soat qilib qabul qilingan — hisobiy tezlikka nisbatan 1,5 karra zaxira bilan.",
+          "O‘lcham EN 858-2 da qabul qilinganidek, sekundiga litrdagi nominal sarf bilan belgilanadi: НЕФ-10 — bu 10 l/s, ya’ni 36 m³/soat.",
+        ],
+        forWhom: [
+          { title: "Avtoyuvish shoxobchalari", text: "Postlar oqavasi: neft mahsulotlari, qum, abraziv. Qum tutgich bilan birga o‘rnatiladi." },
+          { title: "ShAQSh va AGNQSh", text: "Yoqilg‘i quyish va avtotsisternalarni bo‘shatish maydonchasi." },
+          { title: "Avtoturargohlar", text: "Pol yuvish, erigan qor suvi, avtomobillardan tomchilash." },
+          { title: "Texnik xizmat stansiyalari", text: "Agregatlarni yuvish postlari, moy almashtirish zonasi." },
+          { title: "Sanoat maydonchalari", text: "Ochiq omborlar, texnika turadigan maydonchalar." },
+          { title: "Yomg‘ir kanalizatsiyasi", text: "Yo‘l va aylanma maydonchalardan chiqish joylari." },
+        ],
+        includes: [
+          "Qattiqlik qovurg‘alari bilan shishatolali plastik korpus",
+          "Kirish oqimini tinchlantirgichli qabul-shlam kamerasi",
+          "Koalessent-lamel moduli, plastinka qadami 20 mm",
+          "Yarim botiq to‘siqlar va chiqish sifoni",
+          "Lyuklar soniga mos bo‘yinlar va qopqoqlar",
+          "Zichlash muftalari bilan ulanish patrubkalari",
+          "Deflektorli ventilyatsiya stoyakasi",
+          "Mahsulot pasporti va foydalanish qo‘llanmasi",
+        ],
+        notIncluded: [
+          "Yer ishlari va kotlovan qazish",
+          "Beton tayyorlash va korpusni betonlash",
+          "Yo‘l ostiga o‘rnatishda temir-beton yuk tushiruvchi plita",
+          "Mahsulotgacha va undan keyingi tashqi kanalizatsiya tarmoqlari",
+          "Avtomatik yopuvchi kalqovich — opsiya",
+          "Sorbsion qo‘shimcha tozalash bloki — opsiya",
+          "Neft mahsulotlari va shlamni davriy so‘rib olish",
+        ],
+        limits: [
+          {
+            title: "1,0 mg/l me’yoriga gravitatsiya bilan erishib bo‘lmaydi",
+            text: "O‘zbekiston Respublikasi Vazirlar Mahkamasining 03.02.2010 yildagi 11-sonli qarori neft mahsulotlarini 1,0 mg/l darajasida me’yorlaydi. Koalessent separator barqaror 5 mg/l beradi — bu EN 858-1 bo‘yicha I sinf, reagentsiz sxema uchun eng yaxshi natija. Bir necha mg/l uchun separatordan keyin sorbsion blok kerak.",
+          },
+          {
+            title: "Emulsiya ajralmaydi",
+            text: "Avtoshampunlar, yog‘sizlantirgichlar va faol ko‘pik neft mahsulotini barqaror emulsiyaga aylantiradi, u separatordan o‘tib ketadi. Bu jarayon fizikasining xususiyati, mahsulot konstruksiyasi emas. Faol kimyo bo‘lganda koagulyatsiya yoki bosimli flotatsiya kerak.",
+          },
+          {
+            title: "Qumni paketgacha ushlab qolish shart",
+            text: "Abraziv lamel modulini tiqib qo‘yadi. Mahsulot tarkibidagi qabul-shlam kamerasi 1 l/s uchun 200 litrga hisoblangan. Qum ko‘p chiqadigan joylarda — avtoyuvish, qurilish maydonchasi — neft tutgichdan oldin alohida qum tutgich kerak.",
+          },
+          {
+            title: "Hisobiy sarf — quvur diametri emas",
+            text: "Yomg‘ir oqavasi uchun sarf KMK 2.04.03-19 bo‘yicha yomg‘ir jadalligi va suv yig‘ish maydoni bo‘yicha, avtoyuvish uchun — bir vaqtda ishlaydigan postlar soni bo‘yicha hisoblanadi. «Mavjud quvur diametri bo‘yicha» tanlash bir necha barobar xatolik beradi.",
+          },
+        ],
+        useTitle: "Qayerda qo‘llaniladi",
+        limitsTitle: "Buyurtmadan oldin bilish kerak",
+        includesTitle: "Yetkazib berishga kiradi",
+        notIncludedTitle: "Yetkazib berishga kirmaydi",
+        howToChoose:
+          "Avtoyuvish uchun o‘lcham bir vaqtda ishlaydigan postlar soni bilan aniqlanadi: bitta yuqori bosimli apparat 1,2–1,8 m³/soat beradi. ShAQSh, avtoturargoh va yomg‘ir chiqishlari uchun — suv yig‘ish maydoni va KMK 2.04.03-19 bo‘yicha hisobiy yomg‘ir jadalligi bilan. Maydoncha rejasini belgilar va qoplama turlari bilan yuboring — sarf hisobi va o‘lcham tanlovini qaytaramiz.",
+        materialValue: "shishatolali plastik, izoftal poliefir smolasi",
+        ventValue: "deflektorli DN110 stoyak",
+        powerValue: "yo‘q, o‘z oqimi bilan ishlaydi",
+        installValue: "yer osti, beton qobiqda",
+        modelWord: "Neft tutgich",
+        ctaTitle: "Maydonchangiz bo‘yicha\nsarfni hisoblaymiz.",
+        ctaText:
+          "Maydoncha rejasini, qoplama maydoni va turini, ulanish nuqtasidagi kanalizatsiya belgisini yuboring. Hisobiy sarf, o‘lcham tanlovi va qurilish qismi uchun ijro sxemasini qaytaramiz.",
+        ctaButton: "TANLOVNI SO‘RASH",
+        priceLabel: "NARXI",
+        priceText:
+          "Narx komplektatsiya, lyuklarning yuklama sinfi, sorbsion blok mavjudligi va montaj ishlari hajmiga bog‘liq. Ariza yuboring — ish kuni davomida javob beramiz.",
+        tableTitle: "O‘lchamlar qatori",
+        specsTitle: "Texnik tavsiflar",
+        allModels: "Liniyaning barcha modellari",
+        backToLine: "Liniyaga qaytish",
+      },
     },
   },
   en: {
@@ -414,6 +704,7 @@ export const TEXT: Record<Language, ProductsText> = {
       "The size ranges are calculated to code and verified hydraulically. Every model is not an \"about this big\" guess but the result of a calculation: retention time, surface loading and accumulation volume have been checked across the whole range.",
     specLabels: {
       q: "Design flow rate",
+      ns: "Nominal size NS",
       size: "Dimensions (L × W × H)",
       volumeGross: "Gross volume",
       volumeWork: "Working volume",
@@ -508,6 +799,90 @@ export const TEXT: Record<Language, ProductsText> = {
         allModels: "All models in the line",
         backToLine: "Back to the line",
       },
+      "oil-separators": {
+        name: "Oil separators",
+        labels: {
+          area: "Effective separation area",
+          load: "Specific surface load",
+          fat: "Oil storage volume",
+          sludge: "Sludge trap chamber",
+        },
+        tagline:
+          "Removal of oil, fuel and suspended solids from car wash, filling station, parking and industrial yard runoff",
+        intro: [
+          "Runoff from car washes, filling stations, parking decks and open yards carries oil products, sand and fine suspended solids. In the sewer, oil forms a film and suppresses biological treatment at the municipal plant; in the ground it contaminates soil and groundwater.",
+          "The separator is installed at the outlet of the paved area and works by gravity. Three stages in one shell: a sludge trap chamber, a gravity zone for coarse droplets, and a coalescing lamella module that merges fine droplets and lifts them to the surface.",
+          "The range is calculated from droplet rise velocity (Stokes law). For a 100 µm droplet at an oil density of 850 kg/m³ and a water temperature of 15 °C the rise velocity is 2.58 m/h. The specific load on the effective area is set at 1.72 m/h across the whole range — a safety factor of 1.5 against the calculated velocity.",
+          "Sizes are designated by nominal flow in litres per second, as in EN 858-2: НЕФ-10 means 10 l/s, that is 36 m³/h.",
+        ],
+        forWhom: [
+          { title: "Car washes", text: "Bay runoff: oil, sand and abrasives. Installed together with a sand trap." },
+          { title: "Filling stations", text: "Dispensing area and tanker unloading pad." },
+          { title: "Parking decks", text: "Floor washing, snow melt, drip from vehicles." },
+          { title: "Service stations", text: "Component washing bays, oil change area." },
+          { title: "Industrial yards", text: "Open storage and equipment parking areas." },
+          { title: "Storm drainage", text: "Outlets from driveways, roads and turning areas." },
+        ],
+        includes: [
+          "GRP shell with stiffening ribs",
+          "Sludge trap chamber with inlet flow diffuser",
+          "Coalescing lamella module, 20 mm plate spacing",
+          "Semi-submerged baffles and outlet siphon",
+          "Necks and covers according to the number of manholes",
+          "Connection stubs with sealing sleeves",
+          "Vent stack with cowl",
+          "Product passport and operating manual",
+        ],
+        notIncluded: [
+          "Earthworks and excavation",
+          "Concrete bedding and encasement of the shell",
+          "Reinforced concrete relief slab where installed under traffic",
+          "External sewer lines before and after the unit",
+          "Automatic closure float — option",
+          "Sorption polishing unit — option",
+          "Periodic removal of oil and sludge",
+        ],
+        limits: [
+          {
+            title: "1.0 mg/l cannot be reached by gravity",
+            text: "Uzbekistan Cabinet Resolution No. 11 of 03.02.2010 sets the oil limit at 1.0 mg/l. A coalescing separator reliably delivers 5 mg/l — Class I under EN 858-1 and the best result achievable without chemicals. Single digits in mg/l require a sorption stage after the separator, and its service life has to be calculated separately.",
+          },
+          {
+            title: "Emulsions do not separate",
+            text: "Car shampoos, degreasers and active foam turn oil into a stable emulsion that passes straight through the separator. This is the physics of the process, not a property of the unit. Where active chemistry is used, coagulation or dissolved air flotation is required.",
+          },
+          {
+            title: "Sand must be retained ahead of the pack",
+            text: "Abrasives clog the lamella module. The built-in sludge chamber is sized at 200 litres per 1 l/s. Where sand carry-over is high — car washes, construction sites, unpaved approaches — a separate sand trap is needed upstream.",
+          },
+          {
+            title: "Design flow is not pipe diameter",
+            text: "For storm runoff the flow is calculated from rainfall intensity and catchment area to KMK 2.04.03-19; for a car wash, from the number of bays working simultaneously. Selecting by the diameter of the existing pipe is wrong by a factor of several in either direction.",
+          },
+        ],
+        useTitle: "Where it is used",
+        limitsTitle: "What to know before ordering",
+        includesTitle: "Included in supply",
+        notIncludedTitle: "Not included in supply",
+        howToChoose:
+          "For a car wash the size follows from the number of bays working at the same time: one high-pressure unit draws 1.2–1.8 m³/h. For filling stations, parking decks and storm outlets it follows from the catchment area and the design rainfall intensity to KMK 2.04.03-19. Send the site plan with levels and surface types and we will return the flow calculation and the selected size.",
+        materialValue: "GRP, isophthalic polyester resin",
+        ventValue: "DN110 stack with cowl",
+        powerValue: "none, gravity operation",
+        installValue: "buried, in a concrete encasement",
+        modelWord: "Oil separator",
+        ctaTitle: "We will calculate the flow\nfor your site.",
+        ctaText:
+          "Send the site plan, the paved area and surface types, and the sewer level at the connection point. We will return the design flow, the selected size and a construction drawing for the civil works.",
+        ctaButton: "REQUEST A SELECTION",
+        priceLabel: "PRICE",
+        priceText:
+          "The price depends on the configuration, the load class of the covers, whether a sorption unit is included, and the scope of installation work. Send an enquiry — we reply within one working day.",
+        tableTitle: "Size range",
+        specsTitle: "Technical data",
+        allModels: "All models in the line",
+        backToLine: "Back to the line",
+      },
     },
   },
   zh: {
@@ -521,6 +896,7 @@ export const TEXT: Record<Language, ProductsText> = {
       "各规格系列均按规范计算并经水力校核。每一型号都不是「大概这个尺寸」，而是计算结果：停留时间、表面负荷与积存容积在整个系列范围内均已核验。",
     specLabels: {
       q: "设计流量",
+      ns: "公称流量 NS",
       size: "外形尺寸（长 × 宽 × 高）",
       volumeGross: "几何容积",
       volumeWork: "有效容积",
@@ -610,6 +986,90 @@ export const TEXT: Record<Language, ProductsText> = {
         priceLabel: "价格",
         priceText:
           "价格取决于配置、检查井盖的荷载等级以及安装工作量。请提交询价——我们将在一个工作日内答复。",
+        tableTitle: "规格系列",
+        specsTitle: "技术参数",
+        allModels: "本系列全部型号",
+        backToLine: "返回系列",
+      },
+      "oil-separators": {
+        name: "隔油除油器",
+        labels: {
+          area: "有效分离面积",
+          load: "表面负荷",
+          fat: "油品蓄积容积",
+          sludge: "沉砂集泥室",
+        },
+        tagline:
+          "分离洗车场、加油站、停车场和工业场地雨污水中的石油类物质与悬浮物",
+        intro: [
+          "洗车场、加油站、停车场和露天场地的排水携带石油类物质、砂粒和细小悬浮物。进入排水管网后，油类形成油膜并抑制市政污水厂的生物处理；渗入地下则污染土壤和地下水。",
+          "除油器安装在场地排水出口，重力自流运行。同一壳体内设三级：沉砂集泥室、大油滴重力分离区，以及将细油滴聚并后浮升至水面的聚结斜板模块。",
+          "系列按油滴上浮速度（斯托克斯公式）计算。油滴粒径 100 µm、油品密度 850 kg/m³、水温 15 °C 时，上浮速度为 2.58 m/h。全系列有效面积表面负荷取 1.72 m/h，相对计算速度留有 1.5 倍安全裕度。",
+          "规格按每秒升数的公称流量标注，与 EN 858-2 一致：НЕФ-10 即 10 l/s，折合 36 m³/h。",
+        ],
+        forWhom: [
+          { title: "洗车场", text: "洗车工位排水：油类、砂粒、磨料。与沉砂池配套安装。" },
+          { title: "加油站", text: "加油区与油罐车卸油平台。" },
+          { title: "停车场", text: "地面冲洗水、融雪水、车辆滴漏。" },
+          { title: "汽车维修站", text: "部件清洗工位、换油作业区。" },
+          { title: "工业场地", text: "露天仓库、机械停放场地。" },
+          { title: "雨水管网", text: "车行道、道路和回车场的排水出口。" },
+        ],
+        includes: [
+          "带加强肋的玻璃钢壳体",
+          "带进水稳流装置的沉砂集泥室",
+          "聚结斜板模块，板间距 20 mm",
+          "半潜式隔板与出水虹吸",
+          "按检修口数量配套的井筒与盖板",
+          "带密封套的接管",
+          "带风帽的通气立管",
+          "产品合格证与使用说明书",
+        ],
+        notIncluded: [
+          "土方工程与基坑开挖",
+          "混凝土垫层与壳体包封",
+          "行车荷载下的钢筋混凝土卸荷板",
+          "设备前后的室外排水管网",
+          "自动关闭浮球——选配",
+          "吸附深度处理单元——选配",
+          "油品与污泥的定期清运",
+        ],
+        limits: [
+          {
+            title: "重力法达不到 1,0 mg/l",
+            text: "乌兹别克斯坦内阁 2010 年 2 月 3 日第 11 号决议规定石油类限值为 1,0 mg/l。聚结式除油器可稳定达到 5 mg/l，即 EN 858-1 的 I 级，这是不投加药剂条件下的最佳结果。要达到个位数 mg/l，需在除油器后增设吸附单元，其寿命需单独计算。",
+          },
+          {
+            title: "乳化油无法分离",
+            text: "洗车液、除油剂和活性泡沫会把油类变成稳定乳液，直接穿过除油器。这是工艺物理特性，不是设备结构问题。使用活性化学品时需要混凝或加压气浮。",
+          },
+          {
+            title: "砂粒必须在斜板前拦截",
+            text: "磨料会堵塞斜板模块。设备内置沉砂室按每 1 l/s 200 升设计。砂量大的场合——洗车场、施工场地——需在除油器前单设沉砂池。",
+          },
+          {
+            title: "设计流量不等于管径",
+            text: "雨水排放按 KMK 2.04.03-19 的降雨强度和汇水面积计算，洗车场按同时作业的工位数计算。按现有管径选型会产生数倍误差。",
+          },
+        ],
+        useTitle: "适用场合",
+        limitsTitle: "订货前须知",
+        includesTitle: "供货范围",
+        notIncludedTitle: "不含内容",
+        howToChoose:
+          "洗车场按同时作业的工位数确定规格：一台高压清洗机耗水 1,2–1,8 m³/h。加油站、停车场和雨水排口按汇水面积和 KMK 2.04.03-19 的设计降雨强度确定。请提供带标高和铺装类型的场地平面图，我们将返回流量计算与选型结果。",
+        materialValue: "玻璃钢，间苯型聚酯树脂",
+        ventValue: "DN110 立管带风帽",
+        powerValue: "无，重力自流运行",
+        installValue: "埋地安装，混凝土包封",
+        modelWord: "除油器",
+        ctaTitle: "我们为您的场地\n计算流量。",
+        ctaText:
+          "请提供场地平面图、铺装面积与类型，以及接入点的排水管标高。我们将返回设计流量、选型结果和土建施工图。",
+        ctaButton: "申请选型",
+        priceLabel: "价格",
+        priceText:
+          "价格取决于配置、盖板荷载等级、是否含吸附单元以及安装工作量。请提交询价，我们将在一个工作日内答复。",
         tableTitle: "规格系列",
         specsTitle: "技术参数",
         allModels: "本系列全部型号",

@@ -143,6 +143,59 @@
   color: var(--accent);
 }
 
+/* ---------------- ПЕРЕХОД К ЛИНЕЙКАМ ---------------- */
+
+.lineNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 40px;
+}
+
+.lineChip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 26px 18px 20px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.lineChip:hover {
+  border-color: rgba(62, 195, 230, 0.45);
+  background: var(--bg3);
+}
+
+.lineChipIcon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  color: var(--accent);
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.lineChip:hover .lineChipIcon {
+  transform: scale(1.12);
+}
+
+.lineChip b {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+
+.lineChip i {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 /* ---------------- ОБЩИЕ СЕКЦИИ ---------------- */
 
 .section {

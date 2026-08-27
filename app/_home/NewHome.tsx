@@ -1131,17 +1131,33 @@ export default function NewHome() {
           </div>
 
           <div className={s.rangeRight}>
-            {MODELS.map((model) => (
-              <span className={s.rangeChip} key={model.slug}>
-                <b>{model.code}</b>
-                <i>
-                  {language === "en" || language === "zh"
-                    ? String(model.q)
-                    : String(model.q).replace(".", ",")}{" "}
-                  {language === "zh" ? "m³/h" : "м³/ч"}
-                </i>
-              </span>
-            ))}
+            {(
+              Object.keys(PRODUCTS_TEXT[language].lines) as (keyof typeof PRODUCTS_TEXT.ru.lines)[]
+            ).map((key) => {
+              const models = MODELS.filter((model) => model.line === key);
+              const values = models.map((model) => model.ns ?? model.q);
+              const dec = (value: number) =>
+                language === "en" || language === "zh"
+                  ? String(value)
+                  : String(value).replace(".", ",");
+              const unit =
+                models[0]?.ns !== undefined
+                  ? language === "zh"
+                    ? "l/s"
+                    : "л/с"
+                  : language === "zh"
+                    ? "m³/h"
+                    : "м³/ч";
+
+              return (
+                <span className={s.rangeChip} key={key}>
+                  <b>{PRODUCTS_TEXT[language].lines[key].name}</b>
+                  <i>
+                    {dec(Math.min(...values))}–{dec(Math.max(...values))} {unit}
+                  </i>
+                </span>
+              );
+            })}
           </div>
         </a>
       </section>

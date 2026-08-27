@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { MODELS, findModel } from "../data";
+import { MODELS, LINE_SEO, findModel, modelSize } from "../data";
 import ModelClient from "./ModelClient";
 
 /**
@@ -9,6 +9,9 @@ import ModelClient from "./ModelClient";
  *
  * Адреса и метаданные берутся из app/products/data.ts — добавили модель
  * в файл, страница появилась сама и попала в sitemap.xml.
+ *
+ * Название линейки берётся из LINE_SEO, а не пишется в коде: при
+ * добавлении новой линейки заголовки и разметка меняются сами.
  */
 
 export function generateStaticParams() {
@@ -25,10 +28,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!model) return {};
 
-  const title = `Жироуловитель ${model.q} м³/ч ${model.code} — купить в Ташкенте`;
+  const seo = LINE_SEO[model.line];
+  const size = modelSize(model);
+
+  const title = `${seo.noun} ${size} ${model.code} — купить в Ташкенте`;
 
   const description =
-    `Жироуловитель ${model.code} производительностью ${model.q} м³/ч. ` +
+    `${seo.noun} ${model.code} производительностью ${size}. ` +
     `Габариты ${model.length} × ${model.width} × ${model.height} мм, ` +
     `рабочий объём ${model.volumeWork} м³, время пребывания ${model.retention} мин, ` +
     `присоединение DN${model.dn}, масса ${model.mass} кг. ` +
@@ -39,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     alternates: { canonical: `/products/${model.slug}` },
     openGraph: {
-      title: `${model.code} — жироуловитель ${model.q} м³/ч | SUVSANOAT`,
+      title: `${model.code} — ${seo.short} ${size} | SUVSANOAT`,
       description,
       url: `https://suvsanoat.uz/products/${model.slug}`,
       siteName: "SUVSANOAT",
@@ -50,13 +56,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: "/og-image.jpg",
           width: 1200,
           height: 630,
-          alt: `Жироуловитель ${model.code} SUVSANOAT`,
+          alt: `${seo.noun} ${model.code} SUVSANOAT`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${model.code} — жироуловитель ${model.q} м³/ч`,
+      title: `${model.code} — ${seo.short} ${size}`,
       description,
       images: ["/og-image.jpg"],
     },
@@ -70,16 +76,19 @@ export default async function ModelPage({ params }: Props) {
 
   if (!model) notFound();
 
+  const seo = LINE_SEO[model.line];
+  const size = modelSize(model);
+
   /* Разметка для поисковых систем. Цена не публикуется, поэтому блок
      предложения не указывается — карточка индексируется и без него. */
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `Жироуловитель ${model.code}`,
+    name: `${seo.noun} ${model.code}`,
     sku: model.code,
-    category: "Жироуловители",
+    category: seo.category,
     description:
-      `Жироуловитель производительностью ${model.q} м³/ч, ` +
+      `${seo.noun} производительностью ${size}, ` +
       `рабочий объём ${model.volumeWork} м³, время пребывания ${model.retention} мин.`,
     brand: { "@type": "Brand", name: "SUVSANOAT" },
     manufacturer: {
@@ -87,7 +96,7 @@ export default async function ModelPage({ params }: Props) {
       name: "SUVSANOAT",
       url: "https://suvsanoat.uz",
     },
-    material: "Стеклопластик",
+    material: seo.material,
     weight: {
       "@type": "QuantitativeValue",
       value: model.mass,
@@ -109,6 +118,15 @@ export default async function ModelPage({ params }: Props) {
       unitCode: "MMT",
     },
     additionalProperty: [
+      ...(model.ns !== undefined
+        ? [
+            {
+              "@type": "PropertyValue",
+              name: "Номинальный расход NS",
+              value: `${model.ns} л/с`,
+            },
+          ]
+        : []),
       {
         "@type": "PropertyValue",
         name: "Расчётный расход",
@@ -123,11 +141,6 @@ export default async function ModelPage({ params }: Props) {
         "@type": "PropertyValue",
         name: "Время пребывания",
         value: `${model.retention} мин`,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "Площадь зеркала",
-        value: `${model.area} м²`,
       },
       {
         "@type": "PropertyValue",
