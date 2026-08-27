@@ -6,7 +6,14 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import type { Language } from "../translations";
-import { SOLIDS, ANCHORS, VIEW_BOX, FLOW_POINTS, FLOW_LENGTH } from "./isoData";
+import {
+  SOLIDS,
+  ANCHORS,
+  VIEW_BOX,
+  FLOW_POINTS,
+  FLOW_LENGTH,
+  FLOW_PATH,
+} from "./isoData";
 import s from "./new.module.css";
 
 /* --------------------------------------------------------------
@@ -503,6 +510,136 @@ function Metric({
   );
 }
 
+
+/* --------------------------------------------------------------
+ * ЧАСТИЦЫ ЗАГРЯЗНЕНИЙ
+ * Точки движутся по трубе вместе с водой. Часть из них гаснет
+ * на своей ступени — визуально поток становится чище к выпуску.
+ * -------------------------------------------------------------- */
+
+const DIRT = [
+  { delay: 0, die: 0.2 },
+  { delay: -0.7, die: 0.34 },
+  { delay: -1.4, die: 0.22 },
+  { delay: -2.1, die: 0.48 },
+  { delay: -2.8, die: 0.31 },
+  { delay: -3.5, die: 0.62 },
+  { delay: -4.2, die: 0.26 },
+  { delay: -4.9, die: 0.44 },
+  { delay: -5.6, die: 0.75 },
+  { delay: -6.3, die: 0.38 },
+];
+
+const CLEAN = [-0.4, -2.2, -4.0, -5.8, -7.2];
+
+const RIDE = 8;
+
+function Particles({
+  idPrefix,
+  scale = 1,
+}: {
+  idPrefix: string;
+  /** во сколько раз уменьшены пользовательские единицы SVG */
+  scale?: number;
+}) {
+  const pathId = `${idPrefix}-flow`;
+
+  return (
+    <g className={s.particles}>
+      <path id={pathId} d={FLOW_PATH} fill="none" stroke="none" />
+
+      {DIRT.map((particle, index) => (
+        <circle key={`d${index}`} r={3.4 * scale} className={s.dirt}>
+          <animateMotion
+            dur={`${RIDE}s`}
+            begin={`${particle.delay}s`}
+            repeatCount="indefinite"
+            rotate="auto"
+          >
+            <mpath href={`#${pathId}`} />
+          </animateMotion>
+
+          <animate
+            attributeName="opacity"
+            dur={`${RIDE}s`}
+            begin={`${particle.delay}s`}
+            repeatCount="indefinite"
+            values="0;0.95;0.95;0"
+            keyTimes={`0;0.04;${particle.die};${Math.min(
+              0.99,
+              particle.die + 0.05
+            )}`}
+          />
+        </circle>
+      ))}
+
+      {CLEAN.map((delay, index) => (
+        <circle key={`c${index}`} r={2.7 * scale} className={s.clean}>
+          <animateMotion
+            dur={`${RIDE}s`}
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          >
+            <mpath href={`#${pathId}`} />
+          </animateMotion>
+
+          <animate
+            attributeName="opacity"
+            dur={`${RIDE}s`}
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+            values="0;0.9;0.9;0"
+            keyTimes="0;0.05;0.94;1"
+          />
+        </circle>
+      ))}
+    </g>
+  );
+}
+
+/** Пузырьки аэрации над активным узлом биологической ступени */
+function Bubbles({
+  x,
+  y,
+  scale = 1,
+}: {
+  x: number;
+  y: number;
+  scale?: number;
+}) {
+  const seeds = [
+    { dx: -16, delay: 0, r: 2.4 },
+    { dx: -6, delay: -0.9, r: 1.8 },
+    { dx: 3, delay: -1.7, r: 2.6 },
+    { dx: 13, delay: -0.4, r: 2 },
+    { dx: 21, delay: -1.3, r: 1.6 },
+  ];
+
+  return (
+    <g className={s.bubbles}>
+      {seeds.map((bubble, index) => (
+        <circle key={index} cx={x + bubble.dx * scale} r={bubble.r * scale}>
+          <animate
+            attributeName="cy"
+            dur="2.6s"
+            begin={`${bubble.delay}s`}
+            repeatCount="indefinite"
+            values={`${y + 26 * scale};${y - 26 * scale}`}
+          />
+
+          <animate
+            attributeName="opacity"
+            dur="2.6s"
+            begin={`${bubble.delay}s`}
+            repeatCount="indefinite"
+            values="0;0.85;0"
+          />
+        </circle>
+      ))}
+    </g>
+  );
+}
+
 export default function NewHome() {
   const { t, language } = useLanguage();
   const c = T[language];
@@ -510,12 +647,60 @@ export default function NewHome() {
 
   const [object, setObject] = useState("");
   const [progress, setProgress] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+  const [calm, setCalm] = useState(false);
 
   const journeyRef = useRef<HTMLElement | null>(null);
+  const heroRef = useRef<HTMLElement | null>(null);
 
   const total = ANCHORS.length;
   const stage = Math.min(total - 1, Math.floor(progress * total));
   const values = VALUES[stage];
+
+  /* уважаем системную настройку «уменьшить движение» */
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const apply = () => setCalm(media.matches);
+
+    apply();
+    media.addEventListener("change", apply);
+
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  /* подсветка следует за курсором по первому экрану */
+  useEffect(() => {
+    const node = heroRef.current;
+    if (!node) return;
+
+    if (calm || window.matchMedia("(hover: none)").matches) return;
+
+    let frame = 0;
+    let x = 0;
+    let y = 0;
+
+    const paint = () => {
+      frame = 0;
+      node.style.setProperty("--mx", `${x}px`);
+      node.style.setProperty("--my", `${y}px`);
+    };
+
+    const onMove = (event: MouseEvent) => {
+      const box = node.getBoundingClientRect();
+      x = event.clientX - box.left;
+      y = event.clientY - box.top;
+
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+
+    node.addEventListener("mousemove", onMove);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      node.removeEventListener("mousemove", onMove);
+    };
+  }, [calm]);
 
   /* прокрутка вдоль установки */
   useEffect(() => {
@@ -579,9 +764,19 @@ export default function NewHome() {
       const query = new URLSearchParams();
       query.set("object", value);
 
-      router.push(`/engineering/analysis/flow?${query.toString()}`);
+      const go = () =>
+        router.push(`/engineering/analysis/flow?${query.toString()}`);
+
+      if (calm) {
+        go();
+        return;
+      }
+
+      /* экран заливается водой снизу вверх и уводит в расчёт */
+      setLeaving(true);
+      window.setTimeout(go, 620);
     },
-    [router]
+    [router, calm]
   );
 
   const plant = (dim: boolean) => (
@@ -593,7 +788,7 @@ export default function NewHome() {
           <g
             key={index}
             className={`${s.solid} ${solid.kind === "pipe" ? s.pipe : ""} ${
-              dim && active ? s.on : ""
+              dim && active ? `${s.on} ${s.lift}` : ""
             } ${dim && solid.part && !active ? s.off : ""}`}
           >
             <polygon className={s.faceLeft} points={solid.left} vectorEffect="non-scaling-stroke" />
@@ -634,14 +829,27 @@ export default function NewHome() {
       </header>
 
       {/* ПЕРВЫЙ ЭКРАН */}
-      <section className={s.hero}>
+      <section className={s.hero} ref={heroRef}>
         <div className={s.heroGlow} />
+
+        {!calm && <div className={s.heroSpot} aria-hidden="true" />}
 
         <svg className={s.heroPlant} viewBox={VIEW_BOX} aria-hidden="true">
           {plant(false)}
 
-          <polyline className={s.flowBase} points={FLOW_POINTS} vectorEffect="non-scaling-stroke" />
-          <polyline className={s.flowDash} points={FLOW_POINTS} vectorEffect="non-scaling-stroke" />
+          <polyline
+            className={s.flowBase}
+            points={FLOW_POINTS}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          <polyline
+            className={s.flowDash}
+            points={FLOW_POINTS}
+            vectorEffect="non-scaling-stroke"
+          />
+
+          {!calm && <Particles idPrefix="hero" scale={1.5} />}
         </svg>
 
         <div className={s.heroInner}>
@@ -751,6 +959,12 @@ export default function NewHome() {
                 strokeDashoffset={FLOW_LENGTH * (1 - progress)}
               />
 
+              {!calm && <Particles idPrefix="scene" scale={pk} />}
+
+              {!calm && stage === 4 && (
+                <Bubbles x={ANCHORS[4].x} y={ANCHORS[4].y + 40} scale={pk} />
+              )}
+
               {ANCHORS.map((anchor, index) => (
                 <g
                   key={anchor.part}
@@ -857,6 +1071,8 @@ export default function NewHome() {
           </div>
         </div>
       </section>
+
+      {leaving && <div className={s.flood} aria-hidden="true" />}
 
       <footer className={s.footer}>
         <span>{t.footer.copyright}</span>

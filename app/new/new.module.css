@@ -869,3 +869,81 @@
     transition: none;
   }
 }
+
+/* ---------------- ЭФФЕКТЫ ---------------- */
+
+/* подсветка следует за курсором по первому экрану */
+.heroSpot {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    420px circle at var(--mx, 70%) var(--my, 40%),
+    rgba(62, 195, 230, 0.2),
+    transparent 70%
+  );
+  transition: background 0.12s linear;
+}
+
+/* частицы загрязнений в потоке */
+.particles circle {
+  pointer-events: none;
+}
+
+.dirt {
+  fill: #d8a13f;
+  filter: drop-shadow(0 0 3px rgba(216, 161, 63, 0.55));
+}
+
+.clean {
+  fill: #9ce8ff;
+  filter: drop-shadow(0 0 4px rgba(156, 232, 255, 0.7));
+}
+
+.bubbles circle {
+  fill: #9ce8ff;
+  pointer-events: none;
+}
+
+/* активный узел приподнимается */
+.lift {
+  transform: translateY(-9px);
+  transition: transform 0.5s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+
+.solid {
+  transition: transform 0.5s cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+
+/* переход в расчёт: экран заливается водой снизу вверх */
+.flood {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  background: linear-gradient(
+    0deg,
+    #3ec3e6 0%,
+    #279ab8 55%,
+    #0f1417 100%
+  );
+  transform: translateY(100%);
+  animation: floodUp 0.62s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes floodUp {
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lift {
+    transform: none;
+  }
+
+  .flood {
+    display: none;
+  }
+}
