@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { type Language } from "./translations";
 import { useLanguage } from "./LanguageContext";
+import ScrollReveal from "./components/ScrollReveal";
+import ProcessScheme from "./components/ProcessScheme";
+import IsoPlant from "./components/IsoPlant";
 
 const slideImages = [
   "/main-wastewater.png",
@@ -1018,6 +1021,8 @@ export default function Home() {
         `}</style>
 </header>
 
+      <ScrollReveal />
+
       {/* HERO */}
       <section className="hero" id="top">
         {slides.map((slide, index) => (
@@ -1093,6 +1098,9 @@ export default function Home() {
         ))}
       </section>
 
+      {/* ТЕХНОЛОГИЧЕСКАЯ СХЕМА */}
+      <ProcessScheme />
+
       {/* CATALOG */}
       <section className="catalogSection" id="catalog">
         <div className="sectionTop">
@@ -1163,6 +1171,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* УСТРОЙСТВО УСТАНОВКИ */}
+      <IsoPlant />
 
       {/* SOLUTIONS */}
       <section
