@@ -1,0 +1,871 @@
+/* =========================================================
+   НОВАЯ ГЛАВНАЯ — палитра «Графит»
+   Файл изолирован: это CSS-модуль, он не влияет на остальной сайт.
+========================================================= */
+
+.page {
+  --bg1: #0f1417;
+  --bg2: #161d21;
+  --bg3: #1c2529;
+  --line: rgba(255, 255, 255, 0.1);
+  --panel: rgba(255, 255, 255, 0.035);
+  --text: #f2f5f6;
+  --muted: rgba(242, 245, 246, 0.5);
+  --faint: rgba(242, 245, 246, 0.32);
+  --accent: #3ec3e6;
+  --ok: #46d9a0;
+  --bad: #ff8265;
+
+  background: var(--bg1);
+  color: var(--text);
+}
+
+.page * {
+  box-sizing: border-box;
+}
+
+/* ---------------- ШАПКА ---------------- */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: 84px;
+  padding: 0 6%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: rgba(15, 20, 23, 0.82);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.logo img {
+  display: block;
+  width: 176px;
+  height: auto;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav > a {
+  color: rgba(242, 245, 246, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.nav > a:hover {
+  color: var(--accent);
+}
+
+.navButton {
+  padding: 13px 20px;
+  border: 1px solid rgba(242, 245, 246, 0.3);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.navButton:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg1);
+}
+
+/* ---------------- ПЕРВЫЙ ЭКРАН ---------------- */
+
+.hero {
+  position: relative;
+  min-height: calc(100vh - 84px);
+  padding: 90px 6% 70px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.heroGlow {
+  position: absolute;
+  top: -30%;
+  right: -10%;
+  width: 70vw;
+  height: 120vh;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(62, 195, 230, 0.13),
+    transparent 62%
+  );
+  pointer-events: none;
+}
+
+.heroPlant {
+  position: absolute;
+  right: -6%;
+  bottom: 4%;
+  width: 62%;
+  max-width: 900px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 720px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  margin-bottom: 26px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 42px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.hero h1 {
+  font-size: clamp(42px, 5.6vw, 82px);
+  line-height: 0.98;
+  letter-spacing: -3px;
+  margin: 0 0 26px;
+}
+
+.heroLead {
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.75;
+  margin: 0 0 40px;
+}
+
+/* строка ввода объекта */
+
+.ask {
+  max-width: 640px;
+}
+
+.askLabel {
+  display: block;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.askRow {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid rgba(242, 245, 246, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.askRow:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(62, 195, 230, 0.14);
+}
+
+.askRow input {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 22px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.askRow input::placeholder {
+  color: rgba(242, 245, 246, 0.34);
+}
+
+.askRow button {
+  flex: none;
+  padding: 0 30px;
+  border: 0;
+  background: var(--accent);
+  color: var(--bg1);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: filter 0.25s ease;
+}
+
+.askRow button:hover {
+  filter: brightness(1.12);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.chips button {
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+.chips button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.askHint {
+  margin-top: 18px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* ---------------- ПУТЬ ВОДЫ ---------------- */
+
+.journey {
+  position: relative;
+  background: var(--bg2);
+}
+
+.sticky {
+  position: sticky;
+  top: 84px;
+  height: calc(100vh - 84px);
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 40px;
+  align-items: center;
+  padding: 0 6%;
+  overflow: hidden;
+}
+
+.journeyPanel {
+  position: relative;
+  z-index: 3;
+}
+
+.journeyLabel {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  margin-bottom: 18px;
+}
+
+.stageNumber {
+  font-size: clamp(56px, 7vw, 96px);
+  line-height: 0.9;
+  letter-spacing: -4px;
+  color: rgba(242, 245, 246, 0.12);
+  margin-bottom: 8px;
+}
+
+.journeyPanel h2 {
+  font-size: clamp(28px, 2.6vw, 40px);
+  line-height: 1.06;
+  letter-spacing: -1.4px;
+  margin: 0 0 12px;
+}
+
+.stageSub {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0 0 28px;
+  min-height: 46px;
+}
+
+.mets {
+  display: grid;
+  gap: 10px;
+}
+
+.met {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.metName {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.metValue {
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -1px;
+  transition: color 0.4s ease;
+}
+
+.metValue em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--faint);
+  margin-left: 6px;
+}
+
+.ok .metValue {
+  color: var(--ok);
+}
+
+.bad .metValue {
+  color: var(--bad);
+}
+
+.metNorm {
+  grid-column: 1 / -1;
+  color: rgba(242, 245, 246, 0.26);
+  font-size: 11px;
+}
+
+/* сцена */
+
+.scene {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.sceneSvg {
+  width: 100%;
+  height: 82%;
+}
+
+.rail {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 10px;
+  z-index: 4;
+}
+
+.rail i {
+  display: block;
+  width: 3px;
+  height: 26px;
+  background: rgba(242, 245, 246, 0.16);
+  transition: background 0.3s ease, height 0.3s ease;
+}
+
+.rail i.on {
+  background: var(--accent);
+  height: 40px;
+}
+
+.journeySource {
+  position: absolute;
+  left: 6%;
+  bottom: 26px;
+  z-index: 3;
+  max-width: 620px;
+  color: rgba(242, 245, 246, 0.24);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+/* SVG-стили сцены */
+
+.solid polygon {
+  transition: fill 0.35s ease, opacity 0.35s ease;
+}
+
+.faceLeft {
+  fill: #14343f;
+}
+
+.faceRight {
+  fill: #193f4c;
+}
+
+.faceTop {
+  fill: #24697f;
+}
+
+.waterFace {
+  fill: #1d5f75;
+}
+
+.hatchFace {
+  fill: #0d222b;
+}
+
+.solid polygon {
+  stroke: #2b7f9b;
+  stroke-width: 1.1;
+}
+
+.solid .faceTop {
+  stroke: #47b6d6;
+}
+
+.pipe .faceLeft {
+  fill: #1a4e5f;
+}
+
+.pipe .faceRight {
+  fill: #1f5c70;
+}
+
+.pipe .faceTop {
+  fill: #2e93b3;
+}
+
+.solid.on .faceLeft {
+  fill: #1c6d86;
+}
+
+.solid.on .faceRight {
+  fill: #2183a1;
+}
+
+.solid.on .faceTop {
+  fill: #3ec3e6;
+}
+
+.solid.off {
+  opacity: 0.42;
+}
+
+.flowBase {
+  fill: none;
+  stroke: rgba(62, 195, 230, 0.16);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.flowLive {
+  fill: none;
+  stroke: #3ec3e6;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px rgba(62, 195, 230, 0.7));
+}
+
+.flowDash {
+  fill: none;
+  stroke: #baf1ff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 10 26;
+  animation: flowMove 1.5s linear infinite;
+}
+
+@keyframes flowMove {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+
+.pin circle {
+  fill: #0f1417;
+  stroke: #47b6d6;
+  stroke-width: 1.5;
+  transition: fill 0.3s ease, stroke 0.3s ease;
+}
+
+.pin line {
+  stroke: #47b6d6;
+  stroke-width: 1.1;
+}
+
+.pin text {
+  fill: #47b6d6;
+  font-weight: 800;
+  transition: fill 0.3s ease;
+}
+
+.pin.on circle {
+  fill: #3ec3e6;
+  stroke: #3ec3e6;
+}
+
+.pin.on text {
+  fill: #0f1417;
+}
+
+/* ---------------- ПРОИЗВОДСТВО ---------------- */
+
+.make {
+  padding: 130px 6%;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+}
+
+.secHead {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 70px;
+  align-items: end;
+  margin-bottom: 60px;
+}
+
+.secLabel {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  margin-bottom: 20px;
+}
+
+.secHead h2 {
+  font-size: clamp(38px, 4.4vw, 64px);
+  line-height: 1;
+  letter-spacing: -2.6px;
+  margin: 0;
+}
+
+.secHead > p {
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.makeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.makeCard {
+  padding: 34px 30px 38px;
+  background: var(--bg1);
+  transition: background 0.35s ease;
+}
+
+.makeCard:hover {
+  background: var(--bg3);
+}
+
+.makeCard b {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.makeCard h3 {
+  font-size: 18px;
+  line-height: 1.25;
+  margin: 0 0 12px;
+}
+
+.makeCard p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ---------------- КАТАЛОГ ---------------- */
+
+.catalog {
+  padding: 130px 6%;
+  background: var(--bg2);
+}
+
+.catGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.catCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 180px;
+  padding: 26px 26px 24px;
+  background: var(--bg2);
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.35s ease, transform 0.35s ease;
+}
+
+.catCard:hover {
+  background: var(--bg3);
+}
+
+.catCard span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.catCard h3 {
+  font-size: 16px;
+  line-height: 1.3;
+  margin: 22px 0 0;
+}
+
+.catArrow {
+  position: absolute;
+  right: 22px;
+  bottom: 20px;
+  color: var(--faint);
+  font-size: 15px;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.catCard:hover .catArrow {
+  color: var(--accent);
+  transform: translate(3px, -3px);
+}
+
+/* ---------------- ФИНАЛ ---------------- */
+
+.cta {
+  padding: 130px 6%;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+}
+
+.ctaInner {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 70px;
+  align-items: center;
+}
+
+.cta h2 {
+  font-size: clamp(38px, 4.4vw, 64px);
+  line-height: 1;
+  letter-spacing: -2.6px;
+  margin: 0;
+}
+
+.cta p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0 0 28px;
+}
+
+.ctaLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ctaPrimary,
+.ctaSecondary {
+  padding: 19px 30px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-decoration: none;
+  transition: filter 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+
+.ctaPrimary {
+  background: var(--accent);
+  color: var(--bg1);
+}
+
+.ctaPrimary:hover {
+  filter: brightness(1.12);
+}
+
+.ctaSecondary {
+  border: 1px solid rgba(242, 245, 246, 0.28);
+  color: var(--text);
+}
+
+.ctaSecondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.footer {
+  padding: 46px 6%;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: var(--accent);
+}
+
+/* ---------------- АДАПТИВ ---------------- */
+
+@media (max-width: 1200px) {
+  .nav > a:not(.navButton) {
+    display: none;
+  }
+
+  .sticky {
+    grid-template-columns: 1fr;
+    gap: 0;
+    align-content: center;
+  }
+
+  .scene {
+    order: -1;
+    height: 44%;
+  }
+
+  .sceneSvg {
+    height: 100%;
+  }
+
+  .journeyPanel {
+    padding-top: 12px;
+  }
+
+  .stageNumber {
+    font-size: 54px;
+  }
+
+  .heroPlant {
+    width: 92%;
+    right: -18%;
+    bottom: 2%;
+    opacity: 0.22;
+  }
+
+  .makeGrid,
+  .catGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .secHead,
+  .ctaInner {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+}
+
+@media (max-width: 720px) {
+  .header {
+    padding: 0 22px;
+  }
+
+  .logo img {
+    width: 128px;
+  }
+
+  .navButton {
+    display: none;
+  }
+
+  .header {
+    gap: 12px;
+  }
+
+  .hero {
+    padding: 60px 22px 60px;
+  }
+
+  .askRow {
+    flex-direction: column;
+  }
+
+  .askRow button {
+    padding: 18px;
+  }
+
+  .sticky {
+    padding: 0 22px;
+  }
+
+  .make,
+  .catalog,
+  .cta {
+    padding: 80px 22px;
+  }
+
+  .makeGrid,
+  .catGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .journeySource {
+    display: none;
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .scene {
+    height: 38%;
+  }
+
+  .stageSub {
+    min-height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flowDash {
+    animation: none;
+  }
+
+  .solid polygon,
+  .metValue {
+    transition: none;
+  }
+}
