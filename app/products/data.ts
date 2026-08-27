@@ -16,7 +16,9 @@ export type LineKey =
   | "sand-traps"
   | "tanks"
   | "pump-stations"
-  | "bio-plants";
+  | "bio-plants"
+  | "chlorinators"
+  | "dosing";
 
 export type Model = {
   slug: string;
@@ -50,6 +52,18 @@ export type Model = {
   pcr?: number;
   /** количество насосов (рабочий + резервный) */
   pumps?: number;
+  /** производительность по активному хлору, г/ч */
+  cl?: number;
+  /** расход соли, кг/сут */
+  saltd?: number;
+  /** выделение водорода, м³/ч */
+  h2?: number;
+  /** минимальный расход вентиляции, м³/ч */
+  ventMin?: number;
+  /** бак раствора, л */
+  tankSol?: number;
+  /** бак-сатуратор соли, л */
+  tankSalt?: number;
   /** габариты корпуса, мм */
   length: number;
   width?: number;
@@ -528,6 +542,123 @@ export const MODELS: Model[] = [
     sludge: 8.44, air: 21, motor: 0.55,
     laminate: 8, mass: 1360, dn: 160, hatches: 3,
   },
+  /* ---------------- ХЛОРАТОРЫ (ЭЛЕКТРОЛИЗ NaOCl) ----------------
+     Станция собственной сборки: рама, шкаф, баки раствора и соли,
+     обвязка. Электролизная ячейка и выпрямитель — покупные узлы.
+     Расчёт: соль 3,2 кг на 1 кг активного хлора, электроэнергия
+     4,5 кВт·ч/кг, водород 0,315 м³ на 1 кг Cl. Вентиляция — по
+     разбавлению H2 до 1 % об., но не менее 10-кратного обмена
+     помещения. Бак раствора — на 8 часов работы при 7 г/л. */
+  {
+    slug: "elh-10",
+    code: "ЭЛХ-10",
+    line: "chlorinators",
+    cl: 10, saltd: 0.8, motor: 0.05, h2: 0.003, ventMin: 1,
+    tankSol: 60, tankSalt: 60,
+    length: 900, width: 600, height: 1600,
+    volumeGross: 0.86,
+    laminate: 4, mass: 75, dn: 25, hatches: 0,
+  },
+  {
+    slug: "elh-25",
+    code: "ЭЛХ-25",
+    line: "chlorinators",
+    cl: 25, saltd: 1.9, motor: 0.11, h2: 0.008, ventMin: 1,
+    tankSol: 60, tankSalt: 60,
+    length: 900, width: 600, height: 1600,
+    volumeGross: 0.86,
+    laminate: 4, mass: 80, dn: 25, hatches: 0,
+  },
+  {
+    slug: "elh-50",
+    code: "ЭЛХ-50",
+    line: "chlorinators",
+    cl: 50, saltd: 3.8, motor: 0.23, h2: 0.016, ventMin: 2,
+    tankSol: 100, tankSalt: 100,
+    length: 1100, width: 650, height: 1700,
+    volumeGross: 1.22,
+    laminate: 4, mass: 95, dn: 25, hatches: 0,
+  },
+  {
+    slug: "elh-100",
+    code: "ЭЛХ-100",
+    line: "chlorinators",
+    cl: 100, saltd: 7.7, motor: 0.45, h2: 0.032, ventMin: 4,
+    tankSol: 200, tankSalt: 100,
+    length: 1200, width: 700, height: 1750,
+    volumeGross: 1.47,
+    laminate: 5, mass: 120, dn: 25, hatches: 0,
+  },
+  {
+    slug: "elh-250",
+    code: "ЭЛХ-250",
+    line: "chlorinators",
+    cl: 250, saltd: 19.2, motor: 1.15, h2: 0.079, ventMin: 8,
+    tankSol: 400, tankSalt: 200,
+    length: 1500, width: 800, height: 1850,
+    volumeGross: 2.22,
+    laminate: 5, mass: 180, dn: 25, hatches: 0,
+  },
+  {
+    slug: "elh-500",
+    code: "ЭЛХ-500",
+    line: "chlorinators",
+    cl: 500, saltd: 38.4, motor: 2.25, h2: 0.158, ventMin: 16,
+    tankSol: 600, tankSalt: 300,
+    length: 1700, width: 850, height: 1900,
+    volumeGross: 2.75,
+    laminate: 5, mass: 250, dn: 25, hatches: 0,
+  },
+  {
+    slug: "elh-1000",
+    code: "ЭЛХ-1000",
+    line: "chlorinators",
+    cl: 1000, saltd: 76.8, motor: 4.5, h2: 0.315, ventMin: 32,
+    tankSol: 1200, tankSalt: 500,
+    length: 2100, width: 950, height: 1950,
+    volumeGross: 3.89,
+    laminate: 6, mass: 380, dn: 25, hatches: 0,
+  },
+  /* ---------------- СТАНЦИИ ДОЗИРОВАНИЯ ----------------
+     Рама, бак с мешалкой, обвязка и шкаф — собственной сборки;
+     насосы-дозаторы — покупные, подбираются по расходу и давлению
+     точки ввода. Типоразмер задаётся объёмом расходного бака. */
+  {
+    slug: "doz-100",
+    code: "ДОЗ-100",
+    line: "dosing",
+    tankSol: 100, pumps: 2, motor: 0.18,
+    length: 700, width: 600, height: 1400,
+    volumeGross: 0.59,
+    laminate: 4, mass: 60, dn: 25, hatches: 0,
+  },
+  {
+    slug: "doz-200",
+    code: "ДОЗ-200",
+    line: "dosing",
+    tankSol: 200, pumps: 2, motor: 0.18,
+    length: 800, width: 700, height: 1500,
+    volumeGross: 0.84,
+    laminate: 4, mass: 75, dn: 25, hatches: 0,
+  },
+  {
+    slug: "doz-500",
+    code: "ДОЗ-500",
+    line: "dosing",
+    tankSol: 500, pumps: 2, motor: 0.37,
+    length: 1100, width: 900, height: 1700,
+    volumeGross: 1.68,
+    laminate: 5, mass: 110, dn: 25, hatches: 0,
+  },
+  {
+    slug: "doz-1000",
+    code: "ДОЗ-1000",
+    line: "dosing",
+    tankSol: 1000, pumps: 2, motor: 0.55,
+    length: 1400, width: 1100, height: 1900,
+    volumeGross: 2.93,
+    laminate: 5, mass: 160, dn: 25, hatches: 0,
+  },
 ];
 
 /**
@@ -586,6 +717,20 @@ export const LINE_SEO: Record<LineKey, LineSeo> = {
     material: "Стеклопластик",
     short: "ЛОС",
   },
+  chlorinators: {
+    noun: "Электролизная установка гипохлорита натрия",
+    category: "Хлораторы",
+    unit: "г/ч",
+    material: "Рама и баки — полиэтилен, стеклопластик",
+    short: "хлоратор",
+  },
+  dosing: {
+    noun: "Станция дозирования реагентов",
+    category: "Станции дозирования",
+    unit: "л",
+    material: "Рама и бак — полиэтилен, стеклопластик",
+    short: "станция дозирования",
+  },
 };
 
 
@@ -630,6 +775,16 @@ export const LINE_SPECS: Record<LineKey, { spec: SpecKey[]; table: SpecKey[] }> 
       "sludge", "air", "motor", "material", "laminate", "mass", "dn", "hatches",
       "vent", "install"],
     table: ["qd", "pe", "size", "volumeWork", "vaer", "air", "motor", "mass"],
+  },
+  chlorinators: {
+    spec: ["cl", "saltd", "motor", "h2", "ventMin", "tankSol", "tankSalt",
+      "size", "mass", "dn", "material", "vent", "power", "install"],
+    table: ["cl", "saltd", "motor", "h2", "tankSol", "size", "mass"],
+  },
+  dosing: {
+    spec: ["tankSol", "pumps", "motor", "size", "mass", "dn",
+      "material", "vent", "power", "install"],
+    table: ["tankSol", "pumps", "motor", "size", "mass"],
   },
 };
 
@@ -698,6 +853,26 @@ export function specValue(
       return model.pcr === undefined ? null : `${model.pcr} кПа`;
     case "pumps":
       return model.pumps === undefined ? null : `${model.pumps}`;
+    case "cl":
+      return model.cl === undefined
+        ? null
+        : `${model.cl} ${language === "zh" ? "g/h" : "г/ч"}`;
+    case "saltd":
+      return model.saltd === undefined
+        ? null
+        : `${dec(model.saltd)} ${language === "zh" ? "kg/d" : "кг/сут"}`;
+    case "h2":
+      return model.h2 === undefined ? null : `${dec(model.h2)} м³/ч`;
+    case "ventMin":
+      return model.ventMin === undefined ? null : `${model.ventMin} м³/ч`;
+    case "tankSol":
+      return model.tankSol === undefined
+        ? null
+        : `${model.tankSol} ${language === "zh" ? "L" : "л"}`;
+    case "tankSalt":
+      return model.tankSalt === undefined
+        ? null
+        : `${model.tankSalt} ${language === "zh" ? "L" : "л"}`;
     case "laminate":
       return `${model.laminate} мм`;
     case "mass":
@@ -719,12 +894,17 @@ export const LINE_ICON: Record<LineKey, string> = {
   tanks: "tank",
   "pump-stations": "kns",
   "bio-plants": "bio",
+  chlorinators: "chem",
+  dosing: "dosing",
 };
 
 /** Главный размерный признак модели для заголовков (рус.) */
 export const modelSize = (model: Model) => {
   const dec = (value: number) => String(value).replace(".", ",");
 
+  if (model.cl !== undefined) return `${model.cl} г/ч`;
+  if (model.line === "dosing" && model.tankSol !== undefined)
+    return `${model.tankSol} л`;
   if (model.ns !== undefined) return `${dec(model.ns)} л/с`;
   if (model.qd !== undefined) return `${dec(model.qd)} м³/сут`;
   if (model.vol !== undefined) return `${dec(model.vol)} м³`;
@@ -760,6 +940,12 @@ export type SpecLabels = {
   rings: string;
   pcr: string;
   pumps: string;
+  cl: string;
+  saltd: string;
+  h2: string;
+  ventMin: string;
+  tankSol: string;
+  tankSalt: string;
   size: string;
   volumeGross: string;
   volumeWork: string;
@@ -848,6 +1034,12 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "Кольца жёсткости",
       pcr: "Критическое давление смятия",
       pumps: "Количество насосов",
+      cl: "Активный хлор",
+      saltd: "Расход соли",
+      h2: "Выделение водорода",
+      ventMin: "Вентиляция, не менее",
+      tankSol: "Бак раствора",
+      tankSalt: "Бак-сатуратор соли",
       size: "Габариты (Д × Ш × В)",
       volumeGross: "Геометрический объём",
       volumeWork: "Рабочий объём",
@@ -1303,6 +1495,145 @@ export const TEXT: Record<Language, ProductsText> = {
         allModels: "Все модели линейки",
         backToLine: "К линейке",
       },
+      chlorinators: {
+        name: "Хлораторы — электролизные установки NaOCl",
+        labels: { motor: "Потребляемая мощность", size: "Габариты рамы" },
+        tagline:
+          "Производство гипохлорита натрия на объекте из поваренной соли — обеззараживание воды без привозного реагента",
+        intro: [
+          "Гипохлорит натрия — основной реагент обеззараживания питьевой и технической воды. Его можно возить в канистрах, а можно производить прямо на объекте: соль плюс подготовленная вода проходят через электролизную ячейку, и получается раствор с концентрацией 6–8 г/л активного хлора. Раствор нарабатывается в накопительный бак и оттуда дозируется в воду.",
+          "Электролизный раствор такой концентрации относится к малоопасным: в отличие от привозного товарного гипохлорита 19 %, он не требует склада химреагентов первого класса и спецтранспорта. Расходный материал — обычная поваренная соль.",
+          "Станцию собираем мы: рама, шкаф управления, бак-сатуратор соли, накопительный бак раствора, обвязка и арматура. Электролизная ячейка и выпрямитель — покупные узлы проверенных производителей; их паспортные данные передаются с изделием.",
+          "Расход соли — 3,2 кг на килограмм активного хлора, электроэнергии — 4,5 кВт·ч на килограмм. Бак раствора рассчитан на восемь часов непрерывной работы.",
+        ],
+        forWhom: [
+          { title: "Водоканалы и посёлки", text: "Обеззараживание питьевой воды скважин и водозаборов." },
+          { title: "Бассейны", text: "Наработка гипохлорита на месте вместо закупки реагента." },
+          { title: "Пищевые производства", text: "Санитарная обработка и обеззараживание технической воды." },
+          { title: "Очистные сооружения", text: "Обеззараживание очищенного стока перед сбросом." },
+        ],
+        includes: [
+          "Рама и шкаф управления собственной сборки",
+          "Бак-сатуратор соли с фильтром рассола",
+          "Накопительный бак раствора гипохлорита",
+          "Обвязка, арматура и пробоотборники",
+          "Электролизная ячейка и выпрямитель — комплектующие с паспортами",
+          "Шеф-монтаж и пусконаладка",
+          "Паспорт изделия и руководство по эксплуатации",
+        ],
+        notIncluded: [
+          "Умягчитель перед станцией — подбирается по анализу воды, обязателен",
+          "Насос-дозатор раствора в точку ввода — подбирается по расходу",
+          "Приточно-вытяжная вентиляция помещения",
+          "Электроснабжение и кабельные линии",
+          "Поваренная соль",
+        ],
+        limits: [
+          {
+            title: "Умягчение воды перед ячейкой обязательно",
+            text: "При жёсткости выше 1 мг-экв/л на электродах осаждается карбонат кальция, и ячейка теряет производительность за недели. Вода в Узбекистане жёсткая почти везде, поэтому умягчитель — не опция, а условие работоспособности. Подбирается по анализу воды и входит в схему станции.",
+          },
+          {
+            title: "Электролиз выделяет водород",
+            text: "На килограмм активного хлора выделяется 0,315 м³ водорода. Помещение станции должно иметь принудительную вентиляцию: расчётный минимум указан в характеристиках каждой модели, но не менее чем 10-кратный обмен объёма помещения в час. Это требование безопасности, и оно проверяется при пусконаладке.",
+          },
+          {
+            title: "Раствор — не товарный гипохлорит",
+            text: "Станция вырабатывает раствор 6–8 г/л, а не концентрат 190 г/л. Дозирующая линия и объём бака считаются именно под эту концентрацию. Заменить станцию канистрами «один к одному» не получится — и наоборот.",
+          },
+        ],
+        useTitle: "Где применяется",
+        limitsTitle: "Что нужно знать до заказа",
+        includesTitle: "Входит в поставку",
+        notIncludedTitle: "Не входит в поставку",
+        howToChoose:
+          "Типоразмер определяется дозой активного хлора и расходом обрабатываемой воды: грамм-в-час станции = доза (мг/л) × расход (м³/ч). Для питьевой воды типовая доза 1–3 мг/л, для очищенного стока 3–10 мг/л. Пришлите расход и назначение воды — посчитаем дозу, подберём модель и умягчитель к ней.",
+        materialValue: "рама — сталь с покрытием, баки — полиэтилен",
+        ventValue: "принудительная, по разбавлению водорода",
+        powerValue: "220/380 В, по типоразмеру",
+        installValue: "в отапливаемом помещении",
+        modelWord: "Хлоратор",
+        ctaTitle: "Посчитаем дозу\nи подберём станцию.",
+        ctaText:
+          "Пришлите расход воды, её назначение и анализ по жёсткости. Вернём подбор станции, умягчителя и требования к помещению.",
+        ctaButton: "ЗАПРОСИТЬ ПОДБОР",
+        priceLabel: "СТОИМОСТЬ",
+        priceText:
+          "Стоимость зависит от типоразмера, марки ячейки и комплектации умягчителем и дозирующей линией. Характеристики расчётные и уточняются по паспорту ячейки при заказе. Отправьте заявку — ответим в течение рабочего дня.",
+        tableTitle: "Типоразмерный ряд",
+        specsTitle: "Технические характеристики",
+        allModels: "Все модели линейки",
+        backToLine: "К линейке",
+      },
+      dosing: {
+        name: "Станции дозирования реагентов",
+        labels: { motor: "Мощность мешалки", size: "Габариты рамы", tankSol: "Расходный бак" },
+        tagline:
+          "Готовые узлы приготовления и подачи реагентов: коагулянт, флокулянт, гипохлорит, коррекция pH",
+        intro: [
+          "Станция дозирования — это расходный бак с мешалкой, два насоса-дозатора и обвязка на общей раме. Реагент готовится в баке до рабочей концентрации и подаётся в точку ввода пропорционально расходу воды или по сигналу датчика.",
+          "Раму, бак, мешалку, обвязку и шкаф собираем мы. Насосы-дозаторы — покупные: марка и типоразмер подбираются по расходу реагента и давлению в точке ввода, паспорта передаются с изделием.",
+          "Насосов всегда два — рабочий и резервный. Дозирование останавливаться не должно: остановка коагулянта на очистных сооружениях означает проскок взвеси уже через несколько минут.",
+          "Типоразмер задаётся объёмом расходного бака — от ста литров до кубометра. Объём выбирается так, чтобы одной заправки хватало минимум на сутки работы.",
+        ],
+        forWhom: [
+          { title: "Очистные сооружения", text: "Коагулянт и флокулянт перед отстаиванием и флотацией." },
+          { title: "Водоподготовка", text: "Гипохлорит, коррекция pH, ингибиторы для мембран." },
+          { title: "Бассейны", text: "Дозирование гипохлорита и корректора pH по датчикам." },
+          { title: "Промышленность", text: "Подача технологических реагентов по расходомеру." },
+        ],
+        includes: [
+          "Рама и поддон-сборник проливов собственной сборки",
+          "Расходный бак из полиэтилена с крышкой и уровнемером",
+          "Мешалка с электроприводом",
+          "Два насоса-дозатора — рабочий и резервный, с паспортами",
+          "Всасывающая и напорная обвязка, клапан впрыска",
+          "Шкаф управления",
+          "Паспорт изделия и руководство по эксплуатации",
+        ],
+        notIncluded: [
+          "Реагенты",
+          "Датчики расхода и качества воды для пропорционального дозирования",
+          "Трубопровод от станции до точки ввода",
+          "Электроснабжение и кабельные линии",
+        ],
+        limits: [
+          {
+            title: "Материалы подбираются под реагент",
+            text: "Гипохлорит, кислоты и щёлочи требуют разных материалов мембран, клапанов и уплотнений. Универсальной станции «под любой реагент» не существует: при заказе обязательно указывается, что и в какой концентрации будет дозироваться.",
+          },
+          {
+            title: "Полимер готовится иначе",
+            text: "Флокулянт требует медленного созревания раствора и мешалки с малой скоростью — обычная станция для него не подходит. Для полимера собираем двухкамерный вариант, это отдельная комплектация.",
+          },
+          {
+            title: "Точность держится калибровкой",
+            text: "Насос-дозатор точен, пока проверяется по мерному цилиндру. Калибровочная колонка входит в обвязку, порядок проверки описан в руководстве — раз в месяц, пять минут.",
+          },
+        ],
+        useTitle: "Где применяется",
+        limitsTitle: "Что нужно знать до заказа",
+        includesTitle: "Входит в поставку",
+        notIncludedTitle: "Не входит в поставку",
+        howToChoose:
+          "Нужны три величины: реагент и его рабочая концентрация, требуемая доза в мг/л и расход обрабатываемой воды. Из них считается часовой расход раствора, по нему подбираются насосы и объём бака. Пришлите эти данные — вернём подбор станции с материалами под ваш реагент.",
+        materialValue: "рама — сталь с покрытием, бак — полиэтилен",
+        ventValue: "по дозируемому реагенту",
+        powerValue: "220 В",
+        installValue: "в помещении, на ровном полу",
+        modelWord: "Станция",
+        ctaTitle: "Подберём станцию\nпод ваш реагент.",
+        ctaText:
+          "Пришлите реагент, дозу и расход воды. Вернём подбор насосов, объём бака и материалы уплотнений под вашу химию.",
+        ctaButton: "ЗАПРОСИТЬ ПОДБОР",
+        priceLabel: "СТОИМОСТЬ",
+        priceText:
+          "Стоимость зависит от объёма бака, марки насосов и материалов под реагент. Отправьте заявку — ответим в течение рабочего дня.",
+        tableTitle: "Типоразмерный ряд",
+        specsTitle: "Технические характеристики",
+        allModels: "Все модели линейки",
+        backToLine: "К линейке",
+      },
     },
   },
   uz: {
@@ -1329,6 +1660,12 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "Qattiqlik halqalari",
       pcr: "Kritik ezilish bosimi",
       pumps: "Nasoslar soni",
+      cl: "Faol xlor",
+      saltd: "Tuz sarfi",
+      h2: "Vodorod ajralishi",
+      ventMin: "Ventilyatsiya, kamida",
+      tankSol: "Eritma baki",
+      tankSalt: "Tuz saturator baki",
       size: "Gabaritlar (U × K × B)",
       volumeGross: "Geometrik hajm",
       volumeWork: "Ishchi hajm",
@@ -1784,6 +2121,145 @@ export const TEXT: Record<Language, ProductsText> = {
         allModels: "Liniyaning barcha modellari",
         backToLine: "Liniyaga qaytish",
       },
+      chlorinators: {
+        name: "Xloratorlar — NaOCl elektroliz qurilmalari",
+        labels: { motor: "Iste'mol quvvati", size: "Rama gabaritlari" },
+        tagline:
+          "Osh tuzidan obyektning o‘zida natriy gipoxlorit ishlab chiqarish — suvni keltiriladigan reagentsiz zararsizlantirish",
+        intro: [
+          "Natriy gipoxlorit — ichimlik va texnik suvni zararsizlantirishning asosiy reagenti. Uni kanistrlarda tashish mumkin, yoki obyektning o‘zida ishlab chiqarish mumkin: tuz va tayyorlangan suv elektroliz yacheykasidan o‘tadi va 6–8 g/l faol xlorli eritma hosil bo‘ladi. Eritma to‘plovchi bakka yig‘iladi va suvga dozalanadi.",
+          "Bunday konsentratsiyali elektroliz eritmasi kam xavfli hisoblanadi: 19 % li tovar gipoxloritdan farqli ravishda, u birinchi sinf kimyoviy reagentlar ombori va maxsus transport talab qilmaydi. Sarf materiali — oddiy osh tuzi.",
+          "Stansiyani biz yig‘amiz: rama, boshqaruv shkafi, tuz saturator baki, eritma to‘plovchi baki, quvur ulanishi va armatura. Elektroliz yacheykasi va to‘g‘rilagich — ishonchli ishlab chiqaruvchilarning sotib olinadigan uzellari; pasportlari mahsulot bilan beriladi.",
+          "Tuz sarfi — 1 kg faol xlorga 3,2 kg, elektr energiyasi — 4,5 kVt·soat. Eritma baki sakkiz soatlik uzluksiz ishga mo‘ljallangan.",
+        ],
+        forWhom: [
+          { title: "Suv kanallari va qishloqlar", text: "Quduq va suv olish inshootlari suvini zararsizlantirish." },
+          { title: "Basseynlar", text: "Reagent sotib olish o‘rniga joyida gipoxlorit tayyorlash." },
+          { title: "Oziq-ovqat korxonalari", text: "Sanitariya ishlovi va texnik suvni zararsizlantirish." },
+          { title: "Tozalash inshootlari", text: "Tashlashdan oldin tozalangan oqavani zararsizlantirish." },
+        ],
+        includes: [
+          "O‘zimiz yig‘adigan rama va boshqaruv shkafi",
+          "Namakob filtrli tuz saturator baki",
+          "Gipoxlorit eritmasi to‘plovchi baki",
+          "Quvur ulanishi, armatura va namuna olgichlar",
+          "Elektroliz yacheykasi va to‘g‘rilagich — pasportli komplektlar",
+          "Shef-montaj va ishga tushirish",
+          "Mahsulot pasporti va foydalanish qo‘llanmasi",
+        ],
+        notIncluded: [
+          "Stansiya oldidagi yumshatgich — suv tahlili bo‘yicha tanlanadi, majburiy",
+          "Kiritish nuqtasiga eritma dozalash nasosi — sarf bo‘yicha tanlanadi",
+          "Xona kirish-chiqish ventilyatsiyasi",
+          "Elektr ta'minoti va kabel liniyalari",
+          "Osh tuzi",
+        ],
+        limits: [
+          {
+            title: "Yacheyka oldida suvni yumshatish majburiy",
+            text: "Qattiqlik 1 mg-ekv/l dan yuqori bo‘lsa, elektrodlarda kalsiy karbonat cho‘kadi va yacheyka bir necha haftada quvvatini yo‘qotadi. O‘zbekistonda suv deyarli hamma joyda qattiq, shuning uchun yumshatgich opsiya emas, ishlash sharti. Suv tahlili bo‘yicha tanlanadi va stansiya sxemasiga kiradi.",
+          },
+          {
+            title: "Elektroliz vodorod ajratadi",
+            text: "1 kg faol xlorga 0,315 m³ vodorod ajraladi. Stansiya xonasida majburiy ventilyatsiya bo‘lishi kerak: hisobiy minimum har bir model tavsifida ko‘rsatilgan, lekin soatiga xona hajmining kamida 10 karra almashinuvi. Bu xavfsizlik talabi va ishga tushirishda tekshiriladi.",
+          },
+          {
+            title: "Eritma — tovar gipoxlorit emas",
+            text: "Stansiya 190 g/l konsentrat emas, 6–8 g/l eritma ishlab chiqaradi. Dozalash liniyasi va bak hajmi aynan shu konsentratsiyaga hisoblanadi.",
+          },
+        ],
+        useTitle: "Qayerda qo‘llaniladi",
+        limitsTitle: "Buyurtmadan oldin bilish kerak",
+        includesTitle: "Yetkazib berishga kiradi",
+        notIncludedTitle: "Yetkazib berishga kirmaydi",
+        howToChoose:
+          "O‘lcham faol xlor dozasi va ishlanadigan suv sarfi bilan aniqlanadi: stansiyaning g/soat = doza (mg/l) × sarf (m³/soat). Ichimlik suvi uchun tipik doza 1–3 mg/l, tozalangan oqava uchun 3–10 mg/l. Sarf va suv vazifasini yuboring — dozani hisoblab, model va yumshatgichni tanlaymiz.",
+        materialValue: "rama — qoplamali po‘lat, baklar — polietilen",
+        ventValue: "majburiy, vodorodni suyultirish bo‘yicha",
+        powerValue: "220/380 V, o‘lchamga qarab",
+        installValue: "isitiladigan xonada",
+        modelWord: "Xlorator",
+        ctaTitle: "Dozani hisoblab\nstansiyani tanlaymiz.",
+        ctaText:
+          "Suv sarfi, vazifasi va qattiqlik tahlilini yuboring. Stansiya, yumshatgich tanlovi va xonaga talablarni qaytaramiz.",
+        ctaButton: "TANLOVNI SO‘RASH",
+        priceLabel: "NARXI",
+        priceText:
+          "Narx o‘lcham, yacheyka markasi hamda yumshatgich va dozalash liniyasi komplektatsiyasiga bog‘liq. Tavsiflar hisobiy bo‘lib, buyurtmada yacheyka pasporti bo‘yicha aniqlashtiriladi. Ariza yuboring — ish kuni davomida javob beramiz.",
+        tableTitle: "O‘lchamlar qatori",
+        specsTitle: "Texnik tavsiflar",
+        allModels: "Liniyaning barcha modellari",
+        backToLine: "Liniyaga qaytish",
+      },
+      dosing: {
+        name: "Reagent dozalash stansiyalari",
+        labels: { motor: "Aralashtirgich quvvati", size: "Rama gabaritlari", tankSol: "Sarf baki" },
+        tagline:
+          "Reagentlarni tayyorlash va uzatishning tayyor uzellari: koagulyant, flokulyant, gipoxlorit, pH korreksiyasi",
+        intro: [
+          "Dozalash stansiyasi — bu umumiy ramadagi aralashtirgichli sarf baki, ikkita dozalash nasosi va quvur ulanishi. Reagent bakda ishchi konsentratsiyagacha tayyorlanadi va suv sarfiga mutanosib yoki datchik signali bo‘yicha kiritish nuqtasiga uzatiladi.",
+          "Rama, bak, aralashtirgich, quvur ulanishi va shkafni biz yig‘amiz. Dozalash nasoslari — sotib olinadi: marka va o‘lcham reagent sarfi va kiritish nuqtasidagi bosim bo‘yicha tanlanadi, pasportlar mahsulot bilan beriladi.",
+          "Nasoslar doim ikkita — ishchi va zaxira. Dozalash to‘xtamasligi kerak: tozalash inshootlarida koagulyant to‘xtasa, bir necha daqiqadan keyin muallaq zarralar o‘tib ketadi.",
+          "O‘lcham sarf baki hajmi bilan belgilanadi — yuz litrdan bir kubometrgacha. Hajm bitta to‘ldirish kamida bir sutkalik ishga yetadigan qilib tanlanadi.",
+        ],
+        forWhom: [
+          { title: "Tozalash inshootlari", text: "Cho‘ktirish va flotatsiya oldidan koagulyant va flokulyant." },
+          { title: "Suv tayyorlash", text: "Gipoxlorit, pH korreksiyasi, membranalar uchun ingibitorlar." },
+          { title: "Basseynlar", text: "Datchiklar bo‘yicha gipoxlorit va pH korrektori dozalash." },
+          { title: "Sanoat", text: "Sarf o‘lchagich bo‘yicha texnologik reagentlar uzatish." },
+        ],
+        includes: [
+          "O‘zimiz yig‘adigan rama va to‘kilma yig‘uvchi poddon",
+          "Qopqoq va sath o‘lchagichli polietilen sarf baki",
+          "Elektr yuritmali aralashtirgich",
+          "Ikkita dozalash nasosi — ishchi va zaxira, pasportlari bilan",
+          "So‘rish va bosim quvurlari, purkash klapani",
+          "Boshqaruv shkafi",
+          "Mahsulot pasporti va foydalanish qo‘llanmasi",
+        ],
+        notIncluded: [
+          "Reagentlar",
+          "Mutanosib dozalash uchun sarf va sifat datchiklari",
+          "Stansiyadan kiritish nuqtasigacha quvur",
+          "Elektr ta'minoti va kabel liniyalari",
+        ],
+        limits: [
+          {
+            title: "Materiallar reagentga qarab tanlanadi",
+            text: "Gipoxlorit, kislota va ishqorlar membrana, klapan va zichlagichlarning turli materiallarini talab qiladi. «Istalgan reagentga» universal stansiya yo‘q: buyurtmada nima va qanday konsentratsiyada dozalanishi albatta ko‘rsatiladi.",
+          },
+          {
+            title: "Polimer boshqacha tayyorlanadi",
+            text: "Flokulyant eritmaning sekin yetilishini va past tezlikli aralashtirgichni talab qiladi — oddiy stansiya unga to‘g‘ri kelmaydi. Polimer uchun ikki kamerali variant yig‘amiz, bu alohida komplektatsiya.",
+          },
+          {
+            title: "Aniqlik kalibrlash bilan saqlanadi",
+            text: "Dozalash nasosi o‘lchov silindri bo‘yicha tekshirilgunicha aniq. Kalibrlash kolonkasi quvur ulanishiga kiradi, tekshirish tartibi qo‘llanmada — oyiga bir marta, besh daqiqa.",
+          },
+        ],
+        useTitle: "Qayerda qo‘llaniladi",
+        limitsTitle: "Buyurtmadan oldin bilish kerak",
+        includesTitle: "Yetkazib berishga kiradi",
+        notIncludedTitle: "Yetkazib berishga kirmaydi",
+        howToChoose:
+          "Uchta kattalik kerak: reagent va uning ishchi konsentratsiyasi, mg/l dagi talab qilinadigan doza va ishlanadigan suv sarfi. Ulardan eritmaning soatlik sarfi hisoblanadi, u bo‘yicha nasoslar va bak hajmi tanlanadi. Shu ma'lumotlarni yuboring — reagentingizga mos materiallar bilan stansiya tanlovini qaytaramiz.",
+        materialValue: "rama — qoplamali po‘lat, bak — polietilen",
+        ventValue: "dozalanadigan reagentga qarab",
+        powerValue: "220 V",
+        installValue: "xonada, tekis polda",
+        modelWord: "Stansiya",
+        ctaTitle: "Reagentingizga mos\nstansiya tanlaymiz.",
+        ctaText:
+          "Reagent, doza va suv sarfini yuboring. Nasoslar tanlovi, bak hajmi va kimyoga mos zichlagich materiallarini qaytaramiz.",
+        ctaButton: "TANLOVNI SO‘RASH",
+        priceLabel: "NARXI",
+        priceText:
+          "Narx bak hajmi, nasoslar markasi va reagentga mos materiallarga bog‘liq. Ariza yuboring — ish kuni davomida javob beramiz.",
+        tableTitle: "O‘lchamlar qatori",
+        specsTitle: "Texnik tavsiflar",
+        allModels: "Liniyaning barcha modellari",
+        backToLine: "Liniyaga qaytish",
+      },
     },
   },
   en: {
@@ -1810,6 +2286,12 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "Stiffening rings",
       pcr: "Critical buckling pressure",
       pumps: "Number of pumps",
+      cl: "Active chlorine",
+      saltd: "Salt consumption",
+      h2: "Hydrogen release",
+      ventMin: "Ventilation, minimum",
+      tankSol: "Solution tank",
+      tankSalt: "Salt saturator tank",
       size: "Dimensions (L × W × H)",
       volumeGross: "Gross volume",
       volumeWork: "Working volume",
@@ -2265,6 +2747,145 @@ export const TEXT: Record<Language, ProductsText> = {
         allModels: "All models in the line",
         backToLine: "Back to the line",
       },
+      chlorinators: {
+        name: "On-site sodium hypochlorite generators",
+        labels: { motor: "Power consumption", size: "Skid dimensions" },
+        tagline:
+          "Sodium hypochlorite produced on site from common salt — water disinfection without trucked-in chemicals",
+        intro: [
+          "Sodium hypochlorite is the workhorse disinfectant for drinking and process water. It can be trucked in as concentrate, or produced on site: salt and softened water pass through an electrolytic cell, yielding a solution of 6–8 g/l active chlorine that accumulates in a storage tank and is dosed from there.",
+          "At this concentration the solution is low-hazard: unlike 19 % commercial hypochlorite it needs no chemical warehouse and no special transport. The only consumable is common salt.",
+          "We build the station: the frame, the control cabinet, the salt saturator, the solution storage tank, the pipework and valves. The electrolytic cell and the rectifier are bought-in units from established makers; their datasheets are handed over with the product.",
+          "Salt consumption is 3.2 kg per kilogram of active chlorine, energy 4.5 kWh per kilogram. The solution tank holds eight hours of continuous output.",
+        ],
+        forWhom: [
+          { title: "Waterworks and settlements", text: "Disinfection of well and intake water." },
+          { title: "Swimming pools", text: "On-site hypochlorite instead of purchased chemicals." },
+          { title: "Food plants", text: "Sanitation and process water disinfection." },
+          { title: "Treatment plants", text: "Disinfection of treated effluent before discharge." },
+        ],
+        includes: [
+          "Frame and control cabinet of our own build",
+          "Salt saturator tank with brine filter",
+          "Hypochlorite solution storage tank",
+          "Pipework, valves and sampling points",
+          "Electrolytic cell and rectifier — bought-in units with datasheets",
+          "Supervised installation and commissioning",
+          "Product passport and operating manual",
+        ],
+        notIncluded: [
+          "Water softener upstream — selected from the water analysis, mandatory",
+          "Dosing pump to the injection point — selected from the flow",
+          "Room supply and extract ventilation",
+          "Power supply and cabling",
+          "Salt",
+        ],
+        limits: [
+          {
+            title: "Softening ahead of the cell is mandatory",
+            text: "Above 1 meq/l of hardness, calcium carbonate plates onto the electrodes and the cell loses output within weeks. Water in Uzbekistan is hard almost everywhere, so the softener is not an option but a condition of operation. It is selected from the water analysis and is part of the station scheme.",
+          },
+          {
+            title: "Electrolysis releases hydrogen",
+            text: "Each kilogram of active chlorine releases 0.315 m³ of hydrogen. The room needs forced ventilation: the calculated minimum is given for each model, and never less than ten air changes per hour. This is a safety requirement checked at commissioning.",
+          },
+          {
+            title: "The solution is not commercial hypochlorite",
+            text: "The station produces 6–8 g/l solution, not 190 g/l concentrate. The dosing line and tank volume are sized for that concentration — swapping the station for drums one-for-one does not work, nor the reverse.",
+          },
+        ],
+        useTitle: "Where it is used",
+        limitsTitle: "What to know before ordering",
+        includesTitle: "Included in supply",
+        notIncludedTitle: "Not included in supply",
+        howToChoose:
+          "The size follows from the chlorine dose and the water flow: station g/h = dose (mg/l) × flow (m³/h). Typical doses are 1–3 mg/l for drinking water and 3–10 mg/l for treated effluent. Send the flow and the duty of the water — we will calculate the dose and select the model and its softener.",
+        materialValue: "coated steel frame, polyethylene tanks",
+        ventValue: "forced, sized for hydrogen dilution",
+        powerValue: "220/380 V by size",
+        installValue: "indoors, heated room",
+        modelWord: "Generator",
+        ctaTitle: "We will calculate the dose\nand select the station.",
+        ctaText:
+          "Send the water flow, its duty and a hardness analysis. We will return the station and softener selection and the room requirements.",
+        ctaButton: "REQUEST A SELECTION",
+        priceLabel: "PRICE",
+        priceText:
+          "The price depends on the size, the cell make, and whether a softener and dosing line are included. Figures are design values, confirmed against the cell datasheet at order. Send an enquiry — we reply within one working day.",
+        tableTitle: "Size range",
+        specsTitle: "Technical data",
+        allModels: "All models in the line",
+        backToLine: "Back to the line",
+      },
+      dosing: {
+        name: "Chemical dosing stations",
+        labels: { motor: "Mixer power", size: "Skid dimensions", tankSol: "Day tank" },
+        tagline:
+          "Ready-built units for preparing and feeding chemicals: coagulant, flocculant, hypochlorite, pH correction",
+        intro: [
+          "A dosing station is a day tank with a mixer, two dosing pumps and pipework on a common frame. The chemical is made up to working strength in the tank and fed to the injection point in proportion to the water flow or on a sensor signal.",
+          "We build the frame, tank, mixer, pipework and cabinet. The dosing pumps are bought in: make and size follow from the chemical flow and the pressure at the injection point, and their datasheets are handed over with the product.",
+          "There are always two pumps — duty and standby. Dosing must not stop: losing coagulant at a treatment plant means solids carry-over within minutes.",
+          "The size is set by the day tank volume, from one hundred litres to a cubic metre, chosen so one fill lasts at least a day.",
+        ],
+        forWhom: [
+          { title: "Treatment plants", text: "Coagulant and flocculant ahead of settling and flotation." },
+          { title: "Water treatment", text: "Hypochlorite, pH correction, antiscalants for membranes." },
+          { title: "Swimming pools", text: "Hypochlorite and pH dosing on sensor control." },
+          { title: "Industry", text: "Process chemicals fed on a flow-meter signal." },
+        ],
+        includes: [
+          "Frame and spill tray of our own build",
+          "Polyethylene day tank with lid and level gauge",
+          "Motor-driven mixer",
+          "Two dosing pumps — duty and standby, with datasheets",
+          "Suction and discharge pipework, injection valve",
+          "Control cabinet",
+          "Product passport and operating manual",
+        ],
+        notIncluded: [
+          "Chemicals",
+          "Flow and quality sensors for proportional dosing",
+          "Piping from the station to the injection point",
+          "Power supply and cabling",
+        ],
+        limits: [
+          {
+            title: "Materials follow the chemical",
+            text: "Hypochlorite, acids and alkalis need different diaphragm, valve and seal materials. A universal any-chemical station does not exist: the order must state what is dosed and at what strength.",
+          },
+          {
+            title: "Polymer is prepared differently",
+            text: "Flocculant needs slow maturing and a low-speed mixer — a standard station does not suit it. For polymer we build a two-chamber version; it is a separate configuration.",
+          },
+          {
+            title: "Accuracy is held by calibration",
+            text: "A dosing pump stays accurate while it is checked against a calibration cylinder. The cylinder is part of the pipework and the check takes five minutes a month, as described in the manual.",
+          },
+        ],
+        useTitle: "Where it is used",
+        limitsTitle: "What to know before ordering",
+        includesTitle: "Included in supply",
+        notIncludedTitle: "Not included in supply",
+        howToChoose:
+          "Three figures are needed: the chemical and its working strength, the required dose in mg/l, and the water flow. From these the hourly solution flow follows, and from that the pumps and the tank volume. Send them and we will return a selection with materials matched to your chemistry.",
+        materialValue: "coated steel frame, polyethylene tank",
+        ventValue: "per the chemical dosed",
+        powerValue: "220 V",
+        installValue: "indoors, on a level floor",
+        modelWord: "Station",
+        ctaTitle: "We will match the station\nto your chemical.",
+        ctaText:
+          "Send the chemical, the dose and the water flow. We will return the pump selection, the tank volume and seal materials for your chemistry.",
+        ctaButton: "REQUEST A SELECTION",
+        priceLabel: "PRICE",
+        priceText:
+          "The price depends on the tank volume, the pump make and the materials for the chemical. Send an enquiry — we reply within one working day.",
+        tableTitle: "Size range",
+        specsTitle: "Technical data",
+        allModels: "All models in the line",
+        backToLine: "Back to the line",
+      },
     },
   },
   zh: {
@@ -2291,6 +2912,12 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "加强环",
       pcr: "临界屈曲压力",
       pumps: "水泵数量",
+      cl: "有效氯",
+      saltd: "耗盐量",
+      h2: "氢气析出量",
+      ventMin: "最小通风量",
+      tankSol: "溶液箱",
+      tankSalt: "饱和盐箱",
       size: "外形尺寸（长 × 宽 × 高）",
       volumeGross: "几何容积",
       volumeWork: "有效容积",
@@ -2733,6 +3360,140 @@ export const TEXT: Record<Language, ProductsText> = {
         ctaButton: "申请选型",
         priceLabel: "价格",
         priceText: "价格取决于规格、是否含鼓风机与控制系统、盖板荷载等级。请提交询价，我们将在一个工作日内答复。",
+        tableTitle: "规格系列",
+        specsTitle: "技术参数",
+        allModels: "本系列全部型号",
+        backToLine: "返回系列",
+      },
+      chlorinators: {
+        name: "次氯酸钠现场发生器",
+        labels: { motor: "耗电功率", size: "撬体尺寸" },
+        tagline: "用食盐在现场制取次氯酸钠——无需外购药剂的水消毒",
+        intro: [
+          "次氯酸钠是饮用水和工艺水消毒的主力药剂。它可以整桶外购，也可以现场制取：盐和软化水通过电解槽，生成有效氯 6–8 g/l 的溶液，储存于储液箱并由此投加。",
+          "该浓度的电解液属低危险品：与 19% 商品次氯酸钠不同，无需一类化学品仓库和专用运输。唯一消耗品是普通食盐。",
+          "站体由我们制造：机架、控制柜、饱和盐箱、储液箱、管路与阀门。电解槽和整流器为成熟厂家的外购件，其技术文件随产品移交。",
+          "每公斤有效氯耗盐 3,2 kg、耗电 4,5 kWh。储液箱按连续运行八小时配置。",
+        ],
+        forWhom: [
+          { title: "供水企业与村镇", text: "水井与取水口的饮用水消毒。" },
+          { title: "游泳池", text: "现场制取次氯酸钠，替代外购药剂。" },
+          { title: "食品企业", text: "卫生处理与工艺用水消毒。" },
+          { title: "污水处理设施", text: "排放前对出水消毒。" },
+        ],
+        includes: [
+          "自制机架与控制柜",
+          "带盐水过滤器的饱和盐箱",
+          "次氯酸钠储液箱",
+          "管路、阀门与取样口",
+          "电解槽与整流器——附技术文件的外购件",
+          "指导安装与调试",
+          "产品合格证与使用说明书",
+        ],
+        notIncluded: [
+          "站前软化器——按水质分析选型，必配",
+          "投加点计量泵——按流量选型",
+          "机房送排风系统",
+          "供电与电缆敷设",
+          "食盐",
+        ],
+        limits: [
+          {
+            title: "电解槽前必须软化",
+            text: "硬度高于 1 mmol/l 时碳酸钙在电极上结垢，数周内电解槽产量下降。乌兹别克斯坦水质普遍偏硬，软化器不是选配而是运行条件，按水质分析选型并纳入系统。",
+          },
+          {
+            title: "电解析出氢气",
+            text: "每公斤有效氯析出 0,315 m³ 氢气。机房必须强制通风：各型号给出计算最小值，且不低于每小时 10 次换气。这是调试时要验收的安全要求。",
+          },
+          {
+            title: "溶液不是商品次氯酸钠",
+            text: "本装置产出 6–8 g/l 溶液，而非 190 g/l 浓缩液。投加管线和箱体容积均按此浓度设计，两者不能一比一互换。",
+          },
+        ],
+        useTitle: "适用场合",
+        limitsTitle: "订货前须知",
+        includesTitle: "供货范围",
+        notIncludedTitle: "不含内容",
+        howToChoose:
+          "规格由有效氯投加量和处理水量决定：装置 g/h = 剂量 (mg/l) × 流量 (m³/h)。饮用水典型剂量 1–3 mg/l，处理后污水 3–10 mg/l。请提供水量与用途，我们将计算剂量并选配装置与软化器。",
+        materialValue: "机架为涂层钢，箱体为聚乙烯",
+        ventValue: "强制通风，按氢气稀释计算",
+        powerValue: "220/380 V，视规格",
+        installValue: "室内采暖房间安装",
+        modelWord: "发生器",
+        ctaTitle: "计算剂量\n并选配装置。",
+        ctaText: "请提供水量、用途和硬度分析。我们将返回装置与软化器选型及机房要求。",
+        ctaButton: "申请选型",
+        priceLabel: "价格",
+        priceText:
+          "价格取决于规格、电解槽品牌以及是否配软化器和投加管线。参数为设计值，订货时按电解槽技术文件确认。请提交询价，我们将在一个工作日内答复。",
+        tableTitle: "规格系列",
+        specsTitle: "技术参数",
+        allModels: "本系列全部型号",
+        backToLine: "返回系列",
+      },
+      dosing: {
+        name: "加药装置",
+        labels: { motor: "搅拌器功率", size: "撬体尺寸", tankSol: "溶药箱" },
+        tagline: "药剂配制与投加成套单元：混凝剂、絮凝剂、次氯酸钠、pH 调节",
+        intro: [
+          "加药装置由带搅拌器的溶药箱、两台计量泵和管路组成，安装在公共机架上。药剂在箱内配制到工作浓度，按水量比例或传感器信号送往投加点。",
+          "机架、箱体、搅拌器、管路和控制柜由我们制造。计量泵为外购件：品牌与规格按药剂流量和投加点压力选定，技术文件随产品移交。",
+          "水泵始终为两台——一用一备。投加不允许中断：污水厂混凝剂一停，几分钟后悬浮物即穿透。",
+          "规格由溶药箱容积决定，从一百升到一立方米，按一次配药至少满足一昼夜运行选取。",
+        ],
+        forWhom: [
+          { title: "污水处理设施", text: "沉淀和气浮前投加混凝剂与絮凝剂。" },
+          { title: "水处理", text: "次氯酸钠、pH 调节、膜用阻垢剂。" },
+          { title: "游泳池", text: "按传感器投加次氯酸钠和 pH 调节剂。" },
+          { title: "工业", text: "按流量计信号投加工艺药剂。" },
+        ],
+        includes: [
+          "自制机架与防漏托盘",
+          "带盖和液位计的聚乙烯溶药箱",
+          "电动搅拌器",
+          "两台计量泵——一用一备，附技术文件",
+          "吸入与压出管路、注入阀",
+          "控制柜",
+          "产品合格证与使用说明书",
+        ],
+        notIncluded: [
+          "药剂",
+          "比例投加用流量与水质传感器",
+          "装置至投加点的管道",
+          "供电与电缆敷设",
+        ],
+        limits: [
+          {
+            title: "材料按药剂选定",
+            text: "次氯酸钠、酸和碱对隔膜、阀门和密封材料要求各不相同。不存在'任意药剂通用'的装置：订货时必须注明投加什么药剂、什么浓度。",
+          },
+          {
+            title: "高分子药剂另行配制",
+            text: "絮凝剂需要缓慢熟化和低速搅拌——标准装置不适用。高分子采用双腔方案，属单独配置。",
+          },
+          {
+            title: "精度靠校准保持",
+            text: "计量泵的精度依赖定期用量筒校验。校准柱包含在管路中，校验方法见说明书——每月一次，五分钟。",
+          },
+        ],
+        useTitle: "适用场合",
+        limitsTitle: "订货前须知",
+        includesTitle: "供货范围",
+        notIncludedTitle: "不含内容",
+        howToChoose:
+          "需要三个数据：药剂及其工作浓度、所需剂量 (mg/l)、处理水量。据此算出溶液小时流量，再确定水泵和箱体容积。请提供这些数据，我们将返回与您的药剂匹配的选型。",
+        materialValue: "机架为涂层钢，箱体为聚乙烯",
+        ventValue: "视所投药剂而定",
+        powerValue: "220 V",
+        installValue: "室内平整地面安装",
+        modelWord: "装置",
+        ctaTitle: "按您的药剂\n选配装置。",
+        ctaText: "请提供药剂、剂量和水量。我们将返回水泵选型、箱体容积和适配密封材料。",
+        ctaButton: "申请选型",
+        priceLabel: "价格",
+        priceText: "价格取决于箱体容积、水泵品牌和耐药剂材料。请提交询价，我们将在一个工作日内答复。",
         tableTitle: "规格系列",
         specsTitle: "技术参数",
         allModels: "本系列全部型号",
