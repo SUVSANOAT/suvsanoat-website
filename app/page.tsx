@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { translations, type Language } from "./translations";
+import { type Language } from "./translations";
+import { useLanguage } from "./LanguageContext";
 
 const slideImages = [
   "/main-wastewater.png",
@@ -24,21 +25,46 @@ const categoryLinks = [
   "/catalog/integrated-solutions",
 ];
 
+const categoryImages = [
+  "/catalog/wastewater-treatment-real.png",
+  "/catalog/water-treatment-real.png",
+  "/catalog/mechanical-treatment-real.png",
+  "/catalog/pump-equipment-real.png",
+  "/catalog/disinfection-dosing-real.png",
+  "/catalog/sludge-treatment-real.png",
+  "/catalog/aeration-equipment-real.png",
+  "/catalog/tanks-reservoirs-real.png",
+  "/catalog/automation-real.png",
+  "/catalog/valves-pipelines-real.png",
+  "/catalog/treatment-technologies-real.png",
+  "/catalog/integrated-solutions-real.png",
+];
+
+const processImages = [
+  "/process/process-analysis-real.png",
+  "/process/process-design.png",
+  "/process/process-production.png",
+  "/process/process-delivery.png",
+  "/process/process-installation.png",
+  "/process/process-commissioning.png",
+  "/process/process-service.png",
+];
+
 const languageNames: Record<Language, string> = {
   ru: "RU",
   uz: "UZ",
   en: "EN",
+  zh: "中文",
 };
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("ru");
+  const { language, setLanguage, t } = useLanguage();
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [formSent, setFormSent] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
-
-  const t = translations[language];
 
   const slides = t.hero.slides.map((slide, index) => ({
     ...slide,
@@ -49,20 +75,8 @@ export default function Home() {
     number: String(index + 1).padStart(2, "0"),
     title,
     href: categoryLinks[index],
+    image: categoryImages[index],
   }));
-
-  useEffect(() => {
-    const saved = localStorage.getItem("suvsanoat-language");
-
-    if (saved === "ru" || saved === "uz" || saved === "en") {
-      setLanguage(saved);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("suvsanoat-language", language);
-    document.documentElement.lang = language;
-  }, [language]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -172,6 +186,22 @@ export default function Home() {
           aria-label="SUVSANOAT"
         >
           <img src="/logo.png" alt="SUVSANOAT" />
+        </a>
+
+        <a href="/engineering" className="engineeringNavButton">
+          <span className="engineeringNavIcon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none">
+              <path d="M8 10h32M8 24h32M8 38h32" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M16 5v10M32 19v10M22 33v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="16" cy="10" r="3" fill="currentColor" />
+              <circle cx="32" cy="24" r="3" fill="currentColor" />
+              <circle cx="22" cy="38" r="3" fill="currentColor" />
+            </svg>
+          </span>
+          <span className="engineeringNavText">
+            <small>ENGINEERING</small>
+            <strong>{t.nav.engineering}</strong>
+          </span>
         </a>
 
         <nav className="nav">
@@ -698,7 +728,7 @@ export default function Home() {
               borderRadius: "6px",
             }}
           >
-            {(["ru", "uz", "en"] as Language[]).map(
+            {(["ru", "uz", "en", "zh"] as Language[]).map(
               (item) => (
                 <button
                   key={item}
@@ -785,7 +815,7 @@ export default function Home() {
               padding: "14px 0 18px",
             }}
           >
-            {(["ru", "uz", "en"] as Language[]).map(
+            {(["ru", "uz", "en", "zh"] as Language[]).map(
               (item) => (
                 <button
                   type="button"
@@ -878,7 +908,114 @@ export default function Home() {
             </a>
           </div>
         </aside>
-      </header>
+      
+        <style jsx>{`
+
+  .engineeringNavButton {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 270px;
+    min-height: 52px;
+    box-sizing: border-box;
+    padding: 6px 12px;
+    margin-left: -18px;
+    text-decoration: none;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(9, 35, 49, 0.98), rgba(5, 23, 34, 0.96));
+    border: 1px solid rgba(22, 191, 255, 0.65);
+    border-radius: 7px;
+    box-shadow: 0 0 0 1px rgba(22, 191, 255, 0.05), 0 8px 25px rgba(0, 0, 0, 0.18);
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  }
+
+  .engineeringNavButton:hover {
+    transform: translateY(-2px);
+    border-color: #16bfff;
+    background: linear-gradient(135deg, rgba(10, 48, 65, 1), rgba(6, 28, 40, 1));
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 25px rgba(22, 191, 255, 0.14);
+  }
+
+  .engineeringNavIcon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: grid;
+    place-items: center;
+    color: #16bfff;
+    background: rgba(22, 191, 255, 0.08);
+    border: 1px solid rgba(22, 191, 255, 0.3);
+  }
+
+  .engineeringNavIcon svg {
+    width: 25px;
+    height: 25px;
+  }
+
+  .engineeringNavText {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .engineeringNavText small {
+    color: #16bfff;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+  }
+
+  .engineeringNavText strong {
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.1;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .engineeringNavArrow {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    color: #06151d;
+    background: #16bfff;
+    font-size: 17px;
+    font-weight: 900;
+    transition: transform 0.25s ease;
+  }
+
+  @media (max-width: 1250px) {
+    .engineeringNavButton {
+      width: 230px;
+      margin-left: -12px;
+    }
+    .engineeringNavText strong {
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 1050px) {
+    .engineeringNavButton {
+      width: 210px;
+      margin-left: -8px;
+    }
+    .engineeringNavIcon {
+      width: 32px;
+      height: 32px;
+      flex-basis: 32px;
+    }
+    .engineeringNavText strong {
+      font-size: 11px;
+    }
+  }
+
+        `}</style>
+</header>
 
       {/* HERO */}
       <section className="hero" id="top">
@@ -928,9 +1065,9 @@ export default function Home() {
               {t.hero.calculationButton}
             </a>
           </div>
-        </div>
 
-        <div className="sliderDots">
+</div>
+          <div className="sliderDots">
           {slides.map((_, index) => (
             <button
               key={index}
@@ -970,12 +1107,18 @@ export default function Home() {
         </div>
 
         <div className="catalogGrid">
-          {categories.map((item) => (
+          {categories.map((item, index) => (
             <a
               href={item.href}
-              className="catalogCard"
+              className="catalogCard catalogCardWithImage"
               key={item.number}
             >
+              <img
+                src={item.image}
+                alt={item.title}
+                className="catalogCardImage"
+              />
+
               <span className="catalogNumber">
                 {item.number}
               </span>
@@ -1080,6 +1223,12 @@ export default function Home() {
               className="serviceStep"
               key={index}
             >
+              <img
+                src={processImages[index]}
+                alt={step.title}
+                className="serviceStepImage"
+              />
+
               <div className="serviceStepTop">
                 <span className="serviceStepNumber">
                   {String(index + 1).padStart(2, "0")}

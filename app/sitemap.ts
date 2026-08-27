@@ -1,98 +1,45 @@
 import type { MetadataRoute } from "next";
 
+const baseUrl = "https://suvsanoat.uz";
+
+type Entry = {
+  path: string;
+  priority: number;
+  changeFrequency: "weekly" | "monthly";
+};
+
+const routes: Entry[] = [
+  { path: "", priority: 1, changeFrequency: "weekly" },
+
+  // Инженерный подбор
+  { path: "/engineering", priority: 0.95, changeFrequency: "monthly" },
+  { path: "/engineering/analysis", priority: 0.95, changeFrequency: "monthly" },
+
+  // Отраслевые решения
+  { path: "/solutions/car-wash", priority: 0.9, changeFrequency: "monthly" },
+
+  // Каталог
+  { path: "/catalog/wastewater", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/catalog/water-treatment", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/catalog/treatment-technologies", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/catalog/integrated-solutions", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/catalog/mechanical-treatment", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/pump-equipment", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/disinfection-dosing", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/sludge-treatment", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/aeration-equipment", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/tanks-reservoirs", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/automation", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/catalog/valves-pipelines", priority: 0.8, changeFrequency: "monthly" },
+];
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://suvsanoat.uz";
+  const lastModified = new Date();
 
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-
-    {
-      url: `${baseUrl}/catalog/wastewater`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-
-    {
-      url: `${baseUrl}/catalog/water-treatment`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-
-    {
-      url: `${baseUrl}/catalog/mechanical-treatment`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/pump-equipment`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/disinfection-dosing`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/sludge-treatment`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/aeration-equipment`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/tanks-reservoirs`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/automation`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/valves-pipelines`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-
-    {
-      url: `${baseUrl}/catalog/treatment-technologies`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-
-    {
-      url: `${baseUrl}/catalog/integrated-solutions`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-  ];
+  return routes.map(({ path, priority, changeFrequency }) => ({
+    url: `${baseUrl}${path}`,
+    lastModified,
+    changeFrequency,
+    priority,
+  }));
 }

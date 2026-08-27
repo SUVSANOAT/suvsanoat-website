@@ -1,4 +1,4 @@
-export type Language = "ru" | "uz" | "en";
+export type Language = "ru" | "uz" | "en" | "zh";
 
 export const translations = {
   ru: {
@@ -14,24 +14,25 @@ export const translations = {
       calculation: "Получить расчёт",
       menu: "МЕНЮ",
       closeMenu: "Закрыть меню",
+      engineering: "Инженерный расчёт",
     },
 
     hero: {
       slides: [
         {
-          label: "ОЧИСТНЫЕ СООРУЖЕНИЯ И ВОДООЧИСТКА",
-          title: "Очистка сточных вод.\nИнженерные решения.",
-          text: "Проектирование, производство, поставка и монтаж очистных сооружений и систем водоподготовки для промышленных и инфраструктурных объектов.",
+          label: "ИНЖЕНЕРНЫЕ СИСТЕМЫ ВОДООЧИСТКИ",
+          title: "Чистая вода.\nТочные решения.",
+          text: "Проектирование, производство и поставка оборудования для очистки сточных вод и водоподготовки.",
         },
         {
           label: "ПРОМЫШЛЕННЫЕ ОЧИСТНЫЕ СООРУЖЕНИЯ",
           title: "От проекта\nдо запуска.",
-          text: "Проектируем и комплектуем промышленные очистные сооружения под производительность, состав сточных вод и требования вашего объекта.",
+          text: "Комплексные очистные сооружения для промышленных, коммерческих и инфраструктурных объектов.",
         },
         {
-          label: "ВОДОПОДГОТОВКА И ОБЕЗЗАРАЖИВАНИЕ",
-          title: "Чистая вода.\nТочный контроль.",
-          text: "Системы водоподготовки, фильтрации, дозирования и обеззараживания воды для предприятий и инфраструктурных объектов.",
+          label: "ДЕЗИНФЕКЦИЯ И ДОЗИРОВАНИЕ",
+          title: "Точный контроль.\nНадёжная вода.",
+          text: "Хлораторные установки, системы дозирования и автоматическое оборудование для обеззараживания воды.",
         },
       ],
       catalogButton: "Смотреть каталог",
@@ -208,6 +209,7 @@ export const translations = {
 
       nameLabel: "ИМЯ / КОМПАНИЯ *",
       namePlaceholder: "Ваше имя или компания",
+
       phoneLabel: "ТЕЛЕФОН / TELEGRAM *",
 
       objectLabel: "ТИП ОБЪЕКТА",
@@ -354,6 +356,7 @@ export const translations = {
       calculation: "Hisob-kitob olish",
       menu: "MENYU",
       closeMenu: "Menyuni yopish",
+      engineering: "Muhandislik hisob-kitobi",
     },
 
     hero: {
@@ -548,6 +551,7 @@ export const translations = {
 
       nameLabel: "ISM / KOMPANIYA *",
       namePlaceholder: "Ismingiz yoki kompaniya nomi",
+
       phoneLabel: "TELEFON / TELEGRAM *",
 
       objectLabel: "OBYEKT TURI",
@@ -694,6 +698,7 @@ export const translations = {
       calculation: "Get a Quote",
       menu: "MENU",
       closeMenu: "Close menu",
+      engineering: "Engineering Calculation",
     },
 
     hero: {
@@ -888,6 +893,7 @@ export const translations = {
 
       nameLabel: "NAME / COMPANY *",
       namePlaceholder: "Your name or company",
+
       phoneLabel: "PHONE / TELEGRAM *",
 
       objectLabel: "FACILITY TYPE",
@@ -1020,4 +1026,313 @@ export const translations = {
       top: "TOP",
     },
   },
+
+  zh: {
+    language: "中文",
+
+    nav: {
+      catalog: "产品目录",
+      solutions: "解决方案",
+      technologies: "技术",
+      projects: "项目",
+      services: "服务",
+      contacts: "联系我们",
+      calculation: "获取报价",
+      menu: "菜单",
+      closeMenu: "关闭菜单",
+      engineering: "工程计算",
+    },
+
+    hero: {
+      slides: [
+        {
+          label: "水处理工程系统",
+          title: "洁净水。\n精准解决方案。",
+          text: "提供污水处理和水处理设备的设计、制造与供应。",
+        },
+        {
+          label: "工业污水处理设施",
+          title: "从设计\n到投运。",
+          text: "为工业、商业和基础设施项目提供完整的污水处理解决方案。",
+        },
+        {
+          label: "消毒与加药",
+          title: "精准控制。\n可靠水质。",
+          text: "提供加氯设备、加药系统及水消毒自动化设备。",
+        },
+      ],
+      catalogButton: "查看产品目录",
+      calculationButton: "获取报价",
+      slide: "幻灯片",
+    },
+
+    categories: [
+      "污水处理设施",
+      "水处理",
+      "机械处理",
+      "泵送设备",
+      "消毒与加药",
+      "污泥处理",
+      "曝气设备",
+      "储罐与容器",
+      "自动化",
+      "阀门与管道",
+      "处理技术",
+      "综合解决方案",
+    ],
+
+    stats: [
+      {
+        strong: "5–200,000",
+        label: "m³/天 · 任意规模",
+        text: "从小型本地系统到大型工业污水处理综合设施",
+      },
+      {
+        strong: "交钥匙",
+        label: "完整项目周期",
+        text: "设计、制造、供应、安装和调试",
+      },
+      {
+        strong: "适配您的项目",
+        label: "定制工程",
+        text: "根据每个项目的具体要求定制技术和设备",
+      },
+      {
+        strong: "服务",
+        label: "投运后支持",
+        text: "技术支持、维护和备件供应",
+      },
+    ],
+
+    catalog: {
+      label: "SUVSANOAT 产品目录",
+      title: "水处理所需的一切。\n集成于一个系统。",
+      text: "为污水处理、水处理、泵送系统、自动化和工业基础设施提供综合设备。",
+    },
+
+    technologies: {
+      label: "SUVSANOAT 技术",
+      title: "不只是选择技术。\n而是选择正确的技术。",
+      text: "我们根据污水水质、处理量、出水水质要求和运行条件选择最佳处理工艺。",
+      cards: [
+        {
+          code: "MBR",
+          title: "膜生物反应器",
+          text: "高效处理并减少污水处理设施占地面积。",
+        },
+        {
+          code: "SBR",
+          title: "序批式生物处理",
+          text: "适用于市政和工业污水的灵活生物处理技术。",
+        },
+        {
+          code: "MBBR",
+          title: "生物膜技术",
+          text: "在有机负荷变化条件下保持稳定运行。",
+        },
+        {
+          code: "RO / UF",
+          title: "膜法水处理",
+          text: "深度处理、纯化和水资源回用。",
+        },
+      ],
+    },
+
+    solutions: {
+      label: "行业解决方案",
+      title: "解决方案始于\n您的项目。",
+      text: "根据污水水质、企业运行条件和出水水质要求进行系统设计。",
+      industries: [
+        "纺织企业",
+        "食品加工企业",
+        "乳制品企业",
+        "肉类加工企业",
+        "家禽养殖企业",
+        "酒店和医院",
+        "住宅综合体",
+        "机场",
+      ],
+    },
+
+    services: {
+      label: "完整项目周期",
+      title: "一个承包商。\n完整项目周期。",
+      text: "从基础数据分析和工艺设计，到设备供应、项目调试以及后续技术服务。",
+      steps: [
+        {
+          title: "分析",
+          text: "评估基础数据、水质和项目要求。",
+        },
+        {
+          title: "工程设计",
+          text: "选择处理技术并制定工程解决方案。",
+        },
+        {
+          title: "制造",
+          text: "制造并集成工艺设备。",
+        },
+        {
+          title: "供应",
+          text: "组织设备直接运送至项目现场。",
+        },
+        {
+          title: "安装",
+          text: "设备安装及工程系统安装监督。",
+        },
+        {
+          title: "调试",
+          text: "系统启动、工艺调试和人员培训。",
+        },
+        {
+          title: "服务",
+          text: "维护、诊断和备件供应。",
+        },
+      ],
+      bottomLabel: "启动项目",
+      bottomTitle: "您有技术任务书\n或项目基础数据吗？",
+      bottomText:
+        "请发送技术任务书、水或污水分析、处理量及项目要求。我们将准备初步技术方案。",
+      bottomButton: "发送技术任务书",
+    },
+
+    contacts: {
+      label: "联系我们",
+      title: "让我们讨论\n您的项目。",
+      intro:
+        "需要污水处理、水处理或设备选型？发送项目基础数据，我们将准备初步技术方案。",
+      phone: "电话 / TELEGRAM",
+      email: "电子邮箱",
+      workRegion: "服务区域",
+      directions: "业务方向",
+      regions: ["乌兹别克斯坦", "独联体国家", "国际项目"],
+      directionItems: [
+        "污水处理设施",
+        "水处理",
+        "工业设备",
+        "工程技术",
+      ],
+      requirementsTitle: "初步计算所需资料",
+      requirements: [
+        "项目类型",
+        "处理量，m³/天",
+        "水或污水分析",
+        "出水水质要求",
+      ],
+      formLabel: "提交申请",
+      formTitle: "获取初步\n技术方案。",
+      formText:
+        "填写项目基本信息。我们的专家将审核资料并与您联系。",
+      nameLabel: "姓名 / 公司 *",
+      namePlaceholder: "您的姓名或公司名称",
+      phoneLabel: "电话 / TELEGRAM *",
+      objectLabel: "项目类型",
+      objectPlaceholder: "选择项目类型",
+      objectTypes: {
+        industrial: "工业企业",
+        textile: "纺织企业",
+        food: "食品加工企业",
+        residential: "住宅综合体",
+        hotel: "酒店",
+        hospital: "医院",
+        airport: "机场",
+        water: "水处理",
+        other: "其他项目",
+      },
+      capacityLabel: "处理量",
+      capacityPlaceholder: "例如：1500 m³/天",
+      messageLabel: "备注 / 项目描述",
+      messagePlaceholder:
+        "请简要描述任务、要求或现有项目资料……",
+      canPrepare: "您可以提供",
+      canPrepareText:
+        "技术任务书 · 水/污水分析 · 图纸 · 出水水质要求",
+      submit: "提交申请",
+      submitting: "正在发送……",
+      privacy: "提交表单即表示您同意处理所提供的信息。",
+      successLabel: "申请已发送",
+      successTitle: "感谢您的联系。",
+      successText:
+        "您的申请已成功发送。我们的专家将审核资料并与您联系。",
+      sendAgain: "再次提交申请",
+      error: "申请发送失败，请重试。",
+    },
+
+    mega: {
+      industry: "工业",
+      infrastructure: "基础设施",
+      residential: "住宅项目",
+      special: "特殊解决方案",
+      textile: "纺织企业",
+      food: "食品加工",
+      dairy: "乳制品企业",
+      meat: "肉类加工企业",
+      poultry: "家禽养殖企业",
+      airports: "机场",
+      hotels: "酒店",
+      hospitals: "医院",
+      shopping: "购物中心",
+      business: "商务中心",
+      residentialComplex: "住宅综合体",
+      cottage: "别墅社区",
+      privateObjects: "私人项目",
+      commercialObjects: "商业项目",
+      reuse: "水回用",
+      industrialWastewater: "复杂工业污水",
+      modernization: "现有污水处理设施改造",
+      individualDesign: "定制工程设计",
+      individualLabel: "定制解决方案",
+      individualTitle: "没有找到\n您的行业？",
+      individualText:
+        "我们将根据污水水质、处理量和项目要求，为您制定专属处理方案。",
+      individualButton: "获取解决方案",
+      biological: "生物处理",
+      membrane: "膜技术",
+      physicalChemical: "物理化学处理",
+      disinfection: "消毒",
+      engineeringSelection: "工程选型",
+      technologyQuestion: "您的项目需要\n哪种处理技术？",
+      technologyText:
+        "我们分析污水水质、处理量和出水水质要求。",
+      technologiesCount: "项技术",
+      selectTechnology: "选择技术",
+      engineering: "工程",
+      implementation: "实施",
+      afterLaunch: "投运后",
+      sourceAnalysis: "基础数据分析",
+      technologySelection: "技术选型",
+      calculation: "工艺计算",
+      design: "工程设计",
+      specification: "规格书编制",
+      production: "设备制造",
+      delivery: "设备供应",
+      installation: "安装",
+      supervision: "安装监督",
+      commissioning: "调试",
+      warranty: "保修服务",
+      maintenance: "维护服务",
+      diagnostics: "设备诊断",
+      spareParts: "备件供应",
+      modernizationSystems: "系统改造",
+      haveSpecification: "有技术任务书吗？",
+      sendSpecificationTitle: "发送您的技术任务书 —\n我们准备解决方案。",
+      sendSpecificationText:
+        "我们将审核基础数据，选择处理技术和设备，并准备初步技术方案。",
+      sendSpecification: "发送技术任务书",
+    },
+
+    footer: {
+      description: "水处理和\n污水处理工程系统。",
+      navigation: "导航",
+      contact: "联系我们",
+      copyright: "© 2026 SUVSANOAT. 版权所有。",
+      slogan: "WATER · WASTEWATER · ENGINEERING",
+    },
+
+    floating: {
+      write: "留言",
+      call: "拨打电话",
+      top: "返回顶部",
+    },
+  },
+
 } as const;
