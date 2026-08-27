@@ -178,6 +178,10 @@ export type LineText = {
 
 export type ProductsText = {
   label: string;
+  navLabel: string;
+  teaserTitle: string;
+  teaserText: string;
+  teaserButton: string;
   title: string;
   intro: string;
   specLabels: SpecLabels;
@@ -187,6 +191,10 @@ export type ProductsText = {
 export const TEXT: Record<Language, ProductsText> = {
   ru: {
     label: "АССОРТИМЕНТ",
+    navLabel: "Ассортимент",
+    teaserTitle: "Модели\nи параметры.",
+    teaserText: "Типоразмерные ряды с полными техническими характеристиками: габариты, рабочий объём, время пребывания, присоединительные размеры и масса. По каждой модели — отдельная страница.",
+    teaserButton: "СМОТРЕТЬ АССОРТИМЕНТ",
     title: "Оборудование\nсобственного производства.",
     intro:
       "Типоразмерные ряды рассчитаны по нормам и проверены по гидравлике. Каждая модель — не «примерно такой размер», а результат расчёта: время пребывания, нагрузка на зеркало и объём накопления проверены для всего ряда.",
@@ -290,6 +298,10 @@ export const TEXT: Record<Language, ProductsText> = {
   },
   uz: {
     label: "ASSORTIMENT",
+    navLabel: "Assortiment",
+    teaserTitle: "Modellar\nva parametrlar.",
+    teaserText: "To‘liq texnik tavsiflarga ega o‘lcham qatorlari: gabaritlar, ishchi hajm, turib qolish vaqti, ulanish o‘lchamlari va massa. Har bir model uchun alohida sahifa.",
+    teaserButton: "ASSORTIMENTNI KO‘RISH",
     title: "O‘z ishlab chiqarishimizdagi\nuskunalar.",
     intro:
       "Tipo‘lcham qatorlari me'yorlar bo‘yicha hisoblangan va gidravlika bo‘yicha tekshirilgan. Har bir model «taxminan shunday o‘lcham» emas, balki hisob natijasi: turib qolish vaqti, ko‘zgu yuzasiga yuklama va to‘planish hajmi butun qator uchun tekshirib chiqilgan.",
@@ -393,6 +405,10 @@ export const TEXT: Record<Language, ProductsText> = {
   },
   en: {
     label: "PRODUCT RANGE",
+    navLabel: "Products",
+    teaserTitle: "Models\nand parameters.",
+    teaserText: "Size ranges with complete technical data: dimensions, working volume, retention time, connection sizes and weight. Every model has its own page.",
+    teaserButton: "VIEW ALL PRODUCTS",
     title: "Equipment made\nat our own plant.",
     intro:
       "The size ranges are calculated to code and verified hydraulically. Every model is not an \"about this big\" guess but the result of a calculation: retention time, surface loading and accumulation volume have been checked across the whole range.",
@@ -496,6 +512,10 @@ export const TEXT: Record<Language, ProductsText> = {
   },
   zh: {
     label: "产品系列",
+    navLabel: "产品型号",
+    teaserTitle: "型号\n与参数。",
+    teaserText: "完整技术参数的规格系列：外形尺寸、有效容积、停留时间、接管尺寸和重量。每个型号均有独立页面。",
+    teaserButton: "查看全部产品",
     title: "我们自有工厂\n生产的设备。",
     intro:
       "各规格系列均按规范计算并经水力校核。每一型号都不是「大概这个尺寸」，而是计算结果：停留时间、表面负荷与积存容积在整个系列范围内均已核验。",

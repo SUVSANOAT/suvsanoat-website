@@ -45,5 +45,12 @@ export const metadata: Metadata = {
 };
 
 export default function MechanicalTreatmentPage() {
-  return <CategoryPage content={content} icons={icons} image="/mechanical-treatment.png" />;
+  return (
+    <CategoryPage
+      content={content}
+      icons={icons}
+      image="/mechanical-treatment.png"
+      products
+    />
+  );
 }

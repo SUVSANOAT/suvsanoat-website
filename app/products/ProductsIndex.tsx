@@ -53,6 +53,7 @@ export default function ProductsIndex() {
 
         <nav className={s.nav}>
           <a href="/#catalog">{t.nav.catalog}</a>
+          <a href="/products">{c.navLabel}</a>
           <a href="/#technologies">{t.nav.technologies}</a>
           <a href="/engineering">{t.nav.engineering}</a>
           <a href="/#contacts">{t.nav.contacts}</a>

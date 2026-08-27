@@ -7,6 +7,7 @@ import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import EquipIcon from "../components/EquipIcon";
 import type { Language } from "../translations";
+import { MODELS, TEXT as PRODUCTS_TEXT } from "../products/data";
 import {
   SOLIDS,
   ANCHORS,
@@ -869,7 +870,8 @@ export default function NewHome() {
         </a>
 
         <nav className={s.nav}>
-          <a href="/products">{t.nav.catalog}</a>
+          <a href="#catalog">{t.nav.catalog}</a>
+          <a href="/products">{PRODUCTS_TEXT[language].navLabel}</a>
           <a href="#technologies">{t.nav.technologies}</a>
           <a href="#solutions">{t.nav.solutions}</a>
           <a href="#services">{t.nav.services}</a>
@@ -1111,6 +1113,37 @@ export default function NewHome() {
             </a>
           ))}
         </div>
+
+        {/* АССОРТИМЕНТ: конкретные модели с параметрами */}
+        <a className={s.range} href="/products">
+          <div className={s.rangeLeft}>
+            <div className={s.rangeLabel}>
+              {PRODUCTS_TEXT[language].label}
+            </div>
+
+            <h3>{lines(PRODUCTS_TEXT[language].teaserTitle)}</h3>
+
+            <p>{PRODUCTS_TEXT[language].teaserText}</p>
+
+            <span className={s.rangeButton}>
+              {PRODUCTS_TEXT[language].teaserButton}
+            </span>
+          </div>
+
+          <div className={s.rangeRight}>
+            {MODELS.map((model) => (
+              <span className={s.rangeChip} key={model.slug}>
+                <b>{model.code}</b>
+                <i>
+                  {language === "en" || language === "zh"
+                    ? String(model.q)
+                    : String(model.q).replace(".", ",")}{" "}
+                  {language === "zh" ? "m³/h" : "м³/ч"}
+                </i>
+              </span>
+            ))}
+          </div>
+        </a>
       </section>
 
       {/* ТЕХНОЛОГИИ */}

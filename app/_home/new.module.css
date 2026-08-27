@@ -664,6 +664,136 @@
   transform: translate(3px, -3px);
 }
 
+/* ---------------- АССОРТИМЕНТ (блок под каталогом) ---------------- */
+
+.range {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 0.95fr;
+  gap: 54px;
+  align-items: center;
+  margin-top: 26px;
+  padding: 52px 54px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(
+      120% 160% at 100% 0%,
+      rgba(62, 195, 230, 0.13),
+      transparent 62%
+    ),
+    var(--bg1);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  transition: border-color 0.35s ease, background 0.35s ease;
+}
+
+.range::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), #9ce8ff);
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.range:hover {
+  border-color: rgba(62, 195, 230, 0.4);
+}
+
+.range:hover::after {
+  width: 100%;
+}
+
+.rangeLabel {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2.4px;
+  margin-bottom: 18px;
+}
+
+.rangeLeft h3 {
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.04;
+  letter-spacing: -1.6px;
+  margin: 0 0 18px;
+}
+
+.rangeLeft p {
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0 0 26px;
+}
+
+.rangeButton {
+  display: inline-block;
+  padding: 16px 26px;
+  background: var(--accent);
+  color: var(--bg1);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  transition: filter 0.25s ease;
+}
+
+.range:hover .rangeButton {
+  filter: brightness(1.14);
+}
+
+.rangeRight {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.rangeChip {
+  display: block;
+  padding: 20px 18px;
+  background: var(--bg2);
+  transition: background 0.3s ease;
+}
+
+.range:hover .rangeChip {
+  background: var(--bg3);
+}
+
+.rangeChip b {
+  display: block;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  margin-bottom: 5px;
+}
+
+.rangeChip i {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+@media (max-width: 1000px) {
+  .range {
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding: 40px 26px;
+  }
+}
+
+@media (max-width: 560px) {
+  .rangeRight {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* ---------------- ФИНАЛ ---------------- */
 
 .cta {

@@ -76,7 +76,8 @@ export default function ModelClient({ model }: { model: Model }) {
         </a>
 
         <nav className={s.nav}>
-          <a href="/products">{c.label}</a>
+          <a href="/#catalog">{t.nav.catalog}</a>
+          <a href="/products">{c.navLabel}</a>
           <a href="/#technologies">{t.nav.technologies}</a>
           <a href="/engineering">{t.nav.engineering}</a>
           <a href="/#contacts">{t.nav.contacts}</a>

@@ -8,6 +8,7 @@ import LanguageSwitcher from "../components/LanguageSwitcher";
 import EquipIcon from "../components/EquipIcon";
 import ScrollReveal from "../components/ScrollReveal";
 import type { CategoryContentSet } from "./types";
+import { TEXT as PRODUCTS_TEXT } from "../products/data";
 
 /** Разбивает строку по \n и вставляет переносы */
 function lines(text: string) {
@@ -25,9 +26,16 @@ type Props = {
   image: string;
   /** Иконка на каждую позицию, порядок совпадает с items */
   icons?: string[];
+  /** Показать ссылку на /products — там есть конкретные модели этой категории */
+  products?: boolean;
 };
 
-export default function CategoryPage({ content, image, icons = [] }: Props) {
+export default function CategoryPage({
+  content,
+  image,
+  icons = [],
+  products = false,
+}: Props) {
   const { t, language } = useLanguage();
   const c = content[language];
 
@@ -164,6 +172,17 @@ export default function CategoryPage({ content, image, icons = [] }: Props) {
             </article>
           ))}
         </div>
+
+        {products && (
+          <a className="categoryProducts" href="/products">
+            <div>
+              <span>{PRODUCTS_TEXT[language].label}</span>
+              <b>{PRODUCTS_TEXT[language].teaserText}</b>
+            </div>
+
+            <i>{PRODUCTS_TEXT[language].teaserButton} →</i>
+          </a>
+        )}
       </section>
 
       {/* PROCESS */}
