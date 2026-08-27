@@ -7,7 +7,13 @@ import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import EquipIcon from "../components/EquipIcon";
 import type { Language } from "../translations";
-import { MODELS, TEXT as PRODUCTS_TEXT } from "../products/data";
+import {
+  MODELS,
+  LINE_SPECS,
+  specValue,
+  TEXT as PRODUCTS_TEXT,
+  type LineKey,
+} from "../products/data";
 import {
   SOLIDS,
   ANCHORS,
@@ -1131,33 +1137,32 @@ export default function NewHome() {
           </div>
 
           <div className={s.rangeRight}>
-            {(
-              Object.keys(PRODUCTS_TEXT[language].lines) as (keyof typeof PRODUCTS_TEXT.ru.lines)[]
-            ).map((key) => {
-              const models = MODELS.filter((model) => model.line === key);
-              const values = models.map((model) => model.ns ?? model.q);
-              const dec = (value: number) =>
-                language === "en" || language === "zh"
-                  ? String(value)
-                  : String(value).replace(".", ",");
-              const unit =
-                models[0]?.ns !== undefined
-                  ? language === "zh"
-                    ? "l/s"
-                    : "л/с"
-                  : language === "zh"
-                    ? "m³/h"
-                    : "м³/ч";
+            {(Object.keys(PRODUCTS_TEXT[language].lines) as LineKey[]).map(
+              (key) => {
+                const models = MODELS.filter((model) => model.line === key);
+                const main = LINE_SPECS[key].table[0];
+                const dec = (value: number) =>
+                  language === "en" || language === "zh"
+                    ? String(value)
+                    : String(value).replace(".", ",");
 
-              return (
-                <span className={s.rangeChip} key={key}>
-                  <b>{PRODUCTS_TEXT[language].lines[key].name}</b>
-                  <i>
-                    {dec(Math.min(...values))}–{dec(Math.max(...values))} {unit}
-                  </i>
-                </span>
-              );
-            })}
+                const from = models[0]
+                  ? specValue(models[0], main, dec, language)
+                  : null;
+                const to = models[models.length - 1]
+                  ? specValue(models[models.length - 1], main, dec, language)
+                  : null;
+
+                return (
+                  <span className={s.rangeChip} key={key}>
+                    <b>{PRODUCTS_TEXT[language].lines[key].name}</b>
+                    <i>
+                      {from} — {to}
+                    </i>
+                  </span>
+                );
+              }
+            )}
           </div>
         </a>
       </section>

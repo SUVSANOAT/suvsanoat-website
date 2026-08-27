@@ -5,7 +5,15 @@ import Image from "next/image";
 import { useLanguage } from "../../LanguageContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import EquipIcon from "../../components/EquipIcon";
-import { MODELS, TEXT, LINE_ICON, type Model } from "../data";
+import {
+  MODELS,
+  TEXT,
+  LINE_ICON,
+  LINE_SPECS,
+  specValue,
+  type Model,
+  type SpecKey,
+} from "../data";
 import s from "../products.module.css";
 
 function lines(text: string) {
@@ -43,41 +51,24 @@ export default function ModelClient({ model }: { model: Model }) {
   const L = (key: keyof typeof c.specLabels) =>
     line.labels?.[key] ?? c.specLabels[key];
 
-  const unit = language === "zh" ? "m³/h" : "м³/ч";
+  /* Значения, которые задаются линейкой, а не числом в модели */
+  const fromLine: Partial<Record<SpecKey, string>> = {
+    material: line.materialValue,
+    vent: line.ventValue,
+    power: line.powerValue,
+    install: line.installValue,
+  };
 
-  const specs: { label: string; value: string }[] = [
-    ...(model.ns !== undefined
-      ? [
-          {
-            label: L("ns"),
-            value: `${num(model.ns)} ${language === "zh" ? "l/s" : "л/с"}`,
-          },
-        ]
-      : []),
-    { label: L("q"), value: `${num(model.q)} ${unit}` },
-    {
-      label: L("size"),
-      value: `${model.length} × ${model.width} × ${model.height} мм`,
-    },
-    { label: L("volumeGross"), value: `${num(model.volumeGross)} м³` },
-    { label: L("volumeWork"), value: `${num(model.volumeWork)} м³` },
-    { label: L("retention"), value: `${model.retention} мин` },
-    { label: L("area"), value: `${num(model.area)} м²` },
-    {
-      label: L("load"),
-      value: `${num(model.load)} м/ч (${num(model.loadMm)} мм/с)`,
-    },
-    { label: L("fat"), value: `${num(model.fat)} м³` },
-    { label: L("sludge"), value: `${num(model.sludge)} м³` },
-    { label: L("material"), value: line.materialValue },
-    { label: L("laminate"), value: `${model.laminate} мм` },
-    { label: L("mass"), value: `${model.mass} кг` },
-    { label: L("dn"), value: `DN${model.dn}` },
-    { label: L("hatches"), value: `${model.hatches}` },
-    { label: L("vent"), value: line.ventValue },
-    { label: L("power"), value: line.powerValue },
-    { label: L("install"), value: line.installValue },
-  ];
+  const specs = LINE_SPECS[model.line].spec
+    .map((key) => ({
+      label: L(key),
+      value: fromLine[key] ?? specValue(model, key, num, language),
+    }))
+    .filter((row): row is { label: string; value: string } => Boolean(row.value));
+
+  /* Главный размерный признак — первая колонка сводной таблицы линейки */
+  const headline =
+    specValue(model, LINE_SPECS[model.line].table[0], num, language) ?? "";
 
   return (
     <main className={s.page}>
@@ -123,7 +114,7 @@ export default function ModelClient({ model }: { model: Model }) {
         <EquipIcon name={icon} className={s.topIcon} />
 
         <div className={s.label}>
-          {line.modelWord} · {num(model.q)} {unit}
+          {line.modelWord} · {headline}
         </div>
 
         <h1>{model.code}</h1>
@@ -240,15 +231,13 @@ export default function ModelClient({ model }: { model: Model }) {
               <b className={s.modelCode}>{item.code}</b>
 
               <span className={s.modelQ}>
-                {num(item.q)} {unit}
+                {specValue(item, LINE_SPECS[item.line].table[0], num, language)}
               </span>
 
               <div className={s.modelMini}>
+                <span>{specValue(item, "size", num, language)}</span>
                 <span>
-                  {item.length} × {item.width} × {item.height} мм
-                </span>
-                <span>
-                  {L("volumeWork")}: {num(item.volumeWork)} м³
+                  {L("volumeGross")}: {num(item.volumeGross)} м³
                 </span>
                 <span>DN{item.dn}</span>
               </div>

@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { MODELS, LINE_SEO, findModel, modelSize } from "../data";
+import {
+  MODELS,
+  LINE_SEO,
+  LINE_SPECS,
+  findModel,
+  modelSize,
+  specValue,
+} from "../data";
 import ModelClient from "./ModelClient";
 
 /**
@@ -20,6 +27,36 @@ export function generateStaticParams() {
 
 export const dynamicParams = false;
 
+/** Русские подписи характеристик для разметки поисковых систем */
+const LABELS: Record<string, string> = {
+  q: "Расчётный расход",
+  ns: "Номинальный расход NS",
+  qd: "Расчётный расход",
+  vol: "Номинальный объём",
+  pe: "Эквивалентное число жителей",
+  size: "Габариты",
+  diameter: "Диаметр корпуса",
+  depth: "Глубина корпуса",
+  volumeGross: "Геометрический объём",
+  volumeWork: "Рабочий объём",
+  useful: "Полезный объём",
+  vaer: "Объём аэротенка",
+  retention: "Время пребывания",
+  area: "Площадь сепарации",
+  load: "Гидравлическая нагрузка",
+  fat: "Объём накопления продукта",
+  sludge: "Шламовая зона",
+  air: "Расход воздуха",
+  motor: "Мощность воздуходувки",
+  rings: "Кольца жёсткости",
+  pcr: "Критическое давление смятия",
+  pumps: "Количество насосов",
+  laminate: "Толщина ламината",
+  mass: "Масса сухая",
+  dn: "Присоединение",
+  hatches: "Количество люков",
+};
+
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -33,12 +70,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = `${seo.noun} ${size} ${model.code} — купить в Ташкенте`;
 
+  /* Описание собирается из тех характеристик, которые у линейки есть:
+     у резервуара нет времени пребывания, у КНС нет площади зеркала. */
+  const dec = (value: number) => String(value).replace(".", ",");
+  const part = (key: Parameters<typeof specValue>[1], label: string) => {
+    const value = specValue(model, key, dec, "ru");
+    return value ? `${label} ${value}` : null;
+  };
+
+  const details = [
+    part("size", "габариты"),
+    part("volumeWork", "рабочий объём"),
+    part("useful", "полезный объём"),
+    part("retention", "время пребывания"),
+    part("dn", "присоединение"),
+    part("mass", "масса"),
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   const description =
-    `${seo.noun} ${model.code} производительностью ${size}. ` +
-    `Габариты ${model.length} × ${model.width} × ${model.height} мм, ` +
-    `рабочий объём ${model.volumeWork} м³, время пребывания ${model.retention} мин, ` +
-    `присоединение DN${model.dn}, масса ${model.mass} кг. ` +
-    `Корпус из стеклопластика, собственное производство в Узбекистане.`;
+    `${seo.noun} ${model.code} — ${size}. ${details}. ` +
+    `Корпус из стеклопластика, собственное производство в Узбекистане. ` +
+    `Расчёт по нормам, полные характеристики и подбор типоразмера.`;
 
   return {
     title,
@@ -87,9 +141,7 @@ export default async function ModelPage({ params }: Props) {
     name: `${seo.noun} ${model.code}`,
     sku: model.code,
     category: seo.category,
-    description:
-      `${seo.noun} производительностью ${size}, ` +
-      `рабочий объём ${model.volumeWork} м³, время пребывания ${model.retention} мин.`,
+    description: `${seo.noun} ${model.code}, ${size}.`,
     brand: { "@type": "Brand", name: "SUVSANOAT" },
     manufacturer: {
       "@type": "Organization",
@@ -102,52 +154,36 @@ export default async function ModelPage({ params }: Props) {
       value: model.mass,
       unitCode: "KGM",
     },
-    width: {
-      "@type": "QuantitativeValue",
-      value: model.width,
-      unitCode: "MMT",
-    },
+    ...(model.width !== undefined && model.height !== undefined
+      ? {
+          width: {
+            "@type": "QuantitativeValue",
+            value: model.width,
+            unitCode: "MMT",
+          },
+          height: {
+            "@type": "QuantitativeValue",
+            value: model.height,
+            unitCode: "MMT",
+          },
+        }
+      : {}),
     depth: {
       "@type": "QuantitativeValue",
       value: model.length,
       unitCode: "MMT",
     },
-    height: {
-      "@type": "QuantitativeValue",
-      value: model.height,
-      unitCode: "MMT",
-    },
-    additionalProperty: [
-      ...(model.ns !== undefined
-        ? [
-            {
-              "@type": "PropertyValue",
-              name: "Номинальный расход NS",
-              value: `${model.ns} л/с`,
-            },
-          ]
-        : []),
-      {
+    additionalProperty: LINE_SPECS[model.line].spec
+      .map((key) => ({
+        key,
+        value: specValue(model, key, (v: number) => String(v).replace(".", ","), "ru"),
+      }))
+      .filter((row) => row.value)
+      .map((row) => ({
         "@type": "PropertyValue",
-        name: "Расчётный расход",
-        value: `${model.q} м³/ч`,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "Рабочий объём",
-        value: `${model.volumeWork} м³`,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "Время пребывания",
-        value: `${model.retention} мин`,
-      },
-      {
-        "@type": "PropertyValue",
-        name: "Присоединение",
-        value: `DN${model.dn}`,
-      },
-    ],
+        name: LABELS[row.key] ?? row.key,
+        value: row.value,
+      })),
   };
 
   return (

@@ -5,7 +5,14 @@ import Image from "next/image";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import EquipIcon from "../components/EquipIcon";
-import { MODELS, TEXT, LINE_ICON, type LineKey } from "./data";
+import {
+  MODELS,
+  TEXT,
+  LINE_ICON,
+  LINE_SPECS,
+  specValue,
+  type LineKey,
+} from "./data";
 import s from "./products.module.css";
 
 function lines(text: string) {
@@ -31,9 +38,6 @@ export default function ProductsIndex() {
   const num = useNum(language);
 
   const lineKeys = Object.keys(c.lines) as LineKey[];
-
-  const unit = language === "zh" ? "m³/h" : "м³/ч";
-  const unitNs = language === "zh" ? "l/s" : "л/с";
 
   return (
     <main className={s.page}>
@@ -82,11 +86,15 @@ export default function ProductsIndex() {
           {lineKeys.map((key) => {
             const models = MODELS.filter((model) => model.line === key);
 
-            /* Диапазон линейки: по NS, если он есть, иначе по расходу */
-            const values = models.map((model) => model.ns ?? model.q);
-            const range = `${num(Math.min(...values))}–${num(
-              Math.max(...values)
-            )} ${models[0]?.ns !== undefined ? unitNs : unit}`;
+            /* Диапазон линейки по её главному параметру: первая колонка
+               сводной таблицы. У сепараторов это л/с, у резервуаров м³. */
+            const main = LINE_SPECS[key].table[0];
+            const from = models[0]
+              ? specValue(models[0], main, num, language)
+              : null;
+            const to = models[models.length - 1]
+              ? specValue(models[models.length - 1], main, num, language)
+              : null;
 
             return (
               <a className={s.lineChip} href={`#${key}`} key={key}>
@@ -94,7 +102,9 @@ export default function ProductsIndex() {
 
                 <span>
                   <b>{c.lines[key].name}</b>
-                  <i>{range}</i>
+                  <i>
+                    {from} — {to}
+                  </i>
                 </span>
               </a>
             );
@@ -105,7 +115,7 @@ export default function ProductsIndex() {
       {lineKeys.map((key) => {
         const line = c.lines[key];
         const models = MODELS.filter((model) => model.line === key);
-        const hasNs = models.some((model) => model.ns !== undefined);
+        const columns = LINE_SPECS[key].table;
 
         /* Линейка может переопределить подписи: у жироуловителя
            «площадь зеркала», у нефтеуловителя «эффективная площадь». */
@@ -134,17 +144,15 @@ export default function ProductsIndex() {
                   <b className={s.modelCode}>{model.code}</b>
 
                   <span className={s.modelQ}>
-                    {model.ns !== undefined
-                      ? `${num(model.ns)} ${unitNs} · ${num(model.q)} ${unit}`
-                      : `${num(model.q)} ${unit}`}
+                    {specValue(model, columns[0], num, language)}
+                    {model.ns !== undefined &&
+                      ` · ${specValue(model, "q", num, language)}`}
                   </span>
 
                   <div className={s.modelMini}>
+                    <span>{specValue(model, "size", num, language)}</span>
                     <span>
-                      {model.length} × {model.width} × {model.height} мм
-                    </span>
-                    <span>
-                      {L("volumeWork")}: {num(model.volumeWork)} м³
+                      {L("volumeGross")}: {num(model.volumeGross)} м³
                     </span>
                     <span>DN{model.dn}</span>
                   </div>
@@ -159,14 +167,9 @@ export default function ProductsIndex() {
                 <thead>
                   <tr>
                     <th>{line.modelWord}</th>
-                    {hasNs && <th>{L("ns")}</th>}
-                    <th>{L("q")}</th>
-                    <th>{L("size")}</th>
-                    <th>{L("volumeWork")}</th>
-                    <th>{L("retention")}</th>
-                    <th>{L("area")}</th>
-                    <th>{L("dn")}</th>
-                    <th>{L("mass")}</th>
+                    {columns.map((field) => (
+                      <th key={field}>{L(field)}</th>
+                    ))}
                   </tr>
                 </thead>
 
@@ -176,24 +179,12 @@ export default function ProductsIndex() {
                       <td>
                         <a href={`/products/${model.slug}`}>{model.code}</a>
                       </td>
-                      {hasNs && (
-                        <td>
-                          {model.ns !== undefined
-                            ? `${num(model.ns)} ${unitNs}`
-                            : "—"}
+
+                      {columns.map((field) => (
+                        <td key={field}>
+                          {specValue(model, field, num, language) ?? "—"}
                         </td>
-                      )}
-                      <td>
-                        {num(model.q)} {unit}
-                      </td>
-                      <td>
-                        {model.length} × {model.width} × {model.height}
-                      </td>
-                      <td>{num(model.volumeWork)} м³</td>
-                      <td>{model.retention} мин</td>
-                      <td>{num(model.area)} м²</td>
-                      <td>DN{model.dn}</td>
-                      <td>{model.mass} кг</td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
