@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Дезинфекция воды и дозирование реагентов в Узбекистане",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function DisinfectionDosingPage() {
-  return <CategoryPage content={content} image="/disinfection-dosing.png" />;
+  return <CategoryPage content={content} icons={icons} image="/disinfection-dosing.png" />;
 }

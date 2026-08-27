@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useLanguage } from "../../LanguageContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import type { Language } from "../../translations";
@@ -282,7 +284,14 @@ export default function CarWashContent() {
       {/* HEADER */}
       <header className="categoryHeader">
         <a href="/" className="categoryLogo" aria-label="SUVSANOAT">
-          <img src="/logo.png" alt="SUVSANOAT" />
+          <Image
+            src="/logo.png"
+            alt="SUVSANOAT"
+            width={1536}
+            height={864}
+            priority
+            sizes="200px"
+          />
         </a>
 
         <nav className="categoryNav">
@@ -303,15 +312,35 @@ export default function CarWashContent() {
       {/* HERO */}
       <section
         style={{
+          position: "relative",
           minHeight: "70vh",
           padding: "140px 7% 80px",
           display: "flex",
           alignItems: "center",
-          background:
-            "linear-gradient(rgba(4,20,31,.55),rgba(4,20,31,.80)), url('/car-wash-hero.png') center/cover",
+          overflow: "hidden",
         }}
       >
-        <div style={{ maxWidth: 900 }}>
+        <Image
+          src="/car-wash-hero.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          quality={72}
+          style={{ objectFit: "cover", objectPosition: "center", zIndex: 0 }}
+        />
+
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            background:
+              "linear-gradient(rgba(4,20,31,.55),rgba(4,20,31,.80))",
+          }}
+        />
+
+        <div style={{ position: "relative", zIndex: 2, maxWidth: 900 }}>
           <div
             style={{
               color: "#24b5f5",

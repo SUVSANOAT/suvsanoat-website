@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Насосное оборудование в Узбекистане — насосы, КНС и станции",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function PumpEquipmentPage() {
-  return <CategoryPage content={content} image="/pump-equipment.png" />;
+  return <CategoryPage content={content} icons={icons} image="/pump-equipment.png" />;
 }

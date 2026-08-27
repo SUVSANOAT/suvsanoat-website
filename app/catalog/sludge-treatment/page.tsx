@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Обезвоживание осадка сточных вод в Узбекистане — оборудование",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function SludgeTreatmentPage() {
-  return <CategoryPage content={content} image="/sludge-treatment.png" />;
+  return <CategoryPage content={content} icons={icons} image="/sludge-treatment.png" />;
 }

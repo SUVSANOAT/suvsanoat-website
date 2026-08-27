@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { type Language } from "./translations";
 import { useLanguage } from "./LanguageContext";
 import ScrollReveal from "./components/ScrollReveal";
@@ -188,7 +189,14 @@ export default function Home() {
           className="logo"
           aria-label="SUVSANOAT"
         >
-          <img src="/logo.png" alt="SUVSANOAT" />
+          <Image
+            src="/logo.png"
+            alt="SUVSANOAT"
+            width={1536}
+            height={864}
+            priority
+            sizes="200px"
+          />
         </a>
 
         <a href="/engineering" className="engineeringNavButton">
@@ -1031,18 +1039,19 @@ export default function Home() {
             className={`heroSlide ${
               currentSlide === index ? "active" : ""
             }`}
-            style={{
-              backgroundImage: `
-                linear-gradient(
-                  90deg,
-                  rgba(2,14,24,.96) 0%,
-                  rgba(2,14,24,.72) 42%,
-                  rgba(2,14,24,.12) 100%
-                ),
-                url("${slide.image}")
-              `,
-            }}
-          />
+          >
+            <Image
+              src={slide.image}
+              alt=""
+              fill
+              priority={index === 0}
+              sizes="100vw"
+              quality={72}
+              style={{ objectFit: "cover", objectPosition: "center" }}
+            />
+
+            <div className="heroSlideShade" />
+          </div>
         ))}
 
         <div className="heroContent">
@@ -1122,10 +1131,13 @@ export default function Home() {
               className="catalogCard catalogCardWithImage"
               key={item.number}
             >
-              <img
+              <Image
                 src={item.image}
                 alt={item.title}
                 className="catalogCardImage"
+                fill
+                sizes="(max-width: 650px) 100vw, (max-width: 1100px) 50vw, 25vw"
+                quality={70}
               />
 
               <span className="catalogNumber">
@@ -1235,10 +1247,14 @@ export default function Home() {
               className="serviceStep"
               key={index}
             >
-              <img
+              <Image
                 src={processImages[index]}
                 alt={step.title}
                 className="serviceStepImage"
+                width={480}
+                height={300}
+                sizes="240px"
+                quality={70}
               />
 
               <div className="serviceStepTop">
@@ -1584,9 +1600,12 @@ export default function Home() {
               className="footerLogo"
               aria-label="SUVSANOAT"
             >
-              <img
+              <Image
                 src="/logo.png"
                 alt="SUVSANOAT"
+                width={1536}
+                height={864}
+                sizes="200px"
               />
             </a>
 

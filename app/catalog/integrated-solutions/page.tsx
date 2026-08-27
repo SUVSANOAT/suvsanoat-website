@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Очистные сооружения под ключ в Узбекистане | SUVSANOAT",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function IntegratedSolutionsPage() {
-  return <CategoryPage content={content} image="/integrated-solutions.png" />;
+  return <CategoryPage content={content} icons={icons} image="/integrated-solutions.png" />;
 }

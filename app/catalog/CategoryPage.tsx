@@ -1,9 +1,12 @@
 "use client";
 
 import { Fragment } from "react";
+import Image from "next/image";
 
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import EquipIcon from "../components/EquipIcon";
+import ScrollReveal from "../components/ScrollReveal";
 import type { CategoryContentSet } from "./types";
 
 /** Разбивает строку по \n и вставляет переносы */
@@ -20,18 +23,29 @@ type Props = {
   content: CategoryContentSet;
   /** Картинка шапки, например "/aeration-equipment.png" */
   image: string;
+  /** Иконка на каждую позицию, порядок совпадает с items */
+  icons?: string[];
 };
 
-export default function CategoryPage({ content, image }: Props) {
+export default function CategoryPage({ content, image, icons = [] }: Props) {
   const { t, language } = useLanguage();
   const c = content[language];
 
   return (
     <main className="categoryPage">
+      <ScrollReveal />
+
       {/* HEADER */}
       <header className="categoryHeader">
         <a href="/" className="categoryLogo" aria-label="SUVSANOAT">
-          <img src="/logo.png" alt="SUVSANOAT" />
+          <Image
+            src="/logo.png"
+            alt="SUVSANOAT"
+            width={1536}
+            height={864}
+            priority
+            sizes="200px"
+          />
         </a>
 
         <nav className="categoryNav">
@@ -52,7 +66,15 @@ export default function CategoryPage({ content, image }: Props) {
       {/* HERO */}
       <section className="categoryHero">
         <div className="categoryHeroImage">
-          <img src={image} alt={c.breadcrumb} />
+          <Image
+            src={image}
+            alt={c.breadcrumb}
+            fill
+            priority
+            sizes="100vw"
+            quality={72}
+            style={{ objectFit: "cover", objectPosition: "center" }}
+          />
         </div>
 
         <div className="categoryHeroOverlay" />
@@ -121,12 +143,17 @@ export default function CategoryPage({ content, image }: Props) {
         </div>
 
         <div className="categoryEquipmentGrid">
-          {c.items.map((item) => (
+          {c.items.map((item, index) => (
             <article className="categoryEquipmentCard" key={item.number}>
               <div className="categoryEquipmentTop">
                 <span>{item.number}</span>
                 <b>↗</b>
               </div>
+
+              <EquipIcon
+                name={icons[index] ?? "water"}
+                className="categoryEquipmentIcon"
+              />
 
               <h3>{item.title}</h3>
               <p>{item.text}</p>
@@ -212,7 +239,13 @@ export default function CategoryPage({ content, image }: Props) {
       <footer className="categoryFooter">
         <div>
           <a href="/" className="categoryFooterLogo" aria-label="SUVSANOAT">
-            <img src="/logo.png" alt="SUVSANOAT" />
+            <Image
+              src="/logo.png"
+              alt="SUVSANOAT"
+              width={1536}
+              height={864}
+              sizes="200px"
+            />
           </a>
 
           <p>{lines(t.footer.description)}</p>

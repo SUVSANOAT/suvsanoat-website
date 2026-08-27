@@ -18,6 +18,11 @@ const SELECTORS = [
   ".catalogCard",
   ".technologyCard",
   ".industryCard",
+  ".categorySectionHeader",
+  ".categoryIntroGrid",
+  ".categoryEquipmentCard",
+  ".waterProcessStep",
+  ".categoryApplicationItem",
 ];
 
 export default function ScrollReveal() {

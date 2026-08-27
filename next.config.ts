@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 31536000,
     deviceSizes: [360, 480, 640, 828, 1080, 1200, 1920],
     imageSizes: [64, 128, 256, 384],
+    // Разрешённые значения quality — иначе Next отклоняет нестандартные
+    qualities: [70, 72, 75, 100],
   },
 
   compress: true,

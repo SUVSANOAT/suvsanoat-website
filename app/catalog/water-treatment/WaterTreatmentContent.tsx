@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useLanguage } from "../../LanguageContext";
 import type { Language } from "../../translations";
 
@@ -265,7 +266,7 @@ export default function WaterTreatmentContent() {
     <main className="categoryPage">
       <header className="categoryHeader">
         <a href="/" className="categoryLogo" aria-label="SUVSANOAT — главная">
-          <img src="/logo.png" alt="SUVSANOAT" />
+          <Image src="/logo.png" alt="SUVSANOAT" width={1536} height={864} sizes="200px" />
         </a>
         <nav className="categoryNav">
           <a href="/">{t.home}</a>
@@ -290,7 +291,7 @@ export default function WaterTreatmentContent() {
       </header>
 
       <section className="categoryHero waterTreatmentHero">
-        <div className="categoryHeroImage"><img src="/water-treatment.png" alt={t.heroLabel} /></div>
+        <div className="categoryHeroImage"><Image src="/water-treatment.png" alt={t.heroLabel} fill priority sizes="100vw" quality={72} style={{ objectFit: "cover", objectPosition: "center" }} /></div>
         <div className="categoryHeroOverlay" />
         <div className="categoryHeroContent">
           <div className="categoryBreadcrumb">
@@ -369,7 +370,7 @@ export default function WaterTreatmentContent() {
       </section>
 
       <footer className="categoryFooter">
-        <div><a href="/" className="categoryFooterLogo" aria-label="SUVSANOAT — главная"><img src="/logo.png" alt="SUVSANOAT" /></a><p>{t.footerText}</p></div>
+        <div><a href="/" className="categoryFooterLogo" aria-label="SUVSANOAT — главная"><Image src="/logo.png" alt="SUVSANOAT" width={1536} height={864} sizes="200px" /></a><p>{t.footerText}</p></div>
         <div><span>{t.navigation}</span><a href="/#catalog">{t.catalog}</a><a href="/#solutions">{t.solutionsNav}</a><a href="/#technologies">{t.technologiesNav}</a><a href="/#services">{t.services}</a><a href="/#contacts">{t.contact}</a></div>
         <div><span>{t.contact}</span><a href="tel:+998773043400">+998 77 304 34 00</a><a href="mailto:suvsanoat@gmail.com">suvsanoat@gmail.com</a></div>
       </footer>

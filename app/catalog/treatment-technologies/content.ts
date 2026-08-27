@@ -514,4 +514,22 @@ const content: CategoryContentSet = {
   },
 };
 
+
+
+
+
+
+/** Иконка на каждую позицию — не зависит от языка */
+export const icons: string[] = [
+  "membrane", // MBR
+  "cycle", // SBR
+  "carriers", // MBBR
+  "zones", // A/O
+  "zones", // A²/O
+  "bio", // ANBR
+  "daf", // DAF
+  "membrane", // UF
+  "ro", // RO
+];
+
 export default content;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Механическая очистка сточных вод в Узбекистане | SUVSANOAT",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function MechanicalTreatmentPage() {
-  return <CategoryPage content={content} image="/mechanical-treatment.png" />;
+  return <CategoryPage content={content} icons={icons} image="/mechanical-treatment.png" />;
 }

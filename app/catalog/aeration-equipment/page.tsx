@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Аэрационное оборудование для очистных сооружений в Узбекистане",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function AerationEquipmentPage() {
-  return <CategoryPage content={content} image="/aeration-equipment.png" />;
+  return <CategoryPage content={content} icons={icons} image="/aeration-equipment.png" />;
 }

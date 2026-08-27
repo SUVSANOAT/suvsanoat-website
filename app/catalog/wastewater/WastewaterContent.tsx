@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useLanguage } from "../../LanguageContext";
 import type { Language } from "../../translations";
 
@@ -321,7 +322,7 @@ export default function WastewaterContent() {
     <>
       <header className="wwHeader">
         <a href="/" className="wwLogo" aria-label="SUVSANOAT — главная">
-          <img src="/logo.png" alt="SUVSANOAT" />
+          <Image src="/logo.png" alt="SUVSANOAT" width={1536} height={864} sizes="200px" />
         </a>
 
         <div className="wwHeaderRight">
@@ -354,7 +355,7 @@ export default function WastewaterContent() {
 
       <section className="wwHero">
         <div className="wwHeroBackground">
-          <img src="/wastewater-treatment.png" alt={t.eyebrow} />
+          <Image src="/wastewater-treatment.png" alt={t.eyebrow} fill priority sizes="100vw" quality={72} style={{ objectFit: "cover", objectPosition: "center" }} />
         </div>
         <div className="wwHeroOverlay" />
         <div className="wwHeroContent">
@@ -397,7 +398,7 @@ export default function WastewaterContent() {
       </section>
 
       <section className="wwShowcase">
-        <div className="wwShowcaseImage"><img src="/wastewater-treatment.png" alt="SUVSANOAT" /></div>
+        <div className="wwShowcaseImage"><Image src="/wastewater-treatment.png" alt="SUVSANOAT" fill sizes="(max-width: 1100px) 100vw, 50vw" quality={72} style={{ objectFit: "cover" }} /></div>
       </section>
 
       <section className="wwTechnologies">
@@ -457,7 +458,7 @@ export default function WastewaterContent() {
       <footer className="wwFooter">
         <div className="wwFooterTop">
           <div className="wwFooterBrand">
-            <a href="/" aria-label="SUVSANOAT — главная"><img src="/logo.png" alt="SUVSANOAT" /></a>
+            <a href="/" aria-label="SUVSANOAT — главная"><Image src="/logo.png" alt="SUVSANOAT" width={1536} height={864} sizes="200px" /></a>
             <p>{t.footerText}</p>
           </div>
           <div className="wwFooterLinks">

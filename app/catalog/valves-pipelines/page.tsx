@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Трубопроводная арматура и трубы в Узбекистане",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function ValvesPipelinesPage() {
-  return <CategoryPage content={content} image="/valves-pipelines.png" />;
+  return <CategoryPage content={content} icons={icons} image="/valves-pipelines.png" />;
 }

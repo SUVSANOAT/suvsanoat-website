@@ -3873,3 +3873,42 @@ html {
   .revealItem{opacity:1;transform:none;transition:none}
   .catalogCard:hover,.technologyCard:hover,.industryCard:hover{transform:none}
 }
+
+/* затемнение поверх картинки первого экрана (картинку теперь отдаёт next/image) */
+.heroSlideShade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(2,14,24,.96) 0%,rgba(2,14,24,.72) 42%,rgba(2,14,24,.12) 100%)}
+
+/* =========================================================
+   ИКОНКИ И ЭФФЕКТЫ НА СТРАНИЦАХ КАТАЛОГА
+========================================================= */
+
+.categoryEquipmentCard{overflow:hidden}
+.categoryEquipmentCard::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;
+  background:linear-gradient(135deg,rgba(25,168,229,.12),rgba(25,168,229,0) 58%);transition:opacity .4s ease}
+.categoryEquipmentCard::after{content:"";position:absolute;left:0;top:0;height:2px;width:0;z-index:1;
+  background:linear-gradient(90deg,#19a8e5,#5ad2fa);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.categoryEquipmentCard:hover{transform:translateY(-5px);box-shadow:0 20px 44px rgba(7,29,43,.14);z-index:3}
+.categoryEquipmentCard:hover::before{opacity:1}
+.categoryEquipmentCard:hover::after{width:100%}
+.categoryEquipmentCard>*{position:relative;z-index:2}
+
+.categoryEquipmentIcon{display:block;width:44px;height:44px;margin-top:22px;color:#19a8e5;
+  transition:transform .5s cubic-bezier(.2,.8,.2,1),color .35s ease}
+.categoryEquipmentIcon+h3{margin-top:20px}
+.categoryEquipmentCard:hover .categoryEquipmentIcon{transform:scale(1.14) translateY(-3px);color:#0d84bd}
+
+.categoryApplicationItem{transition:background .32s ease,transform .32s ease}
+.categoryApplicationItem:hover{background:rgba(25,168,229,.08)}
+
+.waterProcessStep{transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s ease}
+.waterProcessStep:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(7,29,43,.12)}
+
+.categoryHeroLabel{position:relative;overflow:hidden}
+.categoryHeroLabel::after{content:"";position:absolute;left:-40%;top:0;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:labelSheen 4.5s ease-in-out infinite}
+@keyframes labelSheen{0%,70%{left:-40%}100%{left:120%}}
+
+@media(prefers-reduced-motion:reduce){
+  .categoryEquipmentCard:hover,.waterProcessStep:hover{transform:none}
+  .categoryEquipmentCard:hover .categoryEquipmentIcon{transform:none}
+  .categoryHeroLabel::after{animation:none}
+}

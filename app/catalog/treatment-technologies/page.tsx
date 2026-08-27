@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Технологии очистки сточных вод — MBR, SBR, MBBR, DAF",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function TreatmentTechnologiesPage() {
-  return <CategoryPage content={content} image="/treatment-technologies.png" />;
+  return <CategoryPage content={content} icons={icons} image="/treatment-technologies.png" />;
 }

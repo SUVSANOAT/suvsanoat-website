@@ -474,4 +474,21 @@ const content: CategoryContentSet = {
   },
 };
 
+
+
+
+
+
+/** Иконка на каждую позицию — не зависит от языка */
+export const icons: string[] = [
+  "disc", // Дисковые затворы
+  "gate", // Задвижки
+  "check", // Обратные клапаны
+  "ball", // Шаровые краны
+  "pipe", // Трубы
+  "pipe", // Фитинги
+  "pipe", // Компенсаторы
+  "plc", // Приводы и автоматика
+];
+
 export default content;

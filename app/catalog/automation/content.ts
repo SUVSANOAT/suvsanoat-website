@@ -475,4 +475,21 @@ const content: CategoryContentSet = {
   },
 };
 
+
+
+
+
+
+/** Иконка на каждую позицию — не зависит от языка */
+export const icons: string[] = [
+  "panel", // Шкафы управления
+  "plc", // PLC / ПЛК
+  "plc", // SCADA-системы
+  "panel", // Частотные преобразователи
+  "sensor", // Датчики и КИПиА
+  "panel", // Панели оператора HMI
+  "panel", // Системы сигнализации и защиты
+  "sensor", // Удалённый мониторинг
+];
+
 export default content;

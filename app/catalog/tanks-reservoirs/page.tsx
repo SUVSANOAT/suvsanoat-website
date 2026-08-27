@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import CategoryPage from "../CategoryPage";
-import content from "./content";
+import content, { icons } from "./content";
 
 export const metadata: Metadata = {
   title: "Резервуары и ёмкости для воды и сточных вод в Узбекистане",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function TanksReservoirsPage() {
-  return <CategoryPage content={content} image="/tanks-reservoirs.png" />;
+  return <CategoryPage content={content} icons={icons} image="/tanks-reservoirs.png" />;
 }
