@@ -13,6 +13,7 @@ import {
   specValue,
   type LineKey,
 } from "./data";
+import { SOLUTION_LINKS } from "../solutions/nav";
 import s from "./products.module.css";
 
 function lines(text: string) {
@@ -31,6 +32,13 @@ function useNum(language: string) {
       ? String(value)
       : String(value).replace(".", ",");
 }
+
+const SOLUTIONS_TITLE: Record<string, string> = {
+  ru: "Решения под задачу",
+  uz: "Vazifaga mos yechimlar",
+  en: "Solutions by task",
+  zh: "按任务选方案",
+};
 
 export default function ProductsIndex() {
   const { t, language } = useLanguage();
@@ -109,6 +117,22 @@ export default function ProductsIndex() {
               </a>
             );
           })}
+        </div>
+        {/* Посадочные страницы под типовые задачи */}
+        <div className={s.label} style={{ marginTop: 54 }}>
+          {SOLUTIONS_TITLE[language]}
+        </div>
+
+        <div className={s.lineNav} style={{ marginTop: 18 }}>
+          {SOLUTION_LINKS.map((link) => (
+            <a className={s.lineChip} href={link.href} key={link.href}>
+              <EquipIcon name={link.icon} className={s.lineChipIcon} />
+
+              <span>
+                <b>{link.title[language]}</b>
+              </span>
+            </a>
+          ))}
         </div>
       </section>
 
