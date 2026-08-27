@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/automation.png",
+        url: "/automation-og.jpg",
         width: 1200,
         height: 630,
         alt: "Автоматизация очистных сооружений и шкафы управления SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Автоматизация очистных сооружений | SUVSANOAT",
     description:
       "АСУ ТП, PLC, SCADA, шкафы управления, КИПиА и автоматизация инженерных систем.",
-    images: ["/automation.png"],
+    images: ["/automation-og.jpg"],
   },
 
   robots: {

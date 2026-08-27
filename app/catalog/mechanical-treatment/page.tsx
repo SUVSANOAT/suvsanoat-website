@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/mechanical-treatment.png",
+        url: "/mechanical-treatment-og.jpg",
         width: 1200,
         height: 630,
         alt: "Оборудование механической очистки сточных вод SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Механическая очистка сточных вод | SUVSANOAT",
     description:
       "Оборудование предварительной механической очистки промышленных и коммунальных сточных вод.",
-    images: ["/mechanical-treatment.png"],
+    images: ["/mechanical-treatment-og.jpg"],
   },
 
   robots: {

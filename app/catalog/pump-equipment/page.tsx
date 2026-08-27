@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/pump-equipment.png",
+        url: "/pump-equipment-og.jpg",
         width: 1200,
         height: 630,
         alt: "Насосное оборудование, насосы и КНС SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Насосное оборудование, насосы и КНС | SUVSANOAT",
     description:
       "Канализационные и промышленные насосы, насосные станции и КНС для воды и сточных вод.",
-    images: ["/pump-equipment.png"],
+    images: ["/pump-equipment-og.jpg"],
   },
 
   robots: {

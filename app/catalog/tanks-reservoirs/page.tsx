@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/tanks-reservoirs.png",
+        url: "/tanks-reservoirs-og.jpg",
         width: 1200,
         height: 630,
         alt: "Резервуары и ёмкости для воды и сточных вод SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Резервуары и ёмкости для воды и сточных вод | SUVSANOAT",
     description:
       "Резервуары для воды, сточных вод, реагентов, водоподготовки и очистных сооружений.",
-    images: ["/tanks-reservoirs.png"],
+    images: ["/tanks-reservoirs-og.jpg"],
   },
 
   robots: {

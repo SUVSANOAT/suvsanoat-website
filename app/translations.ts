@@ -270,6 +270,7 @@ export const translations = {
       hospitals: "Больницы",
       shopping: "Торговые центры",
       business: "Бизнес-центры",
+      carWash: "Автомойки",
 
       residentialComplex: "Жилые комплексы",
       cottage: "Коттеджные поселки",
@@ -612,6 +613,7 @@ export const translations = {
       hospitals: "Shifoxonalar",
       shopping: "Savdo markazlari",
       business: "Biznes markazlari",
+      carWash: "Avtomoykalar",
 
       residentialComplex: "Turar-joy majmualari",
       cottage: "Kottej shaharchalari",
@@ -954,6 +956,7 @@ export const translations = {
       hospitals: "Hospitals",
       shopping: "Shopping Centers",
       business: "Business Centers",
+      carWash: "Car Washes",
 
       residentialComplex: "Residential Complexes",
       cottage: "Cottage Communities",
@@ -1272,6 +1275,7 @@ export const translations = {
       hospitals: "医院",
       shopping: "购物中心",
       business: "商务中心",
+      carWash: "洗车场",
       residentialComplex: "住宅综合体",
       cottage: "别墅社区",
       privateObjects: "私人项目",

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/treatment-technologies.png",
+        url: "/treatment-technologies-og.jpg",
         width: 1200,
         height: 630,
         alt: "Технологии очистки сточных вод MBR SBR MBBR DAF SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Технологии очистки сточных вод | SUVSANOAT",
     description:
       "MBR, SBR, MBBR, A/O, A²/O, ANBR, DAF, UF и RO для очистки сточных вод.",
-    images: ["/treatment-technologies.png"],
+    images: ["/treatment-technologies-og.jpg"],
   },
 
   robots: {

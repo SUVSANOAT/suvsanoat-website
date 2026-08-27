@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/wastewater-treatment.png",
+        url: "/wastewater-treatment-og.jpg",
         width: 1200,
         height: 630,
         alt: "Очистные сооружения в Ташкенте и Узбекистане — SUVSANOAT",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     title: "Очистные сооружения в Ташкенте и Узбекистане | SUVSANOAT",
     description:
       "Проектирование, производство и поставка систем очистки бытовых и промышленных сточных вод в Ташкенте и по Узбекистану.",
-    images: ["/wastewater-treatment.png"],
+    images: ["/wastewater-treatment-og.jpg"],
   },
   robots: {
     index: true,

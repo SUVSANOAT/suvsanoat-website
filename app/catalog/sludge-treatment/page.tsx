@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/sludge-treatment.png",
+        url: "/sludge-treatment-og.jpg",
         width: 1200,
         height: 630,
         alt: "Оборудование для обработки и обезвоживания осадка сточных вод SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Обезвоживание осадка сточных вод | SUVSANOAT",
     description:
       "Оборудование для сгущения, кондиционирования и механического обезвоживания осадка очистных сооружений.",
-    images: ["/sludge-treatment.png"],
+    images: ["/sludge-treatment-og.jpg"],
   },
 
   robots: {

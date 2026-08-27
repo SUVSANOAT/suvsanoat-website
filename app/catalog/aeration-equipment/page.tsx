@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/aeration-equipment.png",
+        url: "/aeration-equipment-og.jpg",
         width: 1200,
         height: 630,
         alt: "Аэрационное оборудование для очистных сооружений SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Аэрационное оборудование для очистных сооружений | SUVSANOAT",
     description:
       "Дисковые и трубчатые диффузоры, мембранные аэраторы, воздуходувки и системы аэрации сточных вод.",
-    images: ["/aeration-equipment.png"],
+    images: ["/aeration-equipment-og.jpg"],
   },
 
   robots: {

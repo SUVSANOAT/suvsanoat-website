@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     siteName: "SUVSANOAT",
     type: "website",
     locale: "ru_RU",
-    images: [{ url: "/car-wash-hero.png", width: 1200, height: 630, alt: "Очистка воды автомойки SUVSANOAT" }],
+    images: [{ url: "/car-wash-hero-og.jpg", width: 1200, height: 630, alt: "Очистка воды автомойки SUVSANOAT" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Очистка воды автомойки в Узбекистане | SUVSANOAT",
     description: "Оборотное водоснабжение автомоек: готовые решения от 5 до 50 м³/сутки.",
-    images: ["/car-wash-hero.png"],
+    images: ["/car-wash-hero-og.jpg"],
   },
   robots: { index: true, follow: true },
 };

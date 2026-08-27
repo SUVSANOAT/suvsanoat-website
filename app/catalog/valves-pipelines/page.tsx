@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/valves-pipelines.png",
+        url: "/valves-pipelines-og.jpg",
         width: 1200,
         height: 630,
         alt: "Трубопроводная арматура и трубы SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Трубопроводная арматура и трубы | SUVSANOAT",
     description:
       "Промышленная трубопроводная арматура, трубы и фитинги для инженерных систем.",
-    images: ["/valves-pipelines.png"],
+    images: ["/valves-pipelines-og.jpg"],
   },
 
   robots: {

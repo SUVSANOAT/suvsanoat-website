@@ -257,6 +257,7 @@ export default function Home() {
                   <a href="#solutions">{t.mega.hospitals}</a>
                   <a href="#solutions">{t.mega.shopping}</a>
                   <a href="#solutions">{t.mega.business}</a>
+                  <a href="/solutions/car-wash">{t.mega.carWash}</a>
                 </div>
 
                 <div className="megaGroup">

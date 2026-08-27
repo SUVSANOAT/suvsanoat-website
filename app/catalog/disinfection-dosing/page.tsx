@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     images: [
       {
-        url: "/disinfection-dosing.png",
+        url: "/disinfection-dosing-og.jpg",
         width: 1200,
         height: 630,
         alt: "Дезинфекция воды и дозирование реагентов SUVSANOAT",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Дезинфекция воды и дозирование реагентов | SUVSANOAT",
     description:
       "УФ-обеззараживание, гипохлорит натрия, электролиз и автоматическое дозирование реагентов.",
-    images: ["/disinfection-dosing.png"],
+    images: ["/disinfection-dosing-og.jpg"],
   },
 
   robots: {
