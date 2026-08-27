@@ -6,6 +6,14 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import EquipIcon from "../components/EquipIcon";
+import {
+  MakeArt,
+  CatalogArt,
+  TechArt,
+  IndustryArt,
+  ServiceArt,
+  ContactArt,
+} from "./SectionArt";
 import type { Language } from "../translations";
 import {
   MODELS,
@@ -1073,6 +1081,10 @@ export default function NewHome() {
 
       {/* ПРОИЗВОДСТВО */}
       <section className={s.make} id="make">
+        <div className={s.artSide} aria-hidden="true">
+          <MakeArt calm={calm} />
+        </div>
+
         <div className={s.secHead}>
           <div>
             <div className={s.secLabel}>{c.makeLabel}</div>
@@ -1095,6 +1107,10 @@ export default function NewHome() {
 
       {/* КАТАЛОГ */}
       <section className={s.catalog} id="catalog">
+        <div className={s.artSide} aria-hidden="true">
+          <CatalogArt calm={calm} />
+        </div>
+
         <div className={s.secHead}>
           <div>
             <div className={s.secLabel}>{c.catalogLabel}</div>
@@ -1169,6 +1185,10 @@ export default function NewHome() {
 
       {/* ТЕХНОЛОГИИ */}
       <section className={s.tech} id="technologies">
+        <div className={s.artSide} aria-hidden="true">
+          <TechArt calm={calm} />
+        </div>
+
         <div className={s.secHead}>
           <div>
             <div className={s.secLabel}>{t.technologies.label}</div>
@@ -1196,6 +1216,10 @@ export default function NewHome() {
 
       {/* ОТРАСЛИ */}
       <section className={s.industries} id="solutions">
+        <div className={`${s.artSide} ${s.artMap}`} aria-hidden="true">
+          <IndustryArt calm={calm} />
+        </div>
+
         <div className={s.secHead}>
           <div>
             <div className={s.secLabel}>{t.solutions.label}</div>
@@ -1226,6 +1250,10 @@ export default function NewHome() {
           <p>{t.services.text}</p>
         </div>
 
+        <div className={s.artLine} aria-hidden="true">
+          <ServiceArt calm={calm} steps={t.services.steps.length} />
+        </div>
+
         <div className={s.stepGrid}>
           {t.services.steps.map((step, index) => (
             <article className={s.stepCard} key={step.title}>
@@ -1244,6 +1272,10 @@ export default function NewHome() {
 
       {/* КОНТАКТЫ */}
       <section className={s.contacts} id="contacts">
+        <div className={s.artPulse} aria-hidden="true">
+          <ContactArt calm={calm} />
+        </div>
+
         <div className={s.contactGrid}>
           <div className={s.contactInfo}>
             <div className={s.secLabel}>{t.contacts.label}</div>

@@ -1096,7 +1096,10 @@ export const TEXT: Record<Language, ProductsText> = {
       },
       tanks: {
         name: "Резервуары и усреднители",
-        labels: { volumeGross: "Геометрический объём" },
+        labels: {
+          size: "Габариты (⌀ × длина)",
+          volumeGross: "Геометрический объём",
+        },
         tagline:
           "Ёмкости из стеклопластика 1–50 м³ для усреднения, накопления, пожарного и технологического запаса воды",
         intro: [
@@ -1574,7 +1577,10 @@ export const TEXT: Record<Language, ProductsText> = {
       },
       tanks: {
         name: "Rezervuarlar va tenglashtirgichlar",
-        labels: { volumeGross: "Geometrik hajm" },
+        labels: {
+          size: "Gabaritlar (⌀ × uzunlik)",
+          volumeGross: "Geometrik hajm",
+        },
         tagline:
           "Tenglashtirish, to‘plash, yong‘in va texnologik suv zaxirasi uchun 1–50 m³ shishatolali plastik idishlar",
         intro: [
@@ -2052,7 +2058,10 @@ export const TEXT: Record<Language, ProductsText> = {
       },
       tanks: {
         name: "Tanks and balancing vessels",
-        labels: { volumeGross: "Geometric volume" },
+        labels: {
+          size: "Dimensions (⌀ × length)",
+          volumeGross: "Geometric volume",
+        },
         tagline:
           "GRP vessels from 1 to 50 m³ for balancing, storage, fire reserve and process water",
         intro: [
@@ -2528,7 +2537,10 @@ export const TEXT: Record<Language, ProductsText> = {
       },
       tanks: {
         name: "储罐与调节池",
-        labels: { volumeGross: "几何容积" },
+        labels: {
+          size: "外形尺寸（⌀ × 长度）",
+          volumeGross: "几何容积",
+        },
         tagline: "1–50 m³ 玻璃钢罐体，用于水量调节、储存、消防和工艺用水",
         intro: [
           "当来水不均匀而处理工艺需要稳定进水时，就需要储罐。处理设施前的调节池可削减瞬时冲击负荷；储存罐保有工艺水或消防水；中间罐用于分隔工艺流程的各个阶段。",
