@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { MODELS } from "./products/data";
+
 const baseUrl = "https://suvsanoat.uz";
 
 type Entry = {
@@ -18,6 +20,9 @@ const routes: Entry[] = [
   // Отраслевые решения
   { path: "/solutions/car-wash", priority: 0.9, changeFrequency: "monthly" },
 
+  // Ассортимент
+  { path: "/products", priority: 0.95, changeFrequency: "weekly" },
+
   // Каталог
   { path: "/catalog/wastewater", priority: 0.9, changeFrequency: "monthly" },
   { path: "/catalog/water-treatment", priority: 0.9, changeFrequency: "monthly" },
@@ -33,13 +38,22 @@ const routes: Entry[] = [
   { path: "/catalog/valves-pipelines", priority: 0.8, changeFrequency: "monthly" },
 ];
 
+/** Страницы моделей берутся из ассортимента автоматически */
+const productRoutes: Entry[] = MODELS.map((model) => ({
+  path: `/products/${model.slug}`,
+  priority: 0.9,
+  changeFrequency: "monthly",
+}));
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
 
-  return routes.map(({ path, priority, changeFrequency }) => ({
-    url: `${baseUrl}${path}`,
-    lastModified,
-    changeFrequency,
-    priority,
-  }));
+  return [...routes, ...productRoutes].map(
+    ({ path, priority, changeFrequency }) => ({
+      url: `${baseUrl}${path}`,
+      lastModified,
+      changeFrequency,
+      priority,
+    })
+  );
 }

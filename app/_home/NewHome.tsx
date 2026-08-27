@@ -869,7 +869,7 @@ export default function NewHome() {
         </a>
 
         <nav className={s.nav}>
-          <a href="#catalog">{t.nav.catalog}</a>
+          <a href="/products">{t.nav.catalog}</a>
           <a href="#technologies">{t.nav.technologies}</a>
           <a href="#solutions">{t.nav.solutions}</a>
           <a href="#services">{t.nav.services}</a>

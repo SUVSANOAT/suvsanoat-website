@@ -1,0 +1,599 @@
+/* =========================================================
+   АССОРТИМЕНТ — палитра «Графит», как на главной
+========================================================= */
+
+.page {
+  --bg1: #0f1417;
+  --bg2: #161d21;
+  --bg3: #1c2529;
+  --line: rgba(255, 255, 255, 0.1);
+  --panel: rgba(255, 255, 255, 0.035);
+  --text: #f2f5f6;
+  --muted: rgba(242, 245, 246, 0.5);
+  --faint: rgba(242, 245, 246, 0.32);
+  --accent: #3ec3e6;
+  --warn: #f0a63c;
+
+  background: var(--bg1);
+  color: var(--text);
+}
+
+.page * {
+  box-sizing: border-box;
+}
+
+/* ---------------- ШАПКА ---------------- */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: 84px;
+  padding: 0 6%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: rgba(15, 20, 23, 0.86);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.logo img {
+  display: block;
+  width: 170px;
+  height: auto;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+.nav > a {
+  color: rgba(242, 245, 246, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.nav > a:hover {
+  color: var(--accent);
+}
+
+.navButton {
+  padding: 13px 20px;
+  border: 1px solid rgba(242, 245, 246, 0.3);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.navButton:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg1);
+}
+
+/* ---------------- ВЕРХ СТРАНИЦЫ ---------------- */
+
+.top {
+  padding: 90px 6% 60px;
+  border-bottom: 1px solid var(--line);
+}
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.crumbs a {
+  color: var(--faint);
+  text-decoration: none;
+  transition: color 0.25s ease;
+}
+
+.crumbs a:hover {
+  color: var(--accent);
+}
+
+.crumbs b {
+  color: var(--text);
+}
+
+.label {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  margin-bottom: 18px;
+}
+
+.top h1 {
+  font-size: clamp(38px, 4.8vw, 70px);
+  line-height: 1;
+  letter-spacing: -2.8px;
+  margin: 0 0 22px;
+}
+
+.tagline {
+  max-width: 720px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.75;
+  margin: 0;
+}
+
+.topIcon {
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 26px;
+  color: var(--accent);
+}
+
+/* ---------------- ОБЩИЕ СЕКЦИИ ---------------- */
+
+.section {
+  padding: 90px 6%;
+  border-bottom: 1px solid var(--line);
+}
+
+.sectionAlt {
+  background: var(--bg2);
+}
+
+.section h2 {
+  font-size: clamp(30px, 3.2vw, 46px);
+  line-height: 1.04;
+  letter-spacing: -1.8px;
+  margin: 0 0 26px;
+}
+
+.prose {
+  max-width: 860px;
+}
+
+.prose p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.85;
+  margin: 0 0 18px;
+}
+
+/* ---------------- ТАБЛИЦА РЯДА ---------------- */
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+}
+
+.table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead th {
+  padding: 16px 14px;
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.table td {
+  padding: 15px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.table tbody tr {
+  transition: background 0.25s ease;
+}
+
+.table tbody tr:hover {
+  background: rgba(62, 195, 230, 0.06);
+}
+
+.table td:first-child {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.table td:first-child a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.table td:first-child a:hover {
+  text-decoration: underline;
+}
+
+.tableMore {
+  color: var(--accent) !important;
+  font-weight: 800;
+}
+
+/* ---------------- КАРТОЧКИ МОДЕЛЕЙ ---------------- */
+
+.modelGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.modelCard {
+  position: relative;
+  display: block;
+  padding: 30px 28px 34px;
+  background: var(--bg1);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  transition: background 0.35s ease;
+}
+
+.modelCard::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), #9ce8ff);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.modelCard:hover {
+  background: var(--bg3);
+}
+
+.modelCard:hover::after {
+  width: 100%;
+}
+
+.modelIcon {
+  display: block;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 20px;
+  color: var(--accent);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.modelCard:hover .modelIcon {
+  transform: scale(1.14) translateY(-3px);
+}
+
+.modelCode {
+  display: block;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+.modelQ {
+  display: block;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.modelMini {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------------- ХАРАКТЕРИСТИКИ ---------------- */
+
+.specs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 44px;
+  max-width: 1100px;
+}
+
+.specRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.specRow span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.specRow b {
+  color: var(--text);
+  font-size: 15px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------------- СПИСКИ ---------------- */
+
+.twoCols {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 44px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list li {
+  position: relative;
+  padding: 11px 0 11px 24px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 19px;
+  width: 9px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.listMuted li::before {
+  background: rgba(242, 245, 246, 0.3);
+}
+
+.colTitle {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  margin-bottom: 12px;
+}
+
+.colTitleMuted {
+  color: var(--faint);
+}
+
+/* ---------------- ПРИМЕНЕНИЕ ---------------- */
+
+.useGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.useCard {
+  padding: 26px 26px 30px;
+  background: var(--bg2);
+  transition: background 0.3s ease;
+}
+
+.useCard:hover {
+  background: var(--bg3);
+}
+
+.useCard strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.useCard p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ---------------- ОГРАНИЧЕНИЯ ---------------- */
+
+.limits {
+  display: grid;
+  gap: 14px;
+  max-width: 980px;
+}
+
+.limitCard {
+  padding: 22px 24px;
+  border-left: 2px solid var(--warn);
+  background: rgba(240, 166, 60, 0.07);
+}
+
+.limitCard strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.limitCard p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ---------------- ЦЕНА И ЗАЯВКА ---------------- */
+
+.priceBox {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 30px;
+  align-items: center;
+  padding: 30px 32px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.priceBox span {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  margin-bottom: 10px;
+}
+
+.priceBox p {
+  max-width: 620px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.cta {
+  padding: 100px 6%;
+  background: var(--bg2);
+}
+
+.ctaInner {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.cta h2 {
+  font-size: clamp(32px, 3.6vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -2px;
+  margin: 0;
+}
+
+.cta p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+  margin: 0 0 26px;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 19px 30px;
+  background: var(--accent);
+  color: var(--bg1);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-decoration: none;
+  transition: filter 0.25s ease;
+}
+
+.ctaButton:hover {
+  filter: brightness(1.12);
+}
+
+.footer {
+  padding: 40px 6%;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: var(--accent);
+}
+
+/* ---------------- АДАПТИВ ---------------- */
+
+@media (max-width: 1100px) {
+  .nav > a {
+    display: none;
+  }
+
+  .modelGrid,
+  .useGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .specs,
+  .twoCols,
+  .ctaInner {
+    grid-template-columns: 1fr;
+    gap: 0 0;
+  }
+
+  .twoCols,
+  .ctaInner {
+    gap: 34px;
+  }
+
+  .priceBox {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .header {
+    padding: 0 22px;
+  }
+
+  .logo img {
+    width: 132px;
+  }
+
+  .top {
+    padding: 60px 22px 46px;
+  }
+
+  .section,
+  .cta {
+    padding: 64px 22px;
+  }
+
+  .modelGrid,
+  .useGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer {
+    padding: 32px 22px;
+  }
+}
