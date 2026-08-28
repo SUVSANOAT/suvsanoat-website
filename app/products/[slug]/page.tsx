@@ -5,6 +5,7 @@ import {
   MODELS,
   LINE_SEO,
   LINE_SPECS,
+  TEXT,
   findModel,
   modelSize,
   specValue,
@@ -51,6 +52,12 @@ const LABELS: Record<string, string> = {
   rings: "Кольца жёсткости",
   pcr: "Критическое давление смятия",
   pumps: "Количество насосов",
+  cl: "Активный хлор",
+  saltd: "Расход соли",
+  h2: "Выделение водорода",
+  ventMin: "Вентиляция, не менее",
+  tankSol: "Бак раствора",
+  tankSalt: "Бак-сатуратор соли",
   laminate: "Толщина ламината",
   mass: "Масса сухая",
   dn: "Присоединение",
@@ -181,7 +188,10 @@ export default async function ModelPage({ params }: Props) {
       .filter((row) => row.value)
       .map((row) => ({
         "@type": "PropertyValue",
-        name: LABELS[row.key] ?? row.key,
+        name:
+          TEXT.ru.lines[model.line].labels?.[row.key] ??
+          LABELS[row.key] ??
+          row.key,
         value: row.value,
       })),
   };
