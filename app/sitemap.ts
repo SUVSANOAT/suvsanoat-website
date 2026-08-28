@@ -31,6 +31,9 @@ const routes: Entry[] = [
   // Ассортимент
   { path: "/products", priority: 0.95, changeFrequency: "weekly" },
 
+  // Проектировщикам
+  { path: "/designers", priority: 0.9, changeFrequency: "monthly" },
+
   // Каталог
   { path: "/catalog/wastewater", priority: 0.9, changeFrequency: "monthly" },
   { path: "/catalog/water-treatment", priority: 0.9, changeFrequency: "monthly" },

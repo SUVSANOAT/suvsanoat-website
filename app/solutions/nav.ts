@@ -102,4 +102,14 @@ export const SOLUTION_LINKS: SolutionLink[] = [
       zh: "供水消毒",
     },
   },
+  {
+    href: "/designers",
+    icon: "plan",
+    title: {
+      ru: "Проектировщикам: чертежи и опросные листы",
+      uz: "Loyihachilarga: chizmalar va so‘rovnomalar",
+      en: "For design engineers",
+      zh: "设计院专区",
+    },
+  },
 ];
