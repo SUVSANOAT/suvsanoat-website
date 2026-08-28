@@ -72,4 +72,34 @@ export const SOLUTION_LINKS: SolutionLink[] = [
       zh: "玻璃钢储罐",
     },
   },
+  {
+    href: "/solutions/hotel",
+    icon: "station",
+    title: {
+      ru: "Очистные для гостиницы",
+      uz: "Mehmonxona uchun tozalash",
+      en: "Hotel wastewater treatment",
+      zh: "酒店污水处理",
+    },
+  },
+  {
+    href: "/solutions/food-industry",
+    icon: "factory",
+    title: {
+      ru: "Очистные для пищевого производства",
+      uz: "Oziq-ovqat korxonasi uchun",
+      en: "Food plant effluent treatment",
+      zh: "食品厂污水处理",
+    },
+  },
+  {
+    href: "/solutions/disinfection",
+    icon: "chem",
+    title: {
+      ru: "Обеззараживание воды посёлка",
+      uz: "Qishloq suvini zararsizlantirish",
+      en: "Water disinfection",
+      zh: "供水消毒",
+    },
+  },
 ];

@@ -52,6 +52,8 @@ export type Model = {
   pcr?: number;
   /** количество насосов (рабочий + резервный) */
   pumps?: number;
+  /** количество корпусов в изделии (батарея / модульное исполнение) */
+  bodies?: number;
   /** производительность по активному хлору, г/ч */
   cl?: number;
   /** расход соли, кг/сут */
@@ -159,6 +161,39 @@ export const MODELS: Model[] = [
     fat: 2.6, sludge: 5.85,
     laminate: 8, mass: 823, dn: 200, hatches: 4,
   },
+  {
+    slug: "zhir-20",
+    code: "ЖИР-20",
+    line: "grease-traps",
+    q: 20,
+    length: 6550, width: 2400, height: 2000,
+    volumeGross: 31.44, volumeWork: 26.7, retention: 80,
+    area: 15.7, load: 1.27, loadMm: 0.35,
+    fat: 4.32, sludge: 9.8,
+    laminate: 9, mass: 1235, dn: 250, hatches: 5,
+  },
+  {
+    slug: "zhir-30",
+    code: "ЖИР-30",
+    line: "grease-traps",
+    q: 30, bodies: 2,
+    length: 4650, width: 2400, height: 2100,
+    volumeGross: 46.87, volumeWork: 40.2, retention: 80,
+    area: 22.3, load: 1.34, loadMm: 0.37,
+    fat: 6.48, sludge: 14.7,
+    laminate: 9, mass: 2015, dn: 315, hatches: 6,
+  },
+  {
+    slug: "zhir-50",
+    code: "ЖИР-50",
+    line: "grease-traps",
+    q: 50, bodies: 2,
+    length: 7050, width: 2500, height: 2200,
+    volumeGross: 77.55, volumeWork: 67, retention: 80,
+    area: 35.2, load: 1.42, loadMm: 0.39,
+    fat: 10.8, sludge: 24.5,
+    laminate: 10, mass: 3155, dn: 355, hatches: 8,
+  },
   /* ---------------- НЕФТЕУЛОВИТЕЛИ ----------------
      Расчёт: скорость всплытия капли по Стоксу.
      d = 100 мкм, ро_н = 850 кг/м3, T = 15 C -> v = 2,58 м/ч.
@@ -232,6 +267,39 @@ export const MODELS: Model[] = [
     fat: 0.3, sludge: 4,
     laminate: 8, mass: 470, dn: 355, hatches: 3,
   },
+  {
+    slug: "nef-30",
+    code: "НЕФ-30",
+    line: "oil-separators",
+    q: 108, ns: 30,
+    length: 3450, width: 2000, height: 1900,
+    volumeGross: 13.11, volumeWork: 11.04, retention: 6,
+    area: 63, load: 1.72, loadMm: 0.48,
+    fat: 0.45, sludge: 6,
+    laminate: 9, mass: 685, dn: 400, hatches: 3,
+  },
+  {
+    slug: "nef-40",
+    code: "НЕФ-40",
+    line: "oil-separators",
+    q: 144, ns: 40,
+    length: 3950, width: 2200, height: 2000,
+    volumeGross: 17.38, volumeWork: 14.77, retention: 6,
+    area: 84, load: 1.72, loadMm: 0.48,
+    fat: 0.6, sludge: 8,
+    laminate: 9, mass: 825, dn: 450, hatches: 4,
+  },
+  {
+    slug: "nef-50",
+    code: "НЕФ-50",
+    line: "oil-separators",
+    q: 180, ns: 50,
+    length: 4250, width: 2400, height: 2100,
+    volumeGross: 21.42, volumeWork: 18.36, retention: 6,
+    area: 105, load: 1.72, loadMm: 0.48,
+    fat: 0.75, sludge: 10,
+    laminate: 10, mass: 1055, dn: 500, hatches: 4,
+  },
   /* ---------------- ПЕСКОЛОВКИ ----------------
      Нагрузка на зеркало 25 м/ч — задерживается песок от 0,10 мм
      (скорость осаждения кварцевой частицы 0,10 мм: 6,9 мм/с).
@@ -301,6 +369,39 @@ export const MODELS: Model[] = [
     area: 6.75, load: 10.7, loadMm: 2.96,
     sludge: 6.0,
     laminate: 8, mass: 500, dn: 355, hatches: 3,
+  },
+  {
+    slug: "pes-30",
+    code: "ПЕС-30",
+    line: "sand-traps",
+    q: 108, ns: 30,
+    length: 5000, width: 2000, height: 1800,
+    volumeGross: 18, volumeWork: 15, retention: 3.3,
+    area: 10, load: 10.8, loadMm: 3,
+    sludge: 9,
+    laminate: 8, mass: 665, dn: 400, hatches: 3,
+  },
+  {
+    slug: "pes-40",
+    code: "ПЕС-40",
+    line: "sand-traps",
+    q: 144, ns: 40,
+    length: 6100, width: 2200, height: 1800,
+    volumeGross: 24.16, volumeWork: 20.1, retention: 3.4,
+    area: 13.4, load: 10.7, loadMm: 3,
+    sludge: 12,
+    laminate: 9, mass: 930, dn: 450, hatches: 4,
+  },
+  {
+    slug: "pes-50",
+    code: "ПЕС-50",
+    line: "sand-traps",
+    q: 180, ns: 50,
+    length: 6950, width: 2400, height: 1800,
+    volumeGross: 30.02, volumeWork: 25, retention: 3.3,
+    area: 16.7, load: 10.8, loadMm: 3,
+    sludge: 15,
+    laminate: 9, mass: 1095, dn: 500, hatches: 4,
   },
   /* ---------------- РЕЗЕРВУАРЫ И УСРЕДНИТЕЛИ ----------------
      Кольца жёсткости с шагом 800 мм. Критическое давление смятия
@@ -406,6 +507,66 @@ export const MODELS: Model[] = [
     rings: 13, pcr: 73,
     laminate: 9, mass: 1695, dn: 250, hatches: 3,
   },
+  {
+    slug: "rez-75",
+    code: "РЕЗ-75",
+    line: "tanks",
+    vol: 75, bodies: 2,
+    diameter: 2400, length: 8300,
+    volumeGross: 75.1,
+    rings: 10, pcr: 73,
+    laminate: 9, mass: 2610, dn: 250, hatches: 4,
+  },
+  {
+    slug: "rez-100",
+    code: "РЕЗ-100",
+    line: "tanks",
+    vol: 100, bodies: 2,
+    diameter: 2400, length: 11100,
+    volumeGross: 100.4,
+    rings: 13, pcr: 73,
+    laminate: 9, mass: 3390, dn: 250, hatches: 4,
+  },
+  {
+    slug: "rez-150",
+    code: "РЕЗ-150",
+    line: "tanks",
+    vol: 150, bodies: 3,
+    diameter: 2400, length: 11100,
+    volumeGross: 150.7,
+    rings: 13, pcr: 73,
+    laminate: 9, mass: 5085, dn: 250, hatches: 6,
+  },
+  {
+    slug: "rez-200",
+    code: "РЕЗ-200",
+    line: "tanks",
+    vol: 200, bodies: 4,
+    diameter: 2400, length: 11100,
+    volumeGross: 200.9,
+    rings: 13, pcr: 73,
+    laminate: 9, mass: 6780, dn: 315, hatches: 8,
+  },
+  {
+    slug: "rez-300",
+    code: "РЕЗ-300",
+    line: "tanks",
+    vol: 300, bodies: 6,
+    diameter: 2400, length: 11100,
+    volumeGross: 301.4,
+    rings: 13, pcr: 73,
+    laminate: 9, mass: 10170, dn: 315, hatches: 12,
+  },
+  {
+    slug: "rez-500",
+    code: "РЕЗ-500",
+    line: "tanks",
+    vol: 500, bodies: 10,
+    diameter: 2400, length: 11100,
+    volumeGross: 502.3,
+    rings: 13, pcr: 73,
+    laminate: 9, mass: 16950, dn: 315, hatches: 20,
+  },
   /* ---------------- КНС ----------------
      Полезный объём между уровнями пуска и остановки V = Q*t/4,
      где t — минимальный цикл насоса: 10 мин до 7,5 кВт, 15 мин выше.
@@ -470,6 +631,36 @@ export const MODELS: Model[] = [
     volumeGross: 13.57, useful: 6.25,
     pumps: 2, rings: 3, pcr: 73,
     laminate: 9, mass: 505, dn: 355, hatches: 1,
+  },
+  {
+    slug: "kns-150",
+    code: "КНС-150",
+    line: "pump-stations",
+    q: 150,
+    diameter: 2400, length: 4000, depth: 4000,
+    volumeGross: 18.1, useful: 9.38,
+    pumps: 3, rings: 4, pcr: 73,
+    laminate: 9, mass: 645, dn: 400, hatches: 2,
+  },
+  {
+    slug: "kns-200",
+    code: "КНС-200",
+    line: "pump-stations",
+    q: 200,
+    diameter: 2400, length: 4500, depth: 4500,
+    volumeGross: 20.36, useful: 12.5,
+    pumps: 3, rings: 5, pcr: 73,
+    laminate: 10, mass: 805, dn: 450, hatches: 2,
+  },
+  {
+    slug: "kns-300",
+    code: "КНС-300",
+    line: "pump-stations",
+    q: 300,
+    diameter: 2400, length: 6000, depth: 6000,
+    volumeGross: 27.14, useful: 18.75,
+    pumps: 3, rings: 7, pcr: 73,
+    laminate: 10, mass: 1050, dn: 500, hatches: 2,
   },
   /* ---------------- ЛОС BIO ----------------
      Исходные данные: БПК5 300 мг/л, N общий 50 мг/л (хозяйственно-бытовой
@@ -541,6 +732,61 @@ export const MODELS: Model[] = [
     retention: 810,
     sludge: 8.44, air: 21, motor: 0.55,
     laminate: 8, mass: 1360, dn: 160, hatches: 3,
+  },
+  {
+    slug: "bio-50",
+    code: "БИО-50",
+    line: "bio-plants",
+    qd: 50, pe: 250, bodies: 2,
+    diameter: 2400, length: 8200,
+    volumeGross: 74.2, volumeWork: 62.7, vaer: 28.1,
+    retention: 810,
+    sludge: 16.9, air: 42, motor: 3,
+    laminate: 9, mass: 2490, dn: 160, hatches: 4,
+  },
+  {
+    slug: "bio-100",
+    code: "БИО-100",
+    line: "bio-plants",
+    qd: 100, pe: 500, bodies: 3,
+    diameter: 2400, length: 10900,
+    volumeGross: 147.9, volumeWork: 125.4, vaer: 56.3,
+    retention: 810,
+    sludge: 33.8, air: 84, motor: 3,
+    laminate: 9, mass: 4800, dn: 200, hatches: 6,
+  },
+  {
+    slug: "bio-200",
+    code: "БИО-200",
+    line: "bio-plants",
+    qd: 200, pe: 1000, bodies: 6,
+    diameter: 2400, length: 10900,
+    volumeGross: 295.9, volumeWork: 250.8, vaer: 112.5,
+    retention: 810,
+    sludge: 67.5, air: 169, motor: 4,
+    laminate: 9, mass: 9600, dn: 250, hatches: 12,
+  },
+  {
+    slug: "bio-300",
+    code: "БИО-300",
+    line: "bio-plants",
+    qd: 300, pe: 1500, bodies: 9,
+    diameter: 2400, length: 10900,
+    volumeGross: 443.8, volumeWork: 376.2, vaer: 168.8,
+    retention: 810,
+    sludge: 101.3, air: 253, motor: 5.5,
+    laminate: 9, mass: 14400, dn: 250, hatches: 18,
+  },
+  {
+    slug: "bio-500",
+    code: "БИО-500",
+    line: "bio-plants",
+    qd: 500, pe: 2500, bodies: 14,
+    diameter: 2400, length: 11650,
+    volumeGross: 737.5, volumeWork: 627, vaer: 281.3,
+    retention: 810,
+    sludge: 168.8, air: 422, motor: 11,
+    laminate: 9, mass: 23800, dn: 315, hatches: 28,
   },
   /* ---------------- ХЛОРАТОРЫ (ЭЛЕКТРОЛИЗ NaOCl) ----------------
      Станция собственной сборки: рама, шкаф, баки раствора и соли,
@@ -659,6 +905,42 @@ export const MODELS: Model[] = [
     volumeGross: 2.93,
     laminate: 5, mass: 160, dn: 25, hatches: 0,
   },
+  {
+    slug: "doz-2000",
+    code: "ДОЗ-2000",
+    line: "dosing",
+    tankSol: 2000, pumps: 2, motor: 1.1,
+    diameter: 1300, length: 1900,
+    volumeGross: 2.52,
+    laminate: 6, mass: 210, dn: 32, hatches: 0,
+  },
+  {
+    slug: "doz-3000",
+    code: "ДОЗ-3000",
+    line: "dosing",
+    tankSol: 3000, pumps: 2, motor: 1.5,
+    diameter: 1500, length: 2100,
+    volumeGross: 3.71,
+    laminate: 6, mass: 280, dn: 32, hatches: 0,
+  },
+  {
+    slug: "doz-5000",
+    code: "ДОЗ-5000",
+    line: "dosing",
+    tankSol: 5000, pumps: 2, motor: 2.2,
+    diameter: 1800, length: 2400,
+    volumeGross: 6.11,
+    laminate: 7, mass: 420, dn: 40, hatches: 0,
+  },
+  {
+    slug: "doz-10000",
+    code: "ДОЗ-10000",
+    line: "dosing",
+    tankSol: 10000, pumps: 2, motor: 3,
+    diameter: 2400, length: 2600,
+    volumeGross: 11.76,
+    laminate: 8, mass: 780, dn: 50, hatches: 0,
+  },
 ];
 
 /**
@@ -744,8 +1026,8 @@ export const LINE_SEO: Record<LineKey, LineSeo> = {
  */
 export const LINE_SPECS: Record<LineKey, { spec: SpecKey[]; table: SpecKey[] }> = {
   "grease-traps": {
-    spec: ["q", "size", "volumeGross", "volumeWork", "retention", "area", "load",
-      "fat", "sludge", "material", "laminate", "mass", "dn", "hatches",
+    spec: ["q", "size", "bodies", "volumeGross", "volumeWork", "retention", "area",
+      "load", "fat", "sludge", "material", "laminate", "mass", "dn", "hatches",
       "vent", "power", "install"],
     table: ["q", "size", "volumeWork", "retention", "area", "dn", "mass"],
   },
@@ -761,9 +1043,9 @@ export const LINE_SPECS: Record<LineKey, { spec: SpecKey[]; table: SpecKey[] }> 
     table: ["ns", "q", "size", "volumeWork", "area", "sludge", "dn", "mass"],
   },
   tanks: {
-    spec: ["vol", "size", "volumeGross", "rings", "pcr", "material", "laminate",
-      "mass", "dn", "hatches", "vent", "power", "install"],
-    table: ["vol", "size", "rings", "pcr", "dn", "hatches", "mass"],
+    spec: ["vol", "size", "bodies", "volumeGross", "rings", "pcr", "material",
+      "laminate", "mass", "dn", "hatches", "vent", "power", "install"],
+    table: ["vol", "size", "bodies", "pcr", "dn", "hatches", "mass"],
   },
   "pump-stations": {
     spec: ["q", "diameter", "depth", "volumeGross", "useful", "pumps",
@@ -771,10 +1053,10 @@ export const LINE_SPECS: Record<LineKey, { spec: SpecKey[]; table: SpecKey[] }> 
     table: ["q", "diameter", "depth", "useful", "pumps", "dn", "mass"],
   },
   "bio-plants": {
-    spec: ["qd", "pe", "size", "volumeGross", "volumeWork", "vaer", "retention",
-      "sludge", "air", "motor", "material", "laminate", "mass", "dn", "hatches",
-      "vent", "install"],
-    table: ["qd", "pe", "size", "volumeWork", "vaer", "air", "motor", "mass"],
+    spec: ["qd", "pe", "size", "bodies", "volumeGross", "volumeWork", "vaer",
+      "retention", "sludge", "air", "motor", "material", "laminate", "mass",
+      "dn", "hatches", "vent", "install"],
+    table: ["qd", "pe", "size", "bodies", "volumeWork", "vaer", "air", "motor", "mass"],
   },
   chlorinators: {
     spec: ["cl", "saltd", "motor", "h2", "ventMin", "tankSol", "tankSalt",
@@ -815,10 +1097,15 @@ export function specValue(
       return model.vol === undefined ? null : `${dec(model.vol)} м³`;
     case "pe":
       return model.pe === undefined ? null : `${model.pe}`;
-    case "size":
-      return model.diameter !== undefined
-        ? `⌀${model.diameter} × ${model.length} мм`
-        : `${model.length} × ${model.width} × ${model.height} мм`;
+    case "size": {
+      const one =
+        model.diameter !== undefined
+          ? `⌀${model.diameter} × ${model.length} мм`
+          : `${model.length} × ${model.width} × ${model.height} мм`;
+      return model.bodies !== undefined && model.bodies > 1
+        ? `${model.bodies} × (${one})`
+        : one;
+    }
     case "diameter":
       return model.diameter === undefined ? null : `${model.diameter} мм`;
     case "depth":
@@ -853,6 +1140,8 @@ export function specValue(
       return model.pcr === undefined ? null : `${model.pcr} кПа`;
     case "pumps":
       return model.pumps === undefined ? null : `${model.pumps}`;
+    case "bodies":
+      return model.bodies === undefined ? null : `${model.bodies}`;
     case "cl":
       return model.cl === undefined
         ? null
@@ -940,6 +1229,7 @@ export type SpecLabels = {
   rings: string;
   pcr: string;
   pumps: string;
+  bodies: string;
   cl: string;
   saltd: string;
   h2: string;
@@ -1034,6 +1324,7 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "Кольца жёсткости",
       pcr: "Критическое давление смятия",
       pumps: "Количество насосов",
+      bodies: "Количество корпусов",
       cl: "Активный хлор",
       saltd: "Расход соли",
       h2: "Выделение водорода",
@@ -1293,7 +1584,7 @@ export const TEXT: Record<Language, ProductsText> = {
           volumeGross: "Геометрический объём",
         },
         tagline:
-          "Ёмкости из стеклопластика 1–50 м³ для усреднения, накопления, пожарного и технологического запаса воды",
+          "Ёмкости из стеклопластика от 1 до 500 м³ — усреднение, накопление, пожарный запас. Свыше 50 м³ — батарея корпусов с общим коллектором.",
         intro: [
           "Резервуар нужен там, где сток идёт неравномерно, а очистка требует ровной подачи. Усреднитель перед очистными сооружениями снимает залповые сбросы; накопительная ёмкость держит запас технической или пожарной воды; промежуточный резервуар разделяет ступени технологической схемы.",
           "Корпус горизонтальный цилиндрический, из стеклопластика на изофталевой полиэфирной смоле. Цилиндр выбран не из эстетики: при равной толщине стенки он держит внешнее давление на порядок лучше прямоугольного короба.",
@@ -1429,7 +1720,7 @@ export const TEXT: Record<Language, ProductsText> = {
         name: "ЛОС — локальные очистные сооружения",
         labels: { sludge: "Объём стабилизатора ила", retention: "Время пребывания в аэротенке" },
         tagline:
-          "Биологическая очистка хозяйственно-бытовых стоков 1–25 м³/сут в корпусе из стеклопластика",
+          "Биологическая очистка хозяйственно-бытовых стоков от 1 до 500 м³/сут. До 25 м³/сут — один корпус, выше — модульное исполнение из нескольких корпусов.",
         intro: [
           "Там, где нет городской канализации, стоки дома, кафе или гостиницы приходится очищать на месте. Локальные очистные сооружения делают это биологически: микроорганизмы в аэротенке окисляют органику, затем ил отделяется в отстойнике и возвращается обратно.",
           "Ряд рассчитан на хозяйственно-бытовой сток: БПК₅ 300 мг/л, азот общий 50 мг/л, водоотведение 200 литров на жителя в сутки — по КМК 2.04.03-19. Возраст ила принят 15 суток, доза ила 2,8 г/л, время пребывания в аэротенке 13,5 часа: этого достаточно и для окисления органики, и для нитрификации.",
@@ -1660,6 +1951,7 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "Qattiqlik halqalari",
       pcr: "Kritik ezilish bosimi",
       pumps: "Nasoslar soni",
+      bodies: "Korpuslar soni",
       cl: "Faol xlor",
       saltd: "Tuz sarfi",
       h2: "Vodorod ajralishi",
@@ -1919,7 +2211,7 @@ export const TEXT: Record<Language, ProductsText> = {
           volumeGross: "Geometrik hajm",
         },
         tagline:
-          "Tenglashtirish, to‘plash, yong‘in va texnologik suv zaxirasi uchun 1–50 m³ shishatolali plastik idishlar",
+          "1 dan 500 m³ gacha shishatolali plastik idishlar — tenglashtirish, to‘plash, yong‘in zaxirasi. 50 m³ dan yuqorisi — umumiy kollektorli korpuslar batareyasi.",
         intro: [
           "Rezervuar oqava notekis kelib, tozalash esa bir tekis uzatishni talab qilgan joyda kerak. Tozalash inshootlari oldidagi tenglashtirgich to‘satdan tashlamalarni yumshatadi; to‘plovchi idish texnik yoki yong‘in suvi zaxirasini saqlaydi; oraliq rezervuar texnologik sxema bosqichlarini ajratadi.",
           "Korpus gorizontal silindrik, izoftal poliefir smolasidagi shishatolali plastikdan. Silindr estetika uchun emas: bir xil devor qalinligida u tashqi bosimni to‘rtburchak qutidan bir necha barobar yaxshi ko‘taradi.",
@@ -2055,7 +2347,7 @@ export const TEXT: Record<Language, ProductsText> = {
         name: "LOI — lokal tozalash inshootlari",
         labels: { sludge: "Il stabilizatori hajmi", retention: "Aerotenkda turib qolish vaqti" },
         tagline:
-          "Shishatolali plastik korpusda maishiy oqavalarni 1–25 m³/sut biologik tozalash",
+          "Maishiy oqavalarni 1 dan 500 m³/sut gacha biologik tozalash. 25 m³/sut gacha — bitta korpus, undan yuqorisi — bir necha korpusli modulli ishlanma.",
         intro: [
           "Shahar kanalizatsiyasi yo‘q joyda uy, kafe yoki mehmonxona oqavasini joyida tozalashga to‘g‘ri keladi. Lokal tozalash inshootlari buni biologik yo‘l bilan bajaradi: aerotenkdagi mikroorganizmlar organikani oksidlaydi, keyin il cho‘ktirgichda ajralib, qaytadan qaytariladi.",
           "Qator maishiy oqavaga hisoblangan: BPK₅ 300 mg/l, umumiy azot 50 mg/l, aholi jon boshiga sutkasiga 200 litr — KMK 2.04.03-19 bo‘yicha. Il yoshi 15 sutka, il dozasi 2,8 g/l, aerotenkda turib qolish vaqti 13,5 soat: bu organikani oksidlash uchun ham, nitrifikatsiya uchun ham yetarli.",
@@ -2286,6 +2578,7 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "Stiffening rings",
       pcr: "Critical buckling pressure",
       pumps: "Number of pumps",
+      bodies: "Number of shells",
       cl: "Active chlorine",
       saltd: "Salt consumption",
       h2: "Hydrogen release",
@@ -2545,7 +2838,7 @@ export const TEXT: Record<Language, ProductsText> = {
           volumeGross: "Geometric volume",
         },
         tagline:
-          "GRP vessels from 1 to 50 m³ for balancing, storage, fire reserve and process water",
+          "GRP vessels from 1 to 500 m³ — balancing, storage, fire reserve. Above 50 m³ — a battery of shells on a common manifold.",
         intro: [
           "A tank is needed wherever the inflow is uneven while treatment demands a steady feed. A balancing vessel ahead of a treatment plant absorbs surge discharges; a storage vessel holds process or fire water; an intermediate tank separates the stages of a process scheme.",
           "The shell is a horizontal cylinder in GRP on isophthalic polyester resin. The cylinder is not an aesthetic choice: at the same wall thickness it withstands external pressure an order of magnitude better than a rectangular box.",
@@ -2681,7 +2974,7 @@ export const TEXT: Record<Language, ProductsText> = {
         name: "Package wastewater treatment plants",
         labels: { sludge: "Sludge holding volume", retention: "Retention in the aeration tank" },
         tagline:
-          "Biological treatment of domestic wastewater, 1 to 25 m³/day, in a GRP shell",
+          "Biological treatment of domestic wastewater, 1 to 500 m³/day. Up to 25 m³/day in a single shell; above that, a modular multi-shell plant.",
         intro: [
           "Where there is no municipal sewer, the wastewater of a house, a café or a hotel has to be treated on site. A package plant does this biologically: micro-organisms in the aeration tank oxidise the organics, the sludge is then separated in the settler and returned.",
           "The range is designed for domestic wastewater: BOD₅ 300 mg/l, total nitrogen 50 mg/l, 200 litres per person per day to KMK 2.04.03-19. Sludge age is taken as 15 days, MLVSS 2.8 g/l, retention in the aeration tank 13.5 hours — enough both to oxidise the organics and to nitrify.",
@@ -2912,6 +3205,7 @@ export const TEXT: Record<Language, ProductsText> = {
       rings: "加强环",
       pcr: "临界屈曲压力",
       pumps: "水泵数量",
+      bodies: "壳体数量",
       cl: "有效氯",
       saltd: "耗盐量",
       h2: "氢气析出量",
@@ -3168,7 +3462,7 @@ export const TEXT: Record<Language, ProductsText> = {
           size: "外形尺寸（⌀ × 长度）",
           volumeGross: "几何容积",
         },
-        tagline: "1–50 m³ 玻璃钢罐体，用于水量调节、储存、消防和工艺用水",
+        tagline: "1–500 m³ 玻璃钢罐体——调节、储存、消防储备。50 m³ 以上为共用集管的罐体组。",
         intro: [
           "当来水不均匀而处理工艺需要稳定进水时，就需要储罐。处理设施前的调节池可削减瞬时冲击负荷；储存罐保有工艺水或消防水；中间罐用于分隔工艺流程的各个阶段。",
           "罐体为卧式圆筒形，采用间苯型聚酯树脂玻璃钢。选择圆筒并非出于外观：在相同壁厚下，它承受外压的能力比矩形箱体高一个数量级。",
@@ -3300,7 +3594,7 @@ export const TEXT: Record<Language, ProductsText> = {
       "bio-plants": {
         name: "一体化生活污水处理设备",
         labels: { sludge: "污泥储存容积", retention: "曝气池停留时间" },
-        tagline: "玻璃钢壳体内 1–25 m³/d 生活污水生物处理",
+        tagline: "1–500 m³/d 生活污水生物处理。25 m³/d 以内单壳体，以上为多壳体模块化配置。",
         intro: [
           "在没有市政管网的地方，住宅、餐饮或酒店的污水必须就地处理。一体化设备采用生物法：曝气池中的微生物氧化有机物，随后污泥在沉淀区分离并回流。",
           "系列按生活污水设计：BPK₅ 300 mg/l、总氮 50 mg/l、人均日排水量 200 升（KMK 2.04.03-19）。污泥龄取 15 天，污泥浓度 2,8 g/l，曝气池停留时间 13,5 小时——既满足有机物氧化，也满足硝化。",

@@ -24,6 +24,9 @@ const routes: Entry[] = [
   { path: "/solutions/private-house", priority: 0.9, changeFrequency: "monthly" },
   { path: "/solutions/kns", priority: 0.85, changeFrequency: "monthly" },
   { path: "/solutions/tanks", priority: 0.85, changeFrequency: "monthly" },
+  { path: "/solutions/hotel", priority: 0.85, changeFrequency: "monthly" },
+  { path: "/solutions/food-industry", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/solutions/disinfection", priority: 0.85, changeFrequency: "monthly" },
 
   // Ассортимент
   { path: "/products", priority: 0.95, changeFrequency: "weekly" },

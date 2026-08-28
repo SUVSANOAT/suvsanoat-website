@@ -10,14 +10,14 @@ const content: SolutionContentSet = {
     label: "ЁМКОСТИ ИЗ СТЕКЛОПЛАСТИКА",
     title: "Резервуар, который\nне гниёт и не всплывает.",
     intro:
-      "Запас воды, усреднение стоков, пожарный резерв, приём промывных вод — всё это ёмкость от 1 до 50 м³. Разбираем, чем стеклопластик отличается от металла и полиэтилена, почему кольца жёсткости обязательны и как не дать пустому резервуару всплыть.",
+      "Запас воды, усреднение стоков, пожарный резерв, приём промывных вод — всё это ёмкости от 1 до 500 м³: до 50 м³ в одном корпусе, крупнее — батареей. Разбираем, чем стеклопластик отличается от металла и полиэтилена, почему кольца жёсткости обязательны и как не дать пустому резервуару всплыть.",
     sections: [
       {
         title: "Стеклопластик против металла и полиэтилена",
         text: [
           "Металлическая ёмкость в грунте живёт столько, сколько живёт её покрытие: царапина при монтаже — и через пять-семь лет сквозная коррозия. Стеклопластик не корродирует вовсе: изофталевая полиэфирная смола держит и стоки, и нефтепродукты, и почвенную влагу весь срок службы объекта.",
           "Полиэтиленовые ёмкости хороши до первого серьёзного внешнего давления: модуль упругости полиэтилена в разы ниже, и подземная установка требует либо бетонного саркофага, либо малой глубины. Намотанный стеклопластик с кольцами жёсткости несёт грунт и грунтовую воду сам.",
-          "Мы наматываем корпуса на своём участке в Ташкенте: диаметры 1 200–2 400 мм, объёмы от 1 до 50 м³ в одном изделии, толщина ламината 6–9 мм по расчёту. Каждый корпус проходит гидроиспытание — сутки под водой до отгрузки.",
+          "Мы наматываем корпуса на своём участке в Ташкенте: диаметры 1 200–2 400 мм, объёмы до 50 м³ в одном корпусе, до 500 м³ — батареей корпусов, толщина ламината 6–9 мм по расчёту. Каждый корпус проходит гидроиспытание — сутки под водой до отгрузки.",
         ],
       },
       {
@@ -39,6 +39,8 @@ const content: SolutionContentSet = {
       { slug: "rez-20", when: "Усреднение стоков производства" },
       { slug: "rez-30", when: "Запас воды посёлка, полив" },
       { slug: "rez-50", when: "Пожарный резерв, крупный объект" },
+      { slug: "rez-100", when: "Батарея 2 корпусов: запас предприятия" },
+      { slug: "rez-500", when: "Резервуарный парк 10 корпусов" },
     ],
     faqTitle: "Частые вопросы",
     faq: [
@@ -76,14 +78,14 @@ const content: SolutionContentSet = {
     label: "SHISHATOLALI PLASTIK IDISHLAR",
     title: "Chirimaydigan va suzib\nchiqmaydigan rezervuar.",
     intro:
-      "Suv zaxirasi, oqavani tenglashtirish, yong‘in rezervi — bularning hammasi 1 dan 50 m³ gacha idish. Shishatolali plastik metall va polietilendan nimasi bilan farq qiladi va bo‘sh rezervuarni suzib chiqishdan qanday saqlash kerak.",
+      "Suv zaxirasi, oqavani tenglashtirish, yong‘in rezervi — bularning hammasi 1 dan 500 m³ gacha idishlar: 50 m³ gacha bitta korpusda, kattaroqlari — batareya. Shishatolali plastik metall va polietilendan nimasi bilan farq qiladi va bo‘sh rezervuarni suzib chiqishdan qanday saqlash kerak.",
     sections: [
       {
         title: "Shishatolali plastik metall va polietilenga qarshi",
         text: [
           "Yerdagi metall idish qoplamasi qancha yashasa, shuncha yashaydi: montajda bitta chizilish — besh-yetti yildan keyin teshik korroziya. Shishatolali plastik umuman korroziyalanmaydi: izoftal smola oqavani ham, neft mahsulotlarini ham, tuproq namligini ham obyektning butun xizmat muddati davomida ko‘taradi.",
           "Polietilen idishlar birinchi jiddiy tashqi bosimgacha yaxshi: elastiklik moduli bir necha barobar past, yer osti o‘rnatish beton sarkofag talab qiladi. Qattiqlik halqali o‘ralgan shishatolali plastik tuproq va yer osti suvini o‘zi ko‘taradi.",
-          "Korpuslarni Toshkentdagi o‘z uchastkamizda o‘raymiz: diametrlar 1 200–2 400 mm, hajmlar 1 dan 50 m³ gacha, laminat qalinligi hisob bo‘yicha 6–9 mm. Har bir korpus gidrosinovdan o‘tadi — jo‘natishdan oldin bir sutka suv ostida.",
+          "Korpuslarni Toshkentdagi o‘z uchastkamizda o‘raymiz: diametrlar 1 200–2 400 mm, bitta korpusda 50 m³ gacha, batareyada 500 m³ gacha, laminat qalinligi hisob bo‘yicha 6–9 mm. Har bir korpus gidrosinovdan o‘tadi — jo‘natishdan oldin bir sutka suv ostida.",
         ],
       },
       {
@@ -105,6 +107,8 @@ const content: SolutionContentSet = {
       { slug: "rez-20", when: "Ishlab chiqarish oqavasini tenglashtirish" },
       { slug: "rez-30", when: "Qishloq suv zaxirasi, sug‘orish" },
       { slug: "rez-50", when: "Yong‘in rezervi, yirik obyekt" },
+      { slug: "rez-100", when: "2 korpusli batareya: korxona zaxirasi" },
+      { slug: "rez-500", when: "10 korpusli rezervuar parki" },
     ],
     faqTitle: "Ko‘p beriladigan savollar",
     faq: [
@@ -142,14 +146,14 @@ const content: SolutionContentSet = {
     label: "GRP VESSELS",
     title: "A tank that neither\nrots nor floats.",
     intro:
-      "Water reserve, flow balancing, fire storage, backwash reception — all of it is a vessel from 1 to 50 m³. How GRP differs from steel and polyethylene, why stiffening rings are mandatory, and how to keep an empty tank from floating.",
+      "Water reserve, flow balancing, fire storage, backwash reception — all of it is vessels from 1 to 500 m³: up to 50 m³ in one shell, larger as a battery. How GRP differs from steel and polyethylene, why stiffening rings are mandatory, and how to keep an empty tank from floating.",
     sections: [
       {
         title: "GRP versus steel and polyethylene",
         text: [
           "A buried steel tank lives as long as its coating: one scratch at installation, and through-corrosion follows in five-seven years. GRP does not corrode at all: isophthalic resin withstands sewage, oil products and soil moisture for the life of the site.",
           "Polyethylene vessels are fine until the first serious external load: the modulus is several times lower, and burial demands either a concrete sarcophagus or shallow depth. Filament-wound GRP with stiffening rings carries the soil and the groundwater by itself.",
-          "We wind the shells at our own works in Tashkent: diameters 1,200–2,400 mm, volumes 1 to 50 m³ in a single unit, laminate 6–9 mm by calculation. Every shell is hydrotested — a day under water before dispatch.",
+          "We wind the shells at our own works in Tashkent: diameters 1,200–2,400 mm, up to 50 m³ in a single shell and 500 m³ as a battery, laminate 6–9 mm by calculation. Every shell is hydrotested — a day under water before dispatch.",
         ],
       },
       {
@@ -171,6 +175,8 @@ const content: SolutionContentSet = {
       { slug: "rez-20", when: "Balancing industrial discharge" },
       { slug: "rez-30", when: "Settlement water reserve, irrigation" },
       { slug: "rez-50", when: "Fire reserve, large site" },
+      { slug: "rez-100", when: "Two-shell battery: plant reserve" },
+      { slug: "rez-500", when: "Ten-shell tank farm" },
     ],
     faqTitle: "Frequent questions",
     faq: [
@@ -208,14 +214,14 @@ const content: SolutionContentSet = {
     label: "玻璃钢罐体",
     title: "既不腐烂\n也不上浮的储罐。",
     intro:
-      "储水、水量调节、消防储备、反冲洗水接纳——这些都是 1 到 50 m³ 的罐体。玻璃钢与钢和聚乙烯的区别、为什么加强环必不可少、如何防止空罐上浮。",
+      "储水、水量调节、消防储备、反冲洗水接纳——这些都是 1 至 500 m³ 的罐体：50 m³ 以内单罐，更大为罐组。玻璃钢与钢和聚乙烯的区别、为什么加强环必不可少、如何防止空罐上浮。",
     sections: [
       {
         title: "玻璃钢对钢与聚乙烯",
         text: [
           "埋地钢罐的寿命等于其防腐层的寿命：安装时一道划痕，五到七年后穿孔腐蚀。玻璃钢完全不腐蚀：间苯树脂在项目整个寿命期内耐污水、油品和土壤湿气。",
           "聚乙烯罐在第一次严重外压前都很好：其弹性模量低数倍，埋地需要混凝土'石棺'或浅埋。带加强环的缠绕玻璃钢自己承受土压和地下水。",
-          "壳体在我们塔什干的车间缠绕：直径 1 200–2 400 mm，单罐容积 1 至 50 m³，层压厚度按计算 6–9 mm。每个壳体出厂前水压试验一昼夜。",
+          "壳体在我们塔什干的车间缠绕：直径 1 200–2 400 mm，单壳体 50 m³ 以内，罐组可达 500 m³，层压厚度按计算 6–9 mm。每个壳体出厂前水压试验一昼夜。",
         ],
       },
       {
@@ -237,6 +243,8 @@ const content: SolutionContentSet = {
       { slug: "rez-20", when: "生产废水调节" },
       { slug: "rez-30", when: "村镇储水、灌溉" },
       { slug: "rez-50", when: "消防储备、大型项目" },
+      { slug: "rez-100", when: "双壳体罐组：企业储备" },
+      { slug: "rez-500", when: "十壳体罐区" },
     ],
     faqTitle: "常见问题",
     faq: [
