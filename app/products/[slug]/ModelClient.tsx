@@ -14,6 +14,7 @@ import {
   type Model,
   type SpecKey,
 } from "../data";
+import ModelDrawing, { DRAW_TITLE, DRAW_NOTE } from "./ModelDrawing";
 import s from "../products.module.css";
 
 function lines(text: string) {
@@ -120,6 +121,17 @@ export default function ModelClient({ model }: { model: Model }) {
         <h1>{model.code}</h1>
 
         <p className={s.tagline}>{line.tagline}</p>
+      </section>
+
+      {/* ЧЕРТЁЖ */}
+      <section className={`${s.section} ${s.sectionAlt}`}>
+        <h2>{DRAW_TITLE[language]}</h2>
+
+        <div className={s.figure}>
+          <ModelDrawing model={model} language={language} />
+        </div>
+
+        <p className={s.figureNote}>{DRAW_NOTE[language]}</p>
       </section>
 
       {/* ХАРАКТЕРИСТИКИ */}

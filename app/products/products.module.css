@@ -594,6 +594,29 @@
   color: var(--accent);
 }
 
+/* ---------------- ЧЕРТЁЖ ---------------- */
+
+.figure {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 26px 18px 18px;
+  max-width: 760px;
+}
+
+.figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.figureNote {
+  color: var(--faint);
+  font-size: 12px;
+  margin-top: 12px;
+  max-width: 760px;
+}
+
 /* ---------------- АДАПТИВ ---------------- */
 
 @media (max-width: 1100px) {
