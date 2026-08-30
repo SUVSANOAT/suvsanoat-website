@@ -22,8 +22,10 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "empty text" }, { status: 400 });
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  /* Отдельный бот для тендеров; если его переменные не заданы —
+     используется бот формы заявок */
+  const token = process.env.TENDER_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TENDER_CHAT_ID ?? process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) {
     return Response.json({ ok: false, error: "not configured" }, { status: 500 });
   }
