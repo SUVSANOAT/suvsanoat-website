@@ -15,6 +15,7 @@ import {
   ContactArt,
 } from "./SectionArt";
 import type { Language } from "../translations";
+import HeroCuts from "./HeroCuts";
 import {
   MODELS,
   LINE_SPECS,
@@ -906,23 +907,7 @@ export default function NewHome() {
 
         {!calm && <div className={s.heroSpot} aria-hidden="true" />}
 
-        <svg className={s.heroPlant} viewBox={VIEW_BOX} aria-hidden="true">
-          {plant(false)}
-
-          <polyline
-            className={s.flowBase}
-            points={FLOW_POINTS}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          <polyline
-            className={s.flowDash}
-            points={FLOW_POINTS}
-            vectorEffect="non-scaling-stroke"
-          />
-
-          {!calm && <Particles idPrefix="hero" scale={1.5} />}
-        </svg>
+        <HeroCuts language={language} calm={calm} />
 
         <div className={s.heroInner}>
           <div className={s.eyebrow}>{c.eyebrow}</div>

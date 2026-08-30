@@ -1736,3 +1736,132 @@
     display: none;
   }
 }
+
+/* ---------------- РАЗРЕЗЫ НА ПЕРВОМ ЭКРАНЕ ---------------- */
+
+.cuts {
+  position: absolute;
+  right: 3%;
+  bottom: 6%;
+  width: 50%;
+  max-width: 760px;
+  z-index: 1;
+}
+
+.cutStage {
+  position: relative;
+  aspect-ratio: 640 / 420;
+}
+
+.cutSlide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.9s ease, transform 0.9s ease;
+  pointer-events: none;
+}
+
+.cutSlide svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cutOn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cutName {
+  position: absolute;
+  left: 14%;
+  bottom: 2px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(242, 245, 246, 0.55);
+}
+
+.cutTabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.cutTabs button {
+  border: 1px solid rgba(242, 245, 246, 0.18);
+  background: transparent;
+  color: rgba(242, 245, 246, 0.55);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 7px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.3s, color 0.3s, background 0.3s;
+}
+
+.cutTabs button:hover {
+  border-color: rgba(62, 195, 230, 0.5);
+  color: #eaf6fa;
+}
+
+.cutTabOn.cutTabOn {
+  border-color: #3ec3e6;
+  color: #0b1418;
+  background: #3ec3e6;
+}
+
+@keyframes cutRiseUp {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120px);
+    opacity: 0;
+  }
+}
+
+.cutRise {
+  animation: cutRiseUp 4s linear infinite;
+}
+
+@keyframes cutPulseGlow {
+  0%,
+  100% {
+    stroke-opacity: 0.5;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+
+.cutPulse {
+  animation: cutPulseGlow 2.2s ease-in-out infinite;
+}
+
+@media (max-width: 1100px) {
+  .cuts {
+    width: 88%;
+    right: -8%;
+    bottom: 1%;
+    opacity: 0.2;
+  }
+
+  .cutTabs {
+    display: none;
+  }
+
+  .cutName {
+    display: none;
+  }
+}
