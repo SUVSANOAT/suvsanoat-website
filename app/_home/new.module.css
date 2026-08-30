@@ -1741,16 +1741,16 @@
 
 .cuts {
   position: absolute;
-  right: 3%;
-  bottom: 6%;
-  width: 50%;
-  max-width: 760px;
+  right: 2.5%;
+  bottom: 5%;
+  width: 54%;
+  max-width: 880px;
   z-index: 1;
 }
 
 .cutStage {
   position: relative;
-  aspect-ratio: 640 / 420;
+  aspect-ratio: 960 / 540;
 }
 
 .cutSlide {
@@ -1773,45 +1773,83 @@
   transform: translateY(0);
 }
 
-.cutName {
-  position: absolute;
-  left: 14%;
-  bottom: 2px;
-  font-size: 13px;
-  letter-spacing: 0.14em;
+.cutCap {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  margin: 4px 2px 12px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(242, 245, 246, 0.55);
+  color: rgba(242, 245, 246, 0.75);
+}
+
+.cutCap b {
+  color: #3ec3e6;
+  font-weight: 600;
+}
+
+.cutCapNote {
+  color: rgba(242, 245, 246, 0.35);
 }
 
 .cutTabs {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border: 1px solid rgba(242, 245, 246, 0.16);
 }
 
 .cutTabs button {
-  border: 1px solid rgba(242, 245, 246, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 13px 14px 15px;
+  border: none;
+  border-right: 1px solid rgba(242, 245, 246, 0.16);
   background: transparent;
-  color: rgba(242, 245, 246, 0.55);
-  font: inherit;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  padding: 7px 13px;
-  border-radius: 999px;
   cursor: pointer;
-  transition: border-color 0.3s, color 0.3s, background 0.3s;
+  font: inherit;
+  transition: background 0.3s;
+}
+
+.cutTabs button:last-child {
+  border-right: none;
+}
+
+.cutTabs button i {
+  font-style: normal;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(62, 195, 230, 0.75);
+}
+
+.cutTabs button b {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: rgba(242, 245, 246, 0.62);
 }
 
 .cutTabs button:hover {
-  border-color: rgba(62, 195, 230, 0.5);
-  color: #eaf6fa;
+  background: rgba(242, 245, 246, 0.04);
 }
 
 .cutTabOn.cutTabOn {
-  border-color: #3ec3e6;
-  color: #0b1418;
-  background: #3ec3e6;
+  background: rgba(62, 195, 230, 0.07);
+  box-shadow: inset 0 2px 0 #3ec3e6;
+}
+
+.cutTabOn.cutTabOn b {
+  color: #f2f5f6;
+}
+
+.cutTabOn.cutTabOn i {
+  color: #3ec3e6;
 }
 
 @keyframes cutRiseUp {
@@ -1838,10 +1876,10 @@
 @keyframes cutPulseGlow {
   0%,
   100% {
-    stroke-opacity: 0.5;
+    opacity: 0.45;
   }
   50% {
-    stroke-opacity: 1;
+    opacity: 1;
   }
 }
 
@@ -1851,17 +1889,14 @@
 
 @media (max-width: 1100px) {
   .cuts {
-    width: 88%;
-    right: -8%;
+    width: 90%;
+    right: -6%;
     bottom: 1%;
-    opacity: 0.2;
+    opacity: 0.18;
   }
 
-  .cutTabs {
-    display: none;
-  }
-
-  .cutName {
+  .cutTabs,
+  .cutCap {
     display: none;
   }
 }
