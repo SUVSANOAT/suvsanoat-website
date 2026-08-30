@@ -44,3 +44,5 @@ next-env.d.ts
 
 # рабочие документы, не для сайта
 /oprosnye-listy/
+
+/tender-leads/
