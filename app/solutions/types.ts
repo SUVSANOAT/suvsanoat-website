@@ -25,6 +25,12 @@ export type SolutionFaq = {
   a: string;
 };
 
+/** Блок перекрёстных ссылок внизу страницы (города, смежные задачи) */
+export type SolutionRelated = {
+  title: string;
+  links: { href: string; label: string }[];
+};
+
 export type SolutionContent = {
   label: string;
   title: string;
@@ -42,6 +48,8 @@ export type SolutionContent = {
   ctaTitle: string;
   ctaText: string;
   ctaButton: string;
+  /** перекрёстные ссылки — например, другие города */
+  related?: SolutionRelated;
 };
 
 export type SolutionContentSet = Record<Language, SolutionContent>;

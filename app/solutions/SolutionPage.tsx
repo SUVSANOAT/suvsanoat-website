@@ -172,6 +172,24 @@ export default function SolutionPage({
         </div>
       </section>
 
+      {/* ГОРОДА И СМЕЖНЫЕ СТРАНИЦЫ */}
+      {c.related && (
+        <section className={s.section}>
+          <h2>{c.related.title}</h2>
+
+          <div className={s.prose}>
+            <p>
+              {c.related.links.map((link, index) => (
+                <span key={link.href}>
+                  {index > 0 && " · "}
+                  <a href={link.href}>{link.label}</a>
+                </span>
+              ))}
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ЗАЯВКА */}
       <section className={s.cta}>
         <div className={s.ctaInner}>

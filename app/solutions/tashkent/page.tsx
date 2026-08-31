@@ -73,9 +73,27 @@ export default function Page() {
     priceRange: "$$",
     address: {
       "@type": "PostalAddress",
+      streetAddress: "улица Укчи, 3",
       addressLocality: "Ташкент",
+      postalCode: "100100",
       addressCountry: "UZ",
     },
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ],
+        opens: "00:00",
+        closes: "23:59",
+      },
+    ],
     areaServed: [
       { "@type": "City", name: "Tashkent" },
       { "@type": "Country", name: "Uzbekistan" },

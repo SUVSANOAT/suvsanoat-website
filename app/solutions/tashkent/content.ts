@@ -78,6 +78,16 @@ const content: SolutionContentSet = {
     ctaText:
       "Тип объекта, расход или число пользователей, куда сброс. Вернём подбор модели, характеристики и коммерческое предложение. Производство — Ташкент.",
     ctaButton: "ПОЛУЧИТЬ РАСЧЁТ",
+    related: {
+      title: "География производства и монтажа",
+      links: [
+        { href: "/solutions/samarkand", label: "Самарканд" },
+        { href: "/solutions/bukhara", label: "Бухара" },
+        { href: "/solutions/fergana", label: "Фергана" },
+        { href: "/solutions/namangan", label: "Наманган" },
+        { href: "/solutions/navoi", label: "Навои" },
+      ],
+    },
   },
 
   uz: {
@@ -151,6 +161,16 @@ const content: SolutionContentSet = {
     ctaText:
       "Obyekt turi, sarf yoki foydalanuvchilar soni, oqava qayerga ketadi. Model tanlovi, xususiyatlar va tijorat taklifini qaytaramiz. Ishlab chiqarish — Toshkent.",
     ctaButton: "HISOBNI OLISH",
+    related: {
+      title: "Ishlab chiqarish va montaj geografiyasi",
+      links: [
+        { href: "/solutions/samarkand", label: "Samarqand" },
+        { href: "/solutions/bukhara", label: "Buxoro" },
+        { href: "/solutions/fergana", label: "Farg‘ona" },
+        { href: "/solutions/namangan", label: "Namangan" },
+        { href: "/solutions/navoi", label: "Navoiy" },
+      ],
+    },
   },
 
   en: {
@@ -224,6 +244,16 @@ const content: SolutionContentSet = {
     ctaText:
       "Facility type, flow or number of users, discharge point. We return a model selection, specifications and a quotation. Manufactured in Tashkent.",
     ctaButton: "GET A QUOTE",
+    related: {
+      title: "Where we deliver and install",
+      links: [
+        { href: "/solutions/samarkand", label: "Samarkand" },
+        { href: "/solutions/bukhara", label: "Bukhara" },
+        { href: "/solutions/fergana", label: "Fergana" },
+        { href: "/solutions/namangan", label: "Namangan" },
+        { href: "/solutions/navoi", label: "Navoi" },
+      ],
+    },
   },
 
   zh: {
@@ -295,6 +325,16 @@ const content: SolutionContentSet = {
     ctaTitle: "描述您的对象——\n我们回复选型与价格。",
     ctaText: "对象类型、流量或人数、排放去向。我们回复选型、参数与报价。塔什干生产。",
     ctaButton: "获取报价",
+    related: {
+      title: "供货与安装地区",
+      links: [
+        { href: "/solutions/samarkand", label: "撒马尔罕" },
+        { href: "/solutions/bukhara", label: "布哈拉" },
+        { href: "/solutions/fergana", label: "费尔干纳" },
+        { href: "/solutions/namangan", label: "纳曼干" },
+        { href: "/solutions/navoi", label: "纳沃伊" },
+      ],
+    },
   },
 };
 

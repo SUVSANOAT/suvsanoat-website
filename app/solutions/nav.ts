@@ -23,6 +23,56 @@ export const SOLUTION_LINKS: SolutionLink[] = [
     },
   },
   {
+    href: "/solutions/samarkand",
+    icon: "bio",
+    title: {
+      ru: "Очистные сооружения в Самарканде",
+      uz: "Samarqandda tozalash inshootlari",
+      en: "Treatment plants in Samarkand",
+      zh: "撒马尔罕污水处理设备",
+    },
+  },
+  {
+    href: "/solutions/bukhara",
+    icon: "bio",
+    title: {
+      ru: "Очистные сооружения в Бухаре",
+      uz: "Buxoroda tozalash inshootlari",
+      en: "Treatment plants in Bukhara",
+      zh: "布哈拉污水处理设备",
+    },
+  },
+  {
+    href: "/solutions/fergana",
+    icon: "bio",
+    title: {
+      ru: "Очистные сооружения в Фергане",
+      uz: "Farg‘onada tozalash inshootlari",
+      en: "Treatment plants in Fergana",
+      zh: "费尔干纳污水处理设备",
+    },
+  },
+  {
+    href: "/solutions/namangan",
+    icon: "bio",
+    title: {
+      ru: "Очистные сооружения в Намангане",
+      uz: "Namanganda tozalash inshootlari",
+      en: "Treatment plants in Namangan",
+      zh: "纳曼干污水处理设备",
+    },
+  },
+  {
+    href: "/solutions/navoi",
+    icon: "factory",
+    title: {
+      ru: "Промышленные очистные в Навои",
+      uz: "Navoiyda sanoat tozalash inshootlari",
+      en: "Industrial treatment in Navoi",
+      zh: "纳沃伊工业污水处理",
+    },
+  },
+  {
     href: "/solutions/restaurant",
     icon: "grit",
     title: {

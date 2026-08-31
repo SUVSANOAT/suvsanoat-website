@@ -19,6 +19,11 @@ const routes: Entry[] = [
 
   // Отраслевые решения
   { path: "/solutions/tashkent", priority: 0.95, changeFrequency: "weekly" },
+  { path: "/solutions/samarkand", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/solutions/bukhara", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/solutions/fergana", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/solutions/namangan", priority: 0.9, changeFrequency: "weekly" },
+  { path: "/solutions/navoi", priority: 0.9, changeFrequency: "weekly" },
   { path: "/solutions/car-wash", priority: 0.9, changeFrequency: "monthly" },
   { path: "/solutions/restaurant", priority: 0.9, changeFrequency: "monthly" },
   { path: "/solutions/gas-station", priority: 0.9, changeFrequency: "monthly" },

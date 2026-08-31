@@ -185,6 +185,14 @@ export default function RootLayout({
 
     telephone: "+998773043400",
 
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "улица Укчи, 3",
+      addressLocality: "Ташкент",
+      postalCode: "100100",
+      addressCountry: "UZ",
+    },
+
     areaServed: [
       {
         "@type": "Country",
