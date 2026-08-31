@@ -33,6 +33,20 @@ function useNum(language: string) {
       : String(value).replace(".", ",");
 }
 
+/**
+ * У линеек, где есть отдельная страница модельного ряда, чип ведёт
+ * на неё, а не на якорь внутри ассортимента: страница отвечает на
+ * запрос «жироуловитель», «хлоратор», «песколовка».
+ */
+const LINE_PAGE: Partial<Record<LineKey, string>> = {
+  "grease-traps": "/products/zhiroulovitel",
+  "oil-separators": "/products/nefteulovitel",
+  "sand-traps": "/products/peskolovka",
+  "bio-plants": "/products/los-bio",
+  chlorinators: "/products/hlorator",
+  dosing: "/products/stantsiya-dozirovaniya",
+};
+
 const SOLUTIONS_TITLE: Record<string, string> = {
   ru: "Решения под задачу",
   uz: "Vazifaga mos yechimlar",
@@ -105,7 +119,11 @@ export default function ProductsIndex() {
               : null;
 
             return (
-              <a className={s.lineChip} href={`#${key}`} key={key}>
+              <a
+                className={s.lineChip}
+                href={LINE_PAGE[key] ?? `#${key}`}
+                key={key}
+              >
                 <EquipIcon name={LINE_ICON[key]} className={s.lineChipIcon} />
 
                 <span>
