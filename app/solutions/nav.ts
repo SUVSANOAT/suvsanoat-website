@@ -13,6 +13,16 @@ export type SolutionLink = {
 
 export const SOLUTION_LINKS: SolutionLink[] = [
   {
+    href: "/solutions/tashkent",
+    icon: "bio",
+    title: {
+      ru: "Очистные сооружения в Ташкенте",
+      uz: "Toshkentda tozalash inshootlari",
+      en: "Treatment plants in Tashkent",
+      zh: "塔什干污水处理设备",
+    },
+  },
+  {
     href: "/solutions/restaurant",
     icon: "grit",
     title: {

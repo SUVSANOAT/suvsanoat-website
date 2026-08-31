@@ -18,6 +18,7 @@ const routes: Entry[] = [
   { path: "/engineering/analysis", priority: 0.95, changeFrequency: "monthly" },
 
   // Отраслевые решения
+  { path: "/solutions/tashkent", priority: 0.95, changeFrequency: "weekly" },
   { path: "/solutions/car-wash", priority: 0.9, changeFrequency: "monthly" },
   { path: "/solutions/restaurant", priority: 0.9, changeFrequency: "monthly" },
   { path: "/solutions/gas-station", priority: 0.9, changeFrequency: "monthly" },
