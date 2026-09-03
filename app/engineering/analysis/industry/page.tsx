@@ -11,6 +11,7 @@ import {
   findIndustry,
   type PollutantKey,
 } from "./industries";
+import { DISCHARGES, findDischarge } from "./targets";
 
 /* ==================================================================
  * ШАГ: ОТРАСЛЬ И ИСХОДНЫЙ СОСТАВ СТОКА
@@ -42,6 +43,9 @@ function IndustryContent() {
   const [hours, setHours] = useState("16");
   const [values, setValues] = useState<Record<string, string>>({});
   const [ph, setPh] = useState("");
+  const [discharge, setDischarge] = useState<string>("sewer");
+  const [hasTu, setHasTu] = useState(false);
+  const [tu, setTu] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
 
   const industry = useMemo(
@@ -93,6 +97,13 @@ function IndustryContent() {
       if (values[key] !== undefined) params.set(key, values[key]);
     }
     params.set("ph", ph);
+    params.set("out", discharge);
+    if (hasTu) {
+      params.set("tu", "1");
+      for (const key of Object.keys(tu)) {
+        if (tu[key] !== undefined && tu[key] !== "") params.set(`t_${key}`, tu[key]);
+      }
+    }
 
     router.push(`/engineering/analysis/pro-result?${params.toString()}`);
   }
@@ -222,6 +233,87 @@ function IndustryContent() {
                     Подсказка по отрасли: {industry.flowHint}
                   </div>
                 </div>
+              </div>
+
+              {/* КУДА СБРАСЫВАЕМ */}
+              <div
+                style={{
+                  border: `1px solid ${LINE}`,
+                  background: PANEL,
+                  borderRadius: 12,
+                  padding: "22px",
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>
+                  КУДА УХОДИТ ОЧИЩЕННАЯ ВОДА
+                </div>
+                <p style={{ fontSize: 12, color: FAINT, margin: "0 0 14px", lineHeight: 1.6 }}>
+                  Точка сброса определяет глубину очистки — от неё зависит, нужны ли доочистка и
+                  обеззараживание, и какие целевые показатели закладываются в расчёт.
+                </p>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                  {DISCHARGES.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDischarge(d.id)}
+                      style={{
+                        padding: "10px 16px",
+                        borderRadius: 999,
+                        border: `1px solid ${discharge === d.id ? ACCENT : LINE}`,
+                        background: discharge === d.id ? "rgba(62,195,230,0.14)" : "transparent",
+                        color: discharge === d.id ? "#eaf6fa" : FAINT,
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {d.name}
+                    </button>
+                  ))}
+                </div>
+
+                {(() => {
+                  const d = findDischarge(discharge);
+                  if (!d) return null;
+                  return (
+                    <>
+                      <p style={{ fontSize: 12, color: FAINT, margin: "0 0 10px", lineHeight: 1.6 }}>
+                        {d.hint}. {d.note}
+                      </p>
+                      <p style={{ fontSize: 11, color: "#6f8792", margin: "0 0 14px" }}>
+                        Основание: {d.source}
+                      </p>
+
+                      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#cfdde3", cursor: "pointer" }}>
+                        <input type="checkbox" checked={hasTu} onChange={(e) => setHasTu(e.target.checked)} />
+                        У меня есть технические условия или НДС — задать свои показатели
+                      </label>
+
+                      {hasTu && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginTop: 14 }}>
+                          {KEY_ORDER.map((key) => (
+                            <label key={key} style={{ fontSize: 12, color: FAINT }}>
+                              {POLLUTANT_LABELS[key].label}, {POLLUTANT_LABELS[key].unit}
+                              <input
+                                value={tu[key] ?? (d.targets[key] !== undefined ? String(d.targets[key]) : "")}
+                                onChange={(e) => setTu({ ...tu, [key]: e.target.value })}
+                                inputMode="decimal"
+                                placeholder="по ТУ"
+                                style={{
+                                  display: "block", marginTop: 6, width: "100%", padding: "9px 10px",
+                                  borderRadius: 8, border: `1px solid ${LINE}`, background: "rgba(0,0,0,0.25)",
+                                  color: "#f5f8fa", fontSize: 14, boxSizing: "border-box",
+                                }}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* ЛАБОРАТОРИЯ */}

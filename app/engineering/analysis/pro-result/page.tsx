@@ -12,6 +12,7 @@ import {
   type PollutantKey,
   type StageKey,
 } from "../industry/industries";
+import { chainForDischarge, findDischarge } from "../industry/targets";
 import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
 import { buildTemplateNote, type NoteInput } from "./note-template";
@@ -33,10 +34,8 @@ const FAINT = "#8fa6b1";
 
 const KEY_ORDER: PollutantKey[] = ["cod", "bod", "ss", "fats", "petro", "tn", "tp", "surf"];
 
-/** нормативы на сброс в водоём (типовые, для сравнения в таблице) */
-const TARGET: Partial<Record<PollutantKey, number>> = {
-  bod: 15, ss: 15, fats: 5, petro: 0.3, tn: 15, tp: 2, surf: 1, cod: 60,
-};
+/* целевые показатели берутся из точки сброса (industry/targets.ts);
+   значения из ТУ/НДС, введённые проектировщиком, имеют приоритет */
 
 type Pick = {
   count: number;
@@ -81,6 +80,19 @@ function ProResultContent() {
   const hours = Math.min(24, Math.max(1, parseFloat(sp.get("hours") || "16") || 16));
   const ph = parseFloat(sp.get("ph") || "7") || 7;
 
+  const discharge = findDischarge(sp.get("out") || "sewer");
+  const TARGET: Partial<Record<PollutantKey, number>> = { ...(discharge?.targets ?? {}) };
+  const customTu = sp.get("tu") === "1";
+  if (customTu) {
+    for (const key of KEY_ORDER) {
+      const raw = sp.get(`t_${key}`);
+      if (raw !== null && raw !== "") {
+        const v = parseFloat(raw.replace(",", "."));
+        if (!Number.isNaN(v)) TARGET[key] = v;
+      }
+    }
+  }
+
   const c: Partial<Record<PollutantKey, number>> = {};
   for (const key of KEY_ORDER) {
     const raw = sp.get(key);
@@ -102,7 +114,9 @@ function ProResultContent() {
     const bodLoad = (Q * bod) / 1000;           // кг БПК/сут
     const stages: StageCalc[] = [];
 
-    for (const key of industry.chain) {
+    const chain = chainForDischarge(industry.chain, discharge, industry.id);
+
+    for (const key of chain) {
       const s: StageCalc = { key, sizing: [], picks: [] };
 
       switch (key) {
@@ -213,7 +227,7 @@ function ProResultContent() {
     }
 
     return { Qh, Qls, bodLoad, stages };
-  }, [industry, Q, hours, ph, c]);
+  }, [industry, Q, hours, ph, c, discharge]);
 
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
@@ -370,6 +384,11 @@ function ProResultContent() {
           {object && <>Объект: {object} · </>}
           Расход {fmt(Q)} м³/сут · режим {hours} ч/сут · {fmt(calc.Qh, 1)} м³/ч
         </p>
+        {discharge && (
+          <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
+            Сброс: <b>{discharge.name}</b>. Целевые показатели — {customTu ? "по вашим техническим условиям / НДС" : discharge.source}.
+          </p>
+        )}
         <p style={{ color: lab ? "#9ccc65" : "#ffb74d", fontSize: 13, margin: "0 0 26px" }}>
           {lab
             ? "Исходные концентрации — по лабораторному анализу заказчика."
@@ -391,6 +410,9 @@ function ProResultContent() {
               <b>{ph.toFixed(1)}</b> → 6,5–8,5
             </div>
           </div>
+          {discharge && !customTu && (
+            <p style={{ fontSize: 12, color: FAINT, margin: "14px 0 0", lineHeight: 1.6 }}>{discharge.note}</p>
+          )}
         </div>
 
         {/* ОСОБЫЕ ЗАГРЯЗНИТЕЛИ */}
