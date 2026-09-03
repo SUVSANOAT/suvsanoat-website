@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
  * в Telegram (бот формы заявок). Логин и пароль выдаёт SUVSANOAT.
  */
 
-import { addRequest, notifyTelegram } from "../../../../lib/auth";
+import { addRequest, dbUrl, notifyTelegram } from "../../../../lib/auth";
 
 const hits = new Map<string, number[]>();
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   if (s("website")) return Response.json({ ok: true }); // ловушка для ботов
 
   try {
-    if (process.env.DATABASE_URL) await addRequest(input);
+    if (dbUrl()) await addRequest(input);
   } catch (e) {
     console.error("access request db:", e);
   }

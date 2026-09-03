@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic";
 
-import { listRequests, setRequestStatus } from "../../../../lib/auth";
+import { dbUrl, listRequests, setRequestStatus } from "../../../../lib/auth";
 import { sessionFromRequest } from "../../../../lib/session";
 
 async function admin(request: Request): Promise<Response | null> {
   const s = await sessionFromRequest(request);
   if (!s || s.r !== "admin") return Response.json({ ok: false, error: "forbidden" }, { status: 403 });
-  if (!process.env.DATABASE_URL) return Response.json({ ok: false, error: "DATABASE_URL не задан." }, { status: 500 });
+  if (!dbUrl()) return Response.json({ ok: false, error: "Строка подключения к базе не найдена." }, { status: 500 });
   return null;
 }
 

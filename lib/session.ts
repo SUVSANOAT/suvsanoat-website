@@ -23,7 +23,7 @@ export type Session = {
 };
 
 function secretString(): string {
-  return process.env.AUTH_SECRET || ("sv|" + (process.env.DATABASE_URL || "") + "|fallback");
+  return process.env.AUTH_SECRET || ("sv|" + (process.env.DATABASE_URL || process.env.POSTGRES_URL || "") + "|fallback");
 }
 
 async function key(): Promise<CryptoKey> {

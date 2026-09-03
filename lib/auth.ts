@@ -5,7 +5,8 @@
  * сами при первом обращении. Пароли хранятся как scrypt-хэши.
  *
  * Переменные окружения:
- *   DATABASE_URL    — ставит интеграция Neon в Vercel
+ *   DATABASE_URL или POSTGRES_URL — ставит интеграция Neon в Vercel
+ *   (имя зависит от версии интеграции, принимаются оба)
  *   ADMIN_LOGIN, ADMIN_PASSWORD — встроенный администратор (без БД)
  *   AUTH_SECRET     — секрет подписи cookie (желательно)
  * ================================================================== */
@@ -37,9 +38,21 @@ export type AccessRequest = {
   created_at: string;
 };
 
+/** строка подключения: интеграция Neon называет её по-разному */
+export function dbUrl(): string | undefined {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.STORAGE_URL ||
+    undefined
+  );
+}
+
 function db() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
+  const url = dbUrl();
+  if (!url) throw new Error("Строка подключения к базе не найдена (DATABASE_URL / POSTGRES_URL)");
   return neon(url);
 }
 

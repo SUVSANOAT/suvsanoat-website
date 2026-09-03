@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
  * остальные — из таблицы users (Neon).
  */
 
-import { findUserForLogin, normalizeLogin, touchLogin, verifyPassword } from "../../../../lib/auth";
+import { dbUrl, findUserForLogin, normalizeLogin, touchLogin, verifyPassword } from "../../../../lib/auth";
 import { sessionCookie, signSession } from "../../../../lib/session";
 
 const hits = new Map<string, number[]>();
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, role: "admin" }, { headers: { "set-cookie": sessionCookie(token) } });
   }
 
-  if (!process.env.DATABASE_URL) {
+  if (!dbUrl()) {
     return Response.json({ ok: false, error: "База пользователей не подключена." }, { status: 500 });
   }
 

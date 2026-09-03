@@ -9,13 +9,13 @@ export const dynamic = "force-dynamic";
  *   DELETE { id }
  */
 
-import { createUser, deleteUser, generatePassword, listUsers, normalizeLogin, setUserActive, setUserPassword } from "../../../../lib/auth";
+import { createUser, dbUrl, deleteUser, generatePassword, listUsers, normalizeLogin, setUserActive, setUserPassword } from "../../../../lib/auth";
 import { sessionFromRequest } from "../../../../lib/session";
 
 async function admin(request: Request): Promise<Response | null> {
   const s = await sessionFromRequest(request);
   if (!s || s.r !== "admin") return Response.json({ ok: false, error: "forbidden" }, { status: 403 });
-  if (!process.env.DATABASE_URL) return Response.json({ ok: false, error: "DATABASE_URL не задан — подключите Neon в Vercel → Storage." }, { status: 500 });
+  if (!dbUrl()) return Response.json({ ok: false, error: "Строка подключения к базе не найдена — подключите Neon в Vercel → Storage." }, { status: 500 });
   return null;
 }
 
