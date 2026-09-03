@@ -281,13 +281,40 @@ function AnalysisContent() {
                 </span>
               </button>
 
+              <button
+                type="button"
+                disabled={!object.trim()}
+                onClick={() => {
+                  const value = object.trim();
+                  if (!value) return;
+                  const params = new URLSearchParams();
+                  params.set("object", value);
+                  router.push(
+                    `/engineering/analysis/industry?${params.toString()}`
+                  );
+                }}
+                style={{
+                  borderRadius: 7,
+                  border: "1px solid #00aeea",
+                  background: "transparent",
+                  color: object.trim() ? "#9fdcf1" : "#58717d",
+                  padding: "16px 24px",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: object.trim() ? "pointer" : "not-allowed",
+                }}
+              >
+                Производственный объект — по отрасли →
+              </button>
+
               <span
                 style={{
                   color: "#58717d",
                   fontSize: 13,
                 }}
               >
-                Шаг 02 — расход и нагрузка
+                «Далее» — жилые и коммунальные объекты; «по отрасли» —
+                заводы и производства с готовыми справочниками загрязнений
               </span>
 
             </div>
