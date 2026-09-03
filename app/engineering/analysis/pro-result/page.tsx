@@ -13,6 +13,7 @@ import {
   type StageKey,
 } from "../industry/industries";
 import { chainForDischarge, findDischarge } from "../industry/targets";
+import { SCALE_LABEL, commonEquipment, equipmentFor, scaleOf, type Ctx, type Item } from "../industry/equipment";
 import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
 import { buildTemplateNote, type NoteInput } from "./note-template";
@@ -67,7 +68,59 @@ type StageCalc = {
   sizing: string[];
   picks: Pick[];
   extra?: string;
+  items: Item[];
 };
+
+const SUPPLY_LABEL: Record<Item["supply"], { text: string; color: string }> = {
+  own: { text: "производим", color: "#9ccc65" },
+  either: { text: "производим или поставка", color: "#ffd54f" },
+  supply: { text: "поставка", color: "#8fa6b1" },
+};
+
+const KIND_LABEL: Record<Item["kind"], string> = {
+  structure: "сооружение",
+  machine: "оборудование",
+  instrument: "КИП и автоматика",
+};
+
+function ItemTable({ items }: { items: Item[] }) {
+  if (!items.length) return null;
+  return (
+    <div style={{ overflowX: "auto", marginTop: 12 }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+        <thead>
+          <tr>
+            {["Позиция", "Расчётный параметр", "Кол-во", "Исполнение"].map((h) => (
+              <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it, i) => (
+            <tr key={i}>
+              <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>
+                <b>{it.name}</b>
+                <div style={{ color: FAINT, fontSize: 11 }}>{KIND_LABEL[it.kind]}</div>
+                {it.note && <div style={{ color: FAINT, fontSize: 11, marginTop: 3, lineHeight: 1.5 }}>{it.note}</div>}
+              </td>
+              <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", lineHeight: 1.5 }}>
+                {it.spec}
+              </td>
+              <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                {it.qty}
+              </td>
+              <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: SUPPLY_LABEL[it.supply].color, whiteSpace: "nowrap" }}>
+                {SUPPLY_LABEL[it.supply].text}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function ProResultContent() {
   const router = useRouter();
@@ -114,15 +167,29 @@ function ProResultContent() {
     const bodLoad = (Q * bod) / 1000;           // кг БПК/сут
     const stages: StageCalc[] = [];
 
+    /* величины, нужные библиотеке оборудования */
+    const vAvg = Q * (hours >= 20 ? 0.25 : 0.35);
+    const vBio = bodLoad / 0.55;
+    const airH = (bodLoad * 60) / 24;
+    const dryKg = (Q * ss * 0.6) / 1000 + bodLoad * 0.4;
+    const scale = scaleOf(Q);
+
+    const ctx: Ctx = {
+      Q, Qh, Qls, hours, scale,
+      industryId: industry.id,
+      dischargeId: discharge?.id ?? "sewer",
+      bod, cod, ss, fats, petro, tn, bodLoad,
+      vAvg, vBio, air: airH, dryKg,
+    };
+
     const chain = chainForDischarge(industry.chain, discharge, industry.id);
 
     for (const key of chain) {
-      const s: StageCalc = { key, sizing: [], picks: [] };
+      const s: StageCalc = { key, sizing: [], picks: [], items: [] };
 
       switch (key) {
         case "screen": {
           s.sizing.push(`Расчётный расход ${fmt(Qh, 1)} м³/ч (${fmt(Qls, 1)} л/с); прозор решётки 1–6 мм по составу отбросов.`);
-          s.extra = "Механизированная решётка — комплектация; корзина и лоток — производство SUVSANOAT.";
           break;
         }
         case "avg": {
@@ -180,7 +247,6 @@ function ProResultContent() {
         case "daf": {
           const area = Qh / 6; // 6 м³/м²·ч
           s.sizing.push(`Напорная флотация: гидравлическая нагрузка 6 м³/м²·ч → площадь ≈ ${fmt(area, 1)} м²; рециркуляция 20–30 %.`);
-          s.extra = "Корпус, рама и обвязка — производство SUVSANOAT; сатуратор и компрессор — комплектация.";
           break;
         }
         case "bio": {
@@ -203,7 +269,6 @@ function ProResultContent() {
         }
         case "post": {
           s.sizing.push(`Фильтр доочистки на ${fmt(Qh, 1)} м³/ч — до нормативов сброса/оборота.`);
-          s.extra = "Фильтрационные корпуса — производство SUVSANOAT; загрузка и обвязка — комплектация.";
           break;
         }
         case "disinfect": {
@@ -223,10 +288,11 @@ function ProResultContent() {
           break;
         }
       }
+      s.items = equipmentFor(key, ctx);
       stages.push(s);
     }
 
-    return { Qh, Qls, bodLoad, stages };
+    return { Qh, Qls, bodLoad, stages, scale, common: commonEquipment(ctx) };
   }, [industry, Q, hours, ph, c, discharge]);
 
   function schemeInput(): SchemeInput | null {
@@ -279,7 +345,10 @@ function ProResultContent() {
         sizing: st.sizing,
         extra: st.extra,
         picks: st.picks.map((p) => ({ count: p.count, code: p.model.code, line: p.model.line, note: p.note, params: modelParams(p.model) })),
+        items: st.items.map((it) => ({ name: it.name, spec: it.spec, qty: it.qty, supply: it.supply, note: it.note })),
       })),
+      common: calc.common.map((it) => ({ name: it.name, spec: it.spec, qty: it.qty, supply: it.supply, note: it.note })),
+      scale: SCALE_LABEL[calc.scale],
       notes: industry.notes,
       sources: industry.sources,
     };
@@ -384,6 +453,9 @@ function ProResultContent() {
           {object && <>Объект: {object} · </>}
           Расход {fmt(Q)} м³/сут · режим {hours} ч/сут · {fmt(calc.Qh, 1)} м³/ч
         </p>
+        <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
+          Исполнение по расходу: <b>{SCALE_LABEL[calc.scale]}</b>.
+        </p>
         {discharge && (
           <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
             Сброс: <b>{discharge.name}</b>. Целевые показатели — {customTu ? "по вашим техническим условиям / НДС" : discharge.source}.
@@ -440,8 +512,8 @@ function ProResultContent() {
               <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
                 <span style={{ color: ACCENT, fontWeight: 700 }}>{String(index + 1).padStart(2, "0")}</span>
                 <b style={{ fontSize: 16 }}>{info.title}</b>
-                <span style={{ fontSize: 11, color: info.makes === "own" ? "#9ccc65" : info.makes === "own-partial" ? "#ffd54f" : FAINT }}>
-                  {info.makes === "own" ? "производство SUVSANOAT" : info.makes === "own-partial" ? "корпус — SUVSANOAT, узлы — комплектация" : "комплектация"}
+                <span style={{ fontSize: 11, color: FAINT }}>
+                  {stage.items.length} позиц. оборудования
                 </span>
               </div>
               <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.55 }}>{info.what}</p>
@@ -449,8 +521,11 @@ function ProResultContent() {
                 <p key={i} style={{ fontSize: 13, margin: "0 0 4px", lineHeight: 1.55 }}>— {line}</p>
               ))}
               {stage.extra && <p style={{ fontSize: 12, color: FAINT, margin: "6px 0 0" }}>{stage.extra}</p>}
+              <ItemTable items={stage.items} />
+
               {stage.picks.length > 0 && (
-                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: FAINT }}>Наше готовое изделие под эту позицию:</span>
                   {stage.picks.map((pick, i) => (
                     <a key={i} href={`/products/${pick.model.slug}`}
                       style={{ border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "8px 14px", color: "#eaf6fa", textDecoration: "none", fontSize: 13 }}>
@@ -463,6 +538,18 @@ function ProResultContent() {
             </div>
           );
         })}
+
+        {/* ОБЩЕСТАНЦИОННОЕ ОБОРУДОВАНИЕ */}
+        <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", margin: "18px 0" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
+            <b style={{ fontSize: 16 }}>Общестанционные узлы</b>
+            <span style={{ fontSize: 11, color: FAINT }}>{calc.common.length} позиц.</span>
+          </div>
+          <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.55 }}>
+            Не относятся к отдельной ступени, но входят в состав станции и часто выпадают из предварительных расчётов.
+          </p>
+          <ItemTable items={calc.common} />
+        </div>
 
         {/* ОСОБЕННОСТИ ОТРАСЛИ */}
         <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, margin: "24px 0" }}>
@@ -540,7 +627,9 @@ function ProResultContent() {
         <p style={{ fontSize: 11, color: FAINT, marginTop: 26, lineHeight: 1.6 }}>
           Документ сформирован автоматически по исходным данным {lab ? "заказчика" : "справочника отраслей"} и
           является предварительным инженерным решением SUVSANOAT. Не заменяет проектную документацию.
-          Габаритные чертежи каждой модели — на её странице в разделе «Ассортимент».
+          Габаритные чертежи каждой модели — на её странице в разделе «Ассортимент». Состав оборудования
+          определён технологией и расходом: часть позиций SUVSANOAT производит сам, часть поставляет —
+          в ведомости это указано отдельно и на состав решения не влияет.
         </p>
         <p className="noPrint" style={{ fontSize: 11, color: FAINT, marginTop: 8, lineHeight: 1.6 }}>
           DXF (формат R12) открывается в AutoCAD, NanoCAD, ZWCAD, BricsCAD — «Сохранить как» → DWG. Схема — лист А3,

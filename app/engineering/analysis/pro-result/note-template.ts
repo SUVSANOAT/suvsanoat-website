@@ -16,6 +16,15 @@ export type NotePick = {
   params: string;
 };
 
+export type NoteItem = {
+  name: string;
+  spec: string;
+  qty: string;
+  /** own — производит SUVSANOAT, supply — поставка, either — возможны оба */
+  supply: "own" | "supply" | "either";
+  note?: string;
+};
+
 export type NoteStage = {
   index: number;
   key: string;
@@ -25,6 +34,8 @@ export type NoteStage = {
   sizing: string[];
   extra?: string;
   picks: NotePick[];
+  /** полный состав оборудования ступени */
+  items: NoteItem[];
 };
 
 export type NoteInput = {
@@ -41,6 +52,10 @@ export type NoteInput = {
   conc: { label: string; value: number; unit: string; target?: number }[];
   special: { label: string; range: [number, number]; unit: string; note: string }[];
   stages: NoteStage[];
+  /** общестанционные узлы */
+  common: NoteItem[];
+  /** исполнение по расходу */
+  scale: string;
   notes: string[];
   sources: string[];
 };
@@ -110,25 +125,44 @@ export function buildTemplateNote(n: NoteInput): string {
     p.push(`### ${String(s.index).padStart(2, "0")}. ${s.title}`);
     p.push(`${s.what} Исполнение: ${MAKES[s.makes]}.`);
     p.push([...s.sizing, ...(s.extra ? [s.extra] : [])].map((line) => `- ${line}`).join("\n"));
+    if (s.items.length) {
+      p.push(`Состав: ` + s.items.map((it) => `${it.name} (${it.qty})`).join("; ") + `.`);
+    }
     if (s.picks.length) {
       p.push(
-        `Подобрано: ` +
+        `Готовое изделие: ` +
           s.picks.map((k) => `${k.count > 1 ? k.count + " × " : ""}**${k.code}** (${k.params})${k.note ? " — " + k.note : ""}`).join("; ") +
           `.`
       );
     }
   }
 
-  p.push(`## 4. Ведомость основного оборудования`);
-  const t2 = [`| № | Ступень | Модель | Кол-во | Параметры | Исполнение |`, `|---|---|---|---|---|---|`];
+  p.push(`## 4. Ведомость оборудования`);
+  p.push(`Исполнение по расходу: ${n.scale}. Позиции, отмеченные «производим», изготавливает SUVSANOAT; остальное поставляется — на состав решения это не влияет, состав определён технологией.`);
+  const supplyWord = (v: NoteItem["supply"]) => (v === "own" ? "производим" : v === "either" ? "производим или поставка" : "поставка");
+  const t2 = [`| № | Ступень | Позиция | Расчётный параметр | Кол-во | Исполнение |`, `|---|---|---|---|---|---|`];
   for (const s of n.stages) {
-    if (!s.picks.length) {
-      t2.push(`| ${s.index} | ${s.title} | — | — | по индивидуальному расчёту | ${s.makes === "supply" ? "комплектация" : "SUVSANOAT"} |`);
+    if (!s.items.length) {
+      t2.push(`| ${s.index} | ${s.title} | по индивидуальному расчёту | — | — | — |`);
       continue;
     }
-    for (const k of s.picks) t2.push(`| ${s.index} | ${s.title} | ${k.code} | ${k.count} | ${k.params} | ${s.makes === "supply" ? "комплектация" : "SUVSANOAT"} |`);
+    for (const it of s.items) {
+      t2.push(`| ${s.index} | ${s.title} | ${it.name} | ${it.spec} | ${it.qty} | ${supplyWord(it.supply)} |`);
+    }
+  }
+  for (const it of n.common) {
+    t2.push(`| — | Общестанционные | ${it.name} | ${it.spec} | ${it.qty} | ${supplyWord(it.supply)} |`);
   }
   p.push(t2.join("\n"));
+
+  const own = n.stages.flatMap((s) => s.picks);
+  if (own.length) {
+    p.push(
+      `Готовые изделия SUVSANOAT, подходящие под позиции ведомости: ` +
+        own.map((k) => `${k.count > 1 ? k.count + " × " : ""}**${k.code}** (${k.params})`).join("; ") +
+        `.`
+    );
+  }
 
   p.push(`## 5. Особенности отрасли, учтённые в решении`);
   p.push(n.notes.map((t) => `- ${t}`).join("\n"));
@@ -160,7 +194,7 @@ export const NOTE_SYSTEM_PROMPT = `Ты — главный инженер-тех
 1. Используй ТОЛЬКО числа, модели и ступени из переданных данных. Никаких новых концентраций, объёмов, мощностей, цен, сроков, марок насосов и воздуходувок. Если данных для утверждения нет — напиши, что это уточняется на следующей стадии.
 2. Нормативы, на которые можно ссылаться: КМК 2.04.03-97, КМК 2.04.01-98, DWA-A 131, EN 1825, EN 858, а также источники из данных. Не выдумывай номера пунктов и таблиц нормативов — ссылайся на документ в целом.
 3. Обоснуй каждую ступень инженерно: зачем она в этом месте цепочки, что произойдёт без неё, какой расчётный параметр определил размер. Пиши как инженер инженеру, без рекламы.
-4. Разделяй: что производит SUVSANOAT (стеклопластиковые корпуса, резервуары, сепараторы, ЛОС, КНС, электролизные установки, станции дозирования) и что комплектуется (решётки, воздуходувки, насосы, сатураторы, УФ). Поле makes в данных: own / own-partial / supply.
+4. Состав оборудования определяется технологией, а не тем, что производит SUVSANOAT: перечисляй все позиции из поля items каждой ступени и из common, с расчётными параметрами и количеством. Поле supply указывает лишь происхождение позиции (own — производим, supply — поставка, either — возможны оба) и не должно влиять на состав решения. Не сокращай ведомость до изделий SUVSANOAT.
 5. Формат — Markdown, русский язык, структура:
    # Техническая записка. Предварительное решение по очистке сточных вод
    ## 1. Основание и исходные данные
