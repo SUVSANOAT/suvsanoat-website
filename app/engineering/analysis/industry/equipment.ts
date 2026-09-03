@@ -22,6 +22,7 @@
  * ================================================================== */
 
 import type { StageKey } from "./industries";
+import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
 
 export type Supply = "own" | "supply" | "either";
 export type ItemKind = "structure" | "machine" | "instrument";
@@ -46,9 +47,9 @@ export const SCALE_LABEL: Record<Scale, string> = {
   concrete: "железобетонные сооружения, оборудование поставное",
 };
 
-export function scaleOf(Q: number): Scale {
-  if (Q <= 200) return "compact";
-  if (Q <= 1500) return "modular";
+export function scaleOf(Q: number, a: Assumptions = DEFAULT_ASSUMPTIONS): Scale {
+  if (Q <= a.scaleCompact) return "compact";
+  if (Q <= a.scaleModular) return "modular";
   return "concrete";
 }
 
@@ -76,6 +77,8 @@ export type Ctx = {
   air?: number;
   /** масса осадка, кг СВ/сут */
   dryKg?: number;
+  /** утверждённые коэффициенты расчёта */
+  a: Assumptions;
 };
 
 const f = (v: number, d = 0) => v.toLocaleString("ru-RU", { maximumFractionDigits: d });
@@ -115,7 +118,7 @@ export function commonEquipment(ctx: Ctx): Item[] {
   items.push({
     kind: "structure",
     name: "Аварийно-регулирующая ёмкость",
-    spec: `объём не менее ${f(Math.max(ctx.Q / 24, ctx.Qh) * 4)} м³ (4 часа притока)`,
+    spec: `объём не менее ${f(Math.max(ctx.Q / 24, ctx.Qh) * ctx.a.reserveEmergency)} м³ (${ctx.a.reserveEmergency} ч притока)`,
     qty: "1",
     supply: "own",
     note: "Приём стока при отключении питания и на время ремонта; опорожнение обратно в голову сооружений",
@@ -180,7 +183,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Решётка механизированная шнековая (компактор)",
-          spec: `прозор ${fine ? "2–3" : "3–6"} мм, пропускная способность от ${f(ctx.Qh * 1.5, 1)} м³/ч`,
+          spec: `прозор ${fine ? "2–3" : "3–6"} мм, пропускная способность от ${f(ctx.Qh * ctx.a.screenPeak, 1)} м³/ч`,
           qty: "1 + байпас с ручной решёткой",
           supply: "supply",
           note: "Отбросы прессуются и обезвоживаются в самой решётке",
@@ -189,7 +192,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Решётка механическая грабельная или ступенчатая",
-          spec: `прозор ${fine ? "2–3" : "3–6"} мм, каждая на полный расход ${f(ctx.Qh * 1.5, 1)} м³/ч`,
+          spec: `прозор ${fine ? "2–3" : "3–6"} мм, каждая на полный расход ${f(ctx.Qh * ctx.a.screenPeak, 1)} м³/ч`,
           qty: "2 (1 раб. + 1 рез.) + байпасный канал с ручной решёткой",
           supply: "supply",
         });
@@ -229,7 +232,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "structure",
           name: "Песколовка тангенциальная (вертикальная)",
-          spec: `${f(ctx.Qls, 1)} л/с, задержание частиц от 0,10 мм`,
+          spec: `${f(ctx.Qls, 1)} л/с, задержание частиц от ${ctx.a.sandSize} мм`,
           qty: "1",
           supply: "own",
         });
@@ -287,8 +290,8 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         name: ctx.scale === "compact" ? "Барботажная система перемешивания" : "Мешалка погружная (или барботаж)",
         spec:
           ctx.scale === "compact"
-            ? `расход воздуха 0,5–0,8 м³/(м³·ч) — около ${f(V * 0.65)} м³/ч`
-            : `удельная мощность 5–8 Вт/м³ — около ${f((V * 6.5) / 1000, 1)} кВт`,
+            ? `расход воздуха ${ctx.a.mixAirRate} м³/(м³·ч) — около ${f(V * ctx.a.mixAirRate)} м³/ч`
+            : `удельная мощность ${ctx.a.mixPower} Вт/м³ — около ${f((V * ctx.a.mixPower) / 1000, 1)} кВт`,
         qty: ctx.scale === "concrete" ? "2" : "1",
         supply: "supply",
         note: "Без перемешивания взвешенные осаждаются, а органика в осадке загнивает",
@@ -316,7 +319,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Жироуловитель гравитационный",
-        spec: `${f(ctx.Qh, 1)} м³/ч, расчёт по EN 1825; жиры ${f(ctx.fats)} → не более 50 мг/л перед биологией`,
+        spec: `${f(ctx.Qh, 1)} м³/ч, расчёт по EN 1825; жиры ${f(ctx.fats)} → не более ${ctx.a.greaseTarget} мг/л перед биологией`,
         qty: "1",
         supply: ctx.scale === "concrete" ? "either" : "own",
       });
@@ -345,7 +348,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Нефтеуловитель с тонкослойными модулями",
-        spec: `NS ${f(ctx.Qls, 1)} л/с по EN 858, всплытие капли 100 мкм; нефтепродукты ${f(ctx.petro)} → 0,3 мг/л`,
+        spec: `NS ${f(ctx.Qls, 1)} л/с по EN 858, всплытие капли ${ctx.a.oilDroplet} мкм; нефтепродукты ${f(ctx.petro)} → 0,3 мг/л`,
         qty: "1",
         supply: "own",
       });
@@ -427,14 +430,14 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Станция приготовления и дозирования коагулянта",
-        spec: `доза ~150 г/м³ (уточняется пробным коагулированием) — ${f((ctx.Q * 150) / 1000, 1)} кг/сут`,
+        spec: `доза ${ctx.a.coagDose} г/м³ (уточняется пробным коагулированием) — ${f((ctx.Q * ctx.a.coagDose) / 1000, 1)} кг/сут`,
         qty: pumpQty(1),
         supply: "supply",
       });
       items.push({
         kind: "machine",
         name: "Автоматическая станция приготовления флокулянта",
-        spec: `трёхкамерная, доза 2–5 г/м³ — ${f((ctx.Q * 3.5) / 1000, 2)} кг/сут по сухому продукту`,
+        spec: `трёхкамерная, доза ${ctx.a.flocDose} г/м³ — ${f((ctx.Q * ctx.a.flocDose) / 1000, 2)} кг/сут по сухому продукту`,
         qty: "1",
         supply: "supply",
         note: "Полимер требует созревания 40–60 мин, ручное приготовление нестабильно",
@@ -451,18 +454,18 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
 
     /* ---------------- флотация ---------------- */
     case "daf": {
-      const area = ctx.Qh / 6;
+      const area = ctx.Qh / ctx.a.dafLoad;
       items.push({
         kind: "structure",
         name: "Флотатор напорный (DAF)",
-        spec: `нагрузка 5–8 м³/(м²·ч) → площадь ${f(area, 1)} м²; рециркуляция 20–30 %`,
+        spec: `нагрузка ${ctx.a.dafLoad} м³/(м²·ч) → площадь ${f(area, 1)} м²; рециркуляция ${ctx.a.dafRecycle} %`,
         qty: "1",
         supply: "either",
       });
       items.push({
         kind: "machine",
         name: "Сатуратор с рециркуляционным насосом",
-        spec: `давление насыщения 4–6 бар, рециркуляция ${f(ctx.Qh * 0.25, 1)} м³/ч`,
+        spec: `давление насыщения 4–6 бар, рециркуляция ${f((ctx.Qh * ctx.a.dafRecycle) / 100, 1)} м³/ч`,
         qty: pumpQty(1),
         supply: "supply",
       });
@@ -494,13 +497,13 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
     case "bio": {
       const V = ctx.vBio ?? 0;
       const air = ctx.air ?? 0;
-      const deNitro = ctx.tn > 40;
+      const deNitro = ctx.tn > ctx.a.denitroTn;
 
       if (ctx.scale === "compact") {
         items.push({
           kind: "structure",
           name: "Блочная установка биологической очистки (MBBR/SBR)",
-          spec: `расчётный объём ${f(V)} м³, нагрузка 0,55 кг БПК₅/(м³·сут); полная заводская готовность`,
+          spec: `расчётный объём ${f(V)} м³, нагрузка ${ctx.a.bodVolLoad} кг БПК₅/(м³·сут); полная заводская готовность`,
           qty: "1",
           supply: "own",
         });
@@ -510,7 +513,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
           name: `Аэротенк${deNitro ? " с зоной денитрификации" : ""}`,
           spec:
             `рабочий объём ${f(V)} м³` +
-            (deNitro ? `, из них аноксидная зона ${f(V * 0.3)} м³ (30 %)` : "") +
+            (deNitro ? `, из них аноксидная зона ${f((V * ctx.a.denitroShare) / 100)} м³ (${ctx.a.denitroShare} %)` : "") +
             `; ${SCALE_LABEL[ctx.scale]}`,
           qty: ctx.scale === "concrete" ? "2 коридора (для вывода в ремонт)" : "1",
           supply: ctx.scale === "concrete" ? "supply" : "own",
@@ -554,7 +557,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Насосы возвратного активного ила",
-        spec: `рециркуляция ила 60–100 % — ${f(ctx.Qh * 0.8, 1)} м³/ч`,
+        spec: `рециркуляция ила ${ctx.a.sludgeReturn} % — ${f((ctx.Qh * ctx.a.sludgeReturn) / 100, 1)} м³/ч`,
         qty: pumpQty(1),
         supply: "supply",
       });
@@ -565,11 +568,11 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         qty: "комплект",
         supply: "supply",
       });
-      if (ctx.bod > 0 && ctx.tn > 0 && ctx.bod / Math.max(ctx.tn, 1) < 4) {
+      if (ctx.bod > 0 && ctx.tn > 0 && ctx.bod / Math.max(ctx.tn, 1) < ctx.a.bodTnRatio) {
         items.push({
           kind: "machine",
           name: "Станция дозирования органического субстрата",
-          spec: `соотношение БПК : N = ${(ctx.bod / Math.max(ctx.tn, 1)).toFixed(1)} : 1 — для денитрификации нужно не менее 4 : 1`,
+          spec: `соотношение БПК : N = ${(ctx.bod / Math.max(ctx.tn, 1)).toFixed(1)} : 1 — для денитрификации нужно не менее ${ctx.a.bodTnRatio} : 1`,
           qty: pumpQty(1),
           supply: "supply",
           note: "Без внешнего источника углерода (ацетат, меласса) азот до норматива не снять",
@@ -584,7 +587,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "structure",
           name: "Вторичный отстойник с тонкослойными модулями",
-          spec: `нагрузка 0,6–1,0 м³/(м²·ч) → площадь зеркала ${f(ctx.Qh / 0.8, 1)} м²; в составе блока`,
+          spec: `нагрузка ${ctx.a.clarifyLoad} м³/(м²·ч) → площадь зеркала ${f(ctx.Qh / ctx.a.clarifyLoad, 1)} м²; в составе блока`,
           qty: "1",
           supply: "own",
         });
@@ -592,7 +595,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "structure",
           name: ctx.scale === "concrete" ? "Вторичный отстойник радиальный" : "Вторичный отстойник вертикальный",
-          spec: `нагрузка 0,6–1,0 м³/(м²·ч) → площадь ${f(ctx.Qh / 0.8, 1)} м²; иловый приямок`,
+          spec: `нагрузка ${ctx.a.clarifyLoad} м³/(м²·ч) → площадь ${f(ctx.Qh / ctx.a.clarifyLoad, 1)} м²; иловый приямок`,
           qty: "2 (для вывода в ремонт)",
           supply: ctx.scale === "concrete" ? "supply" : "own",
         });
@@ -607,7 +610,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Насосы избыточного ила",
-        spec: `отвод прироста ила на уплотнение, ${f(Math.max(0.5, (ctx.dryKg ?? ctx.bodLoad * 0.8) / 20), 1)} м³/сут`,
+        spec: `отвод прироста ила на уплотнение, ${f(Math.max(0.5, (ctx.dryKg ?? ctx.bodLoad) / (10 * ctx.a.sludgeDs)), 1)} м³/сут`,
         qty: pumpQty(1),
         supply: "supply",
       });
@@ -620,7 +623,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: ctx.scale === "compact" ? "Фильтр доочистки напорный" : "Фильтры скорые двухслойные",
-        spec: `скорость фильтрования 5–7 м/ч → площадь ${f(ctx.Qh / 6, 1)} м²; загрузка кварц + антрацит`,
+        spec: `скорость фильтрования ${ctx.a.filterRate} м/ч → площадь ${f(ctx.Qh / ctx.a.filterRate, 1)} м²; загрузка кварц + антрацит`,
         qty: ctx.scale === "compact" ? "1" : "2 (поочерёдная промывка)",
         supply: "either",
       });
@@ -630,7 +633,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         spec: "насос промывной воды, воздуходувка водовоздушной промывки, бак промывной воды",
         qty: "комплект",
         supply: "supply",
-        note: "Промывные воды возвращаются в усреднитель — это 3–5 % расхода, учтите в балансе",
+        note: `Промывные воды возвращаются в усреднитель — это ${ctx.a.backwashShare} % расхода, учтите в балансе`,
       });
       if (ctx.cod > 500 || ["textile-dye", "leather", "chemical", "printing"].includes(ctx.industryId)) {
         items.push({
@@ -662,7 +665,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Ультрафиолетовая установка обеззараживания",
-          spec: `доза не менее 30 мДж/см² при пропускной способности ${f(ctx.Qh, 1)} м³/ч; лоточное или напорное исполнение`,
+          spec: `доза не менее ${ctx.a.uvDose} мДж/см² при пропускной способности ${f(ctx.Qh, 1)} м³/ч; лоточное или напорное исполнение`,
           qty: "1 (с резервным блоком ламп)",
           supply: "supply",
           note: "Без реагентов и без хлорорганики; требует прозрачности воды и регулярной чистки кварцевых чехлов",
@@ -671,7 +674,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Установка получения гипохлорита натрия (электролизная)",
-        spec: `доза активного хлора ${ctx.industryId === "hospital" ? 10 : 5} г/м³ → ${f((ctx.Q * (ctx.industryId === "hospital" ? 10 : 5)) / ctx.hours, 1)} г/ч`,
+        spec: `доза активного хлора ${ctx.industryId === "hospital" ? ctx.a.chlorDoseHospital : ctx.a.chlorDose} г/м³ → ${f((ctx.Q * (ctx.industryId === "hospital" ? ctx.a.chlorDoseHospital : ctx.a.chlorDose)) / ctx.hours, 1)} г/ч`,
         qty: "1",
         supply: "own",
         note: uv ? "Резервный способ обеззараживания к УФ и для промывок" : "Основное обеззараживание",
@@ -679,7 +682,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Контактный резервуар",
-        spec: `время контакта не менее 30 мин → объём ${f(ctx.Qh * 0.5, 1)} м³`,
+        spec: `время контакта не менее ${ctx.a.contactTime} мин → объём ${f((ctx.Qh * ctx.a.contactTime) / 60, 1)} м³`,
         qty: "1",
         supply: "own",
         note: "Обязателен при хлорировании; при УФ не требуется",
@@ -690,15 +693,15 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
     /* ---------------- обработка осадка ---------------- */
     case "sludge": {
       const dry = ctx.dryKg ?? 0;
-      const vol = dry / 20;
+      const vol = dry / (10 * ctx.a.sludgeDs);
       items.push({
         kind: "structure",
         name: "Илоуплотнитель гравитационный",
-        spec: `время уплотнения 8–12 ч, поступление ${f(vol, 1)} м³/сут при 2 % СВ, на выходе 4–5 % СВ`,
+        spec: `время уплотнения 8–12 ч, поступление ${f(vol, 1)} м³/сут при ${ctx.a.sludgeDs} % СВ, на выходе 4–5 % СВ`,
         qty: "1",
         supply: ctx.scale === "concrete" ? "supply" : "own",
       });
-      if (ctx.scale === "concrete" && ctx.Q > 5000) {
+      if (ctx.scale === "concrete" && ctx.Q > ctx.a.digesterFrom) {
         items.push({
           kind: "structure",
           name: "Метантенк или аэробный стабилизатор",
@@ -724,7 +727,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
             : dry < 500
             ? "Декантерная центрифуга"
             : "Камерный или ленточный фильтр-пресс",
-        spec: `производительность по сухому веществу ${f(dry, 1)} кг/сут, кек 18–25 % СВ`,
+        spec: `производительность по сухому веществу ${f(dry, 1)} кг/сут, кек ${ctx.a.cakeDs} % СВ`,
         qty: "1",
         supply: "supply",
         note: "Обезвоживание сокращает объём вывоза в 8–10 раз и окупается на транспорте",
@@ -732,7 +735,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Станция приготовления флокулянта для обезвоживания",
-        spec: `доза 4–6 кг на тонну сухого вещества — ${f((dry * 5) / 1000, 2)} кг/сут`,
+        spec: `доза ${ctx.a.sludgeFlocDose} кг на тонну сухого вещества — ${f((dry * ctx.a.sludgeFlocDose) / 1000, 2)} кг/сут`,
         qty: "1",
         supply: "supply",
       });
@@ -746,7 +749,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Площадка (контейнер) обезвоженного осадка",
-        spec: `накопление ${f((dry * 30) / 220, 1)} м³/мес кека, навес, отвод фильтрата в голову сооружений`,
+        spec: `накопление ${f((dry * 30) / (10 * ctx.a.cakeDs), 1)} м³/мес кека, навес, отвод фильтрата в голову сооружений`,
         qty: "1",
         supply: "either",
       });

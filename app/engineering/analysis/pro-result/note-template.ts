@@ -56,6 +56,24 @@ export type NoteInput = {
   common: NoteItem[];
   /** исполнение по расходу */
   scale: string;
+  /** строительная часть, трубопроводы, площадь, электрика */
+  civil?: {
+    basins: { name: string; volume: number; L: number; B: number; H: number }[];
+    concrete: number;
+    rebarT: number;
+    formwork: number;
+    excavation: number;
+    backfill: number;
+    note: string;
+  };
+  pipes?: { name: string; flow: number; dn: number; velocity: number; length: number; material: string }[];
+  area?: { structures: number; buildings: number; built: number; site: number; note: string };
+  power?: {
+    installed: number; demand: number; daily: number; yearly: number;
+    specific: number; specificBod: number;
+    items: { name: string; qty: number; unit: number; installed: number; hours: number; daily: number; basis: string }[];
+    note: string;
+  };
   notes: string[];
   sources: string[];
 };
@@ -164,10 +182,59 @@ export function buildTemplateNote(n: NoteInput): string {
     );
   }
 
-  p.push(`## 5. Особенности отрасли, учтённые в решении`);
+  if (n.civil || n.pipes || n.area || n.power) {
+    p.push(`## 5. Строительная часть, трубопроводы, площадь и электроснабжение`);
+  }
+
+  if (n.civil) {
+    p.push(`### Ёмкостные сооружения и объёмы работ`);
+    const t = [`| Сооружение | Объём, м³ | Размеры в свету, м |`, `|---|---|---|`];
+    for (const b of n.civil.basins) t.push(`| ${b.name} | ${f(b.volume)} | ${b.L} × ${b.B} × ${b.H} |`);
+    p.push(t.join("\n"));
+    p.push(
+      `Бетон монолитных конструкций — ${f(n.civil.concrete, 1)} м³, арматура — ${f(n.civil.rebarT, 2)} т, ` +
+        `опалубка — ${f(n.civil.formwork)} м². Разработка грунта — ${f(n.civil.excavation)} м³, ` +
+        `обратная засыпка — ${f(n.civil.backfill)} м³, вывоз излишнего грунта — ${f(Math.max(0, n.civil.excavation - n.civil.backfill))} м³.`
+    );
+    p.push(n.civil.note);
+  }
+
+  if (n.pipes?.length) {
+    p.push(`### Трубопроводы`);
+    const t = [`| Трубопровод | Расход, м³/ч | DN | Скорость, м/с | Длина ≈, м | Материал |`, `|---|---|---|---|---|---|`];
+    for (const x of n.pipes) t.push(`| ${x.name} | ${f(x.flow, 1)} | ${x.dn} | ${x.velocity} | ${x.length} | ${x.material} |`);
+    p.push(t.join("\n"));
+    p.push(`Длины ориентировочные, приняты по габаритам площадки; точные значения определяются генпланом и профилем сетей.`);
+  }
+
+  if (n.area) {
+    p.push(`### Площадь`);
+    p.push(
+      `Сооружения с проходами — ${f(n.area.structures)} м²; здания и помещения — ${f(n.area.buildings)} м²; ` +
+        `площадь застройки — ${f(n.area.built)} м²; площадь участка — ${f(n.area.site)} м² (${(n.area.site / 10000).toFixed(2)} га).`
+    );
+    p.push(n.area.note);
+  }
+
+  if (n.power) {
+    p.push(`### Электроснабжение`);
+    p.push(
+      `Установленная мощность — ${f(n.power.installed, 1)} кВт, расчётная — ${f(n.power.demand, 1)} кВт. ` +
+        `Потребление ${f(n.power.daily)} кВт·ч/сут, ${f(n.power.yearly / 1000)} тыс. кВт·ч/год. ` +
+        `Удельный расход ${n.power.specific.toFixed(2)} кВт·ч на м³ стока и ${n.power.specificBod.toFixed(2)} кВт·ч на кг удалённого БПК₅.`
+    );
+    const t = [`| Потребитель | Кол-во × кВт | Установл., кВт | ч/сут | кВт·ч/сут | Основание |`, `|---|---|---|---|---|---|`];
+    for (const it of n.power.items) {
+      t.push(`| ${it.name} | ${it.qty} × ${it.unit} | ${it.installed} | ${it.hours} | ${it.daily} | ${it.basis} |`);
+    }
+    p.push(t.join("\n"));
+    p.push(n.power.note);
+  }
+
+  p.push(`## 6. Особенности отрасли, учтённые в решении`);
   p.push(n.notes.map((t) => `- ${t}`).join("\n"));
 
-  p.push(`## 6. Что уточнить на следующей стадии`);
+  p.push(`## 7. Что уточнить на следующей стадии`);
   p.push(
     [
       `- Анализ усреднённой суточной пробы по всем показателям таблицы п. 2, включая температуру и залповые сбросы.`,
@@ -178,7 +245,7 @@ export function buildTemplateNote(n: NoteInput): string {
     ].join("\n")
   );
 
-  p.push(`## 7. Нормативная база`);
+  p.push(`## 8. Нормативная база`);
   p.push(`КМК 2.04.03-97 «Канализация. Наружные сети и сооружения»; КМК 2.04.01-98; DWA-A 131 (расчёт аэротенков); EN 1825 (жироуловители); EN 858 (сепараторы нефтепродуктов); ${n.sources.join("; ")}.`);
 
   return p.join("\n\n");
@@ -201,10 +268,11 @@ export const NOTE_SYSTEM_PROMPT = `Ты — главный инженер-тех
    ## 2. Характеристика стока и требования к очистке (таблица исходное → цель)
    ## 3. Обоснование технологической схемы (подраздел на каждую ступень, с расчётными строками из данных)
    ## 4. Ведомость основного оборудования (таблица)
-   ## 5. Особенности отрасли, учтённые в решении
-   ## 6. Что уточнить на следующей стадии
-   ## 7. Нормативная база
-6. Объём 900–1500 слов. Без вступлений вроде «Конечно, вот записка». Начинай сразу с заголовка.
+   ## 5. Строительная часть, трубопроводы, площадь и электроснабжение (если данные переданы)
+   ## 6. Особенности отрасли, учтённые в решении
+   ## 7. Что уточнить на следующей стадии
+   ## 8. Нормативная база
+6. Объём 1200–2000 слов. Без вступлений вроде «Конечно, вот записка». Начинай сразу с заголовка.
 7. Обязательно укажи, что расчёт предварительный и не заменяет проектную документацию; если lab=false — что состав принят по справочным данным и нужен анализ.`;
 
 export function noteUserPrompt(n: NoteInput): string {

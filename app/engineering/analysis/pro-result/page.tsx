@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { MODELS, type Model } from "../../../products/data";
@@ -14,6 +14,14 @@ import {
 } from "../industry/industries";
 import { chainForDischarge, findDischarge } from "../industry/targets";
 import { SCALE_LABEL, commonEquipment, equipmentFor, scaleOf, type Ctx, type Item } from "../industry/equipment";
+import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
+import {
+  areaEstimate,
+  civilItems,
+  civilWorks,
+  pipeSizing,
+  powerEstimate,
+} from "../industry/construction";
 import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
 import { buildTemplateNote, type NoteInput } from "./note-template";
@@ -122,9 +130,27 @@ function ItemTable({ items }: { items: Item[] }) {
   );
 }
 
+function useAssumptions(): Assumptions {
+  const [a, setA] = useState<Assumptions>(DEFAULT_ASSUMPTIONS);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/assumptions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d?.ok && d.values) setA({ ...DEFAULT_ASSUMPTIONS, ...d.values });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return a;
+}
+
 function ProResultContent() {
   const router = useRouter();
   const sp = useSearchParams();
+  const a = useAssumptions();
 
   const industry = findIndustry(sp.get("industry") || "");
   const lab = sp.get("lab") === "1";
@@ -168,18 +194,18 @@ function ProResultContent() {
     const stages: StageCalc[] = [];
 
     /* величины, нужные библиотеке оборудования */
-    const vAvg = Q * (hours >= 20 ? 0.25 : 0.35);
-    const vBio = bodLoad / 0.55;
-    const airH = (bodLoad * 60) / 24;
-    const dryKg = (Q * ss * 0.6) / 1000 + bodLoad * 0.4;
-    const scale = scaleOf(Q);
+    const vAvg = (Q * (hours >= 20 ? a.avgHoursLong : a.avgHoursShort)) / 24;
+    const vBio = bodLoad / a.bodVolLoad;
+    const airH = (bodLoad * a.airPerBod) / 24;
+    const dryKg = (Q * ss * a.sludgeFromSs) / 1000 + bodLoad * a.sludgeFromBod;
+    const scale = scaleOf(Q, a);
 
     const ctx: Ctx = {
       Q, Qh, Qls, hours, scale,
       industryId: industry.id,
       dischargeId: discharge?.id ?? "sewer",
       bod, cod, ss, fats, petro, tn, bodLoad,
-      vAvg, vBio, air: airH, dryKg,
+      vAvg, vBio, air: airH, dryKg, a,
     };
 
     const chain = chainForDischarge(industry.chain, discharge, industry.id);
@@ -193,24 +219,24 @@ function ProResultContent() {
           break;
         }
         case "avg": {
-          const V = Q * (hours >= 20 ? 0.25 : 0.35); // 6–8,4 ч притока
-          s.sizing.push(`Объём усреднения ≈ ${fmt(V)} м³ (${hours >= 20 ? "6" : "8"} часов среднего притока).`);
+          const V = vAvg;
+          s.sizing.push(`Объём усреднения ≈ ${fmt(V)} м³ (${hours >= 20 ? a.avgHoursLong : a.avgHoursShort} часов среднего притока).`);
           const p = pickModel("tanks", "vol", V);
           if (p) s.picks.push(p);
           s.extra = "Перемешивание — эрлифт/мешалка против осаждения; для pH-нестабильных стоков здесь же коррекция.";
           break;
         }
         case "grease": {
-          if (fats < 50) s.sizing.push("Жиры ниже 50 мг/л — отдельный жироуловитель не обязателен, контроль на усреднителе.");
+          if (fats < a.greaseTarget) s.sizing.push(`Жиры ниже ${a.greaseTarget} мг/л — отдельный жироуловитель не обязателен, контроль на усреднителе.`);
           else {
-            s.sizing.push(`Расход ${fmt(Qh, 1)} м³/ч; жиры ${fmt(fats)} → цель ≤50 мг/л перед биологией.`);
+            s.sizing.push(`Расход ${fmt(Qh, 1)} м³/ч; жиры ${fmt(fats)} → цель ≤${a.greaseTarget} мг/л перед биологией.`);
             const p = pickModel("grease-traps", "q", Qh);
             if (p) s.picks.push(p);
           }
           break;
         }
         case "sand": {
-          s.sizing.push(`Расход ${fmt(Qls, 1)} л/с; задержание частиц от 0,10 мм.`);
+          s.sizing.push(`Расход ${fmt(Qls, 1)} л/с; задержание частиц от ${a.sandSize} мм.`);
           const p = pickModel("sand-traps", "ns", Qls);
           if (p) s.picks.push(p);
           break;
@@ -236,8 +262,8 @@ function ProResultContent() {
           break;
         }
         case "physchem": {
-          const doseCoag = 150; // г/м³ по Al2(SO4)3, ориентир
-          s.sizing.push(`Реагентная обработка: коагулянт ~${doseCoag} г/м³ (${fmt((Q * doseCoag) / 1000, 1)} кг/сут), флокулянт 2–5 г/м³. Дозы уточняются пробным коагулированием.`);
+          const doseCoag = a.coagDose;
+          s.sizing.push(`Реагентная обработка: коагулянт ~${doseCoag} г/м³ (${fmt((Q * doseCoag) / 1000, 1)} кг/сут), флокулянт ${a.flocDose} г/м³. Дозы уточняются пробным коагулированием.`);
           const reactor = pickModel("tanks", "vol", Math.max(1, Qh * 0.75));
           if (reactor) s.picks.push({ ...reactor, note: "реактор смешения-хлопьеобразования" });
           const dos = pickModel("dosing", "vol", Math.max(100, (Q * doseCoag) / 100));
@@ -245,19 +271,19 @@ function ProResultContent() {
           break;
         }
         case "daf": {
-          const area = Qh / 6; // 6 м³/м²·ч
-          s.sizing.push(`Напорная флотация: гидравлическая нагрузка 6 м³/м²·ч → площадь ≈ ${fmt(area, 1)} м²; рециркуляция 20–30 %.`);
+          const area = Qh / a.dafLoad;
+          s.sizing.push(`Напорная флотация: гидравлическая нагрузка ${a.dafLoad} м³/м²·ч → площадь ≈ ${fmt(area, 1)} м²; рециркуляция ${a.dafRecycle} %.`);
           break;
         }
         case "bio": {
-          const vLoad = 0.55; // кг БПК/м³·сут — продлённая аэрация
+          const vLoad = a.bodVolLoad;
           const V = bodLoad / vLoad;
-          const air = bodLoad * 60; // м³ воздуха на кг БПК
-          const qEq = bod > 0 ? (Q * bod) / 300 : Q;
+          const air = bodLoad * a.airPerBod;
+          const qEq = bod > 0 ? (Q * bod) / a.domesticBod : Q;
           s.sizing.push(
             `Нагрузка ${fmt(bodLoad, 1)} кг БПК₅/сут; объёмная нагрузка ${vLoad} кг/м³·сут → объём биоблока ≈ ${fmt(V)} м³.`,
             `Воздух на аэрацию ≈ ${fmt(air)} м³/сут (${fmt(air / 24, 1)} м³/ч).`,
-            tn > 40 ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~30 % объёма).` : `Азот умеренный — классическая аэрация.`
+            tn > a.denitroTn ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).` : `Азот умеренный — классическая аэрация.`
           );
           const p = pickModel("bio-plants", "qd", qEq);
           if (p) s.picks.push({ ...p, note: `эквивалент ${fmt(qEq)} м³/сут по хозбытовому стоку` });
@@ -268,11 +294,11 @@ function ProResultContent() {
           break;
         }
         case "post": {
-          s.sizing.push(`Фильтр доочистки на ${fmt(Qh, 1)} м³/ч — до нормативов сброса/оборота.`);
+          s.sizing.push(`Фильтр доочистки на ${fmt(Qh, 1)} м³/ч при скорости ${a.filterRate} м/ч — до нормативов сброса/оборота.`);
           break;
         }
         case "disinfect": {
-          const dose = industry.id === "hospital" ? 10 : 5; // г акт. хлора на м³
+          const dose = industry.id === "hospital" ? a.chlorDoseHospital : a.chlorDose;
           const gph = (Q * dose) / hours;
           s.sizing.push(`Доза активного хлора ${dose} г/м³ → ${fmt(gph, 1)} г/ч в рабочем режиме.`);
           const p = pickModel("chlorinators", "cl", gph);
@@ -280,11 +306,11 @@ function ProResultContent() {
           break;
         }
         case "sludge": {
-          const dry = (Q * ss * 0.6) / 1000 + bodLoad * 0.4; // кг СВ/сут
-          const vol = dry / 20; // м³/сут при 2 % СВ
-          s.sizing.push(`Осадок ≈ ${fmt(dry, 1)} кг сухого вещества/сут (~${fmt(vol, 1)} м³/сут при 2 % СВ) — уплотнение и обезвоживание.`);
-          const p = pickModel("tanks", "vol", Math.max(1, vol * 7));
-          if (p) s.picks.push({ ...p, note: "илоуплотнитель на недельный запас" });
+          const dry = dryKg;
+          const vol = dry / (10 * a.sludgeDs);
+          s.sizing.push(`Осадок ≈ ${fmt(dry, 1)} кг сухого вещества/сут (~${fmt(vol, 1)} м³/сут при ${a.sludgeDs} % СВ) — уплотнение и обезвоживание.`);
+          const p = pickModel("tanks", "vol", Math.max(1, vol * a.sludgeStoreDays));
+          if (p) s.picks.push({ ...p, note: `илоуплотнитель на ${a.sludgeStoreDays} сут` });
           break;
         }
       }
@@ -292,8 +318,46 @@ function ProResultContent() {
       stages.push(s);
     }
 
-    return { Qh, Qls, bodLoad, stages, scale, common: commonEquipment(ctx) };
-  }, [industry, Q, hours, ph, c, discharge]);
+    const common = commonEquipment(ctx);
+
+    /* ---------- строительная часть ---------- */
+    const chainHas = (k: StageKey) => chain.includes(k);
+    const volumes: { name: string; volume: number }[] = [];
+    if (chainHas("avg")) volumes.push({ name: "Усреднитель", volume: vAvg });
+    if (chainHas("bio")) volumes.push({ name: "Биологический блок (аэротенк)", volume: vBio });
+    if (chainHas("clarify")) volumes.push({ name: "Вторичный отстойник", volume: Math.max(4, (Qh / a.clarifyLoad) * 3) });
+    if (chainHas("daf")) volumes.push({ name: "Флотатор с камерой флокуляции", volume: Math.max(3, (Qh / a.dafLoad) * 2.5) });
+    if (chainHas("physchem")) volumes.push({ name: "Камеры смешения и хлопьеобразования", volume: Math.max(2, Qh * 0.4) });
+    if (chainHas("disinfect")) volumes.push({ name: "Контактный резервуар", volume: Math.max(2, (Qh * a.contactTime) / 60) });
+    if (chainHas("sludge")) volumes.push({ name: "Илоуплотнитель и стабилизатор", volume: Math.max(4, (dryKg / (10 * a.sludgeDs)) * a.sludgeStoreDays) });
+    volumes.push({ name: "Приёмная камера и аварийная ёмкость", volume: Math.max(Q / 24, Qh) * a.reserveEmergency });
+
+    const civil = civilWorks(volumes, a, scale);
+
+    /* ---------- площадь ---------- */
+    const equipmentArea = Math.max(40, (airH / 1000) * 12 + (dryKg / 100) * 8 + 30);
+    const area = areaEstimate(civil.areaStructures, equipmentArea, (dryKg * 30) / (10 * a.cakeDs), a);
+
+    /* ---------- трубопроводы ---------- */
+    const pipes = pipeSizing({ Qh, air: airH, sludgeM3d: dryKg / (10 * a.sludgeDs), scale }, a, area.site);
+
+    /* ---------- электрика ---------- */
+    const power = powerEstimate(
+      {
+        Q, Qh, hours, air: airH, vAvg, vBio, dryKg, bodLoad, scale,
+        stages: chain as string[],
+        builtArea: area.built,
+        buildingArea: area.buildings,
+      },
+      a
+    );
+
+    return {
+      Qh, Qls, bodLoad, stages, scale, common,
+      civil, area, pipes, power,
+      civilList: civilItems(civil, a),
+    };
+  }, [industry, Q, hours, ph, c, discharge, a]);
 
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
@@ -349,6 +413,33 @@ function ProResultContent() {
       })),
       common: calc.common.map((it) => ({ name: it.name, spec: it.spec, qty: it.qty, supply: it.supply, note: it.note })),
       scale: SCALE_LABEL[calc.scale],
+      civil: {
+        basins: calc.civil.basins.map((b) => ({ name: b.name, volume: b.volume, L: b.L, B: b.B, H: b.Hfull })),
+        concrete: calc.civil.concrete,
+        rebarT: calc.civil.rebar / 1000,
+        formwork: calc.civil.formwork,
+        excavation: calc.civil.excavation,
+        backfill: calc.civil.backfill,
+        note: calc.civil.note,
+      },
+      pipes: calc.pipes.map((x) => ({ name: x.name, flow: x.flow, dn: x.dn, velocity: x.velocity, length: x.length, material: x.material })),
+      area: {
+        structures: calc.area.structures,
+        buildings: calc.area.buildings,
+        built: calc.area.built,
+        site: calc.area.site,
+        note: calc.area.note,
+      },
+      power: {
+        installed: calc.power.installed,
+        demand: calc.power.demand,
+        daily: calc.power.daily,
+        yearly: calc.power.yearly,
+        specific: calc.power.specific,
+        specificBod: calc.power.specificBod,
+        items: calc.power.items.map((i) => ({ name: i.name, qty: i.qty, unit: i.unit, installed: i.installed, hours: i.hours, daily: i.daily, basis: i.basis })),
+        note: calc.power.note,
+      },
       notes: industry.notes,
       sources: industry.sources,
     };
@@ -551,6 +642,157 @@ function ProResultContent() {
           <ItemTable items={calc.common} />
         </div>
 
+        {/* ================= СТРОИТЕЛЬНАЯ ЧАСТЬ ================= */}
+        <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, margin: "30px 0 12px" }}>
+          СТРОИТЕЛЬНАЯ ЧАСТЬ, ПЛОЩАДЬ И ЭЛЕКТРИКА
+        </div>
+
+        <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+          <b style={{ fontSize: 16 }}>Габариты ёмкостей и объёмы работ</b>
+          <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
+            Размеры получены от расчётного объёма при рабочей глубине {a.basinDepth} м и соотношении сторон {a.basinRatio} : 1;
+            борт {a.basinFreeboard} м. Объёмы бетона — по толщинам стен {a.wallThickness} мм, днища {a.slabThickness} мм
+            {a.coverThickness > 0 ? `, перекрытия ${a.coverThickness} мм` : " (сооружения открытые)"}.
+          </p>
+
+          <div style={{ overflowX: "auto", marginBottom: 12 }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+              <thead>
+                <tr>
+                  {["Сооружение", "Объём, м³", "Размеры в свету, м", "Бетон, м³", "Котлован, м³"].map((h) => (
+                    <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calc.civil.basins.map((b, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{b.name}</td>
+                    <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{fmt(b.volume)}</td>
+                    <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>
+                      {b.L} × {b.B} × {b.Hfull}
+                    </td>
+                    <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{fmt(b.concrete, 1)}</td>
+                    <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{fmt(b.excavation)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td style={{ padding: "8px", fontWeight: 700 }}>Итого</td>
+                  <td style={{ padding: "8px", fontWeight: 700 }}>{fmt(calc.civil.basins.reduce((s2, b) => s2 + b.volume, 0))}</td>
+                  <td style={{ padding: "8px" }} />
+                  <td style={{ padding: "8px", fontWeight: 700 }}>{fmt(calc.civil.concrete, 1)}</td>
+                  <td style={{ padding: "8px", fontWeight: 700 }}>{fmt(calc.civil.excavation)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <ItemTable items={calc.civilList} />
+          <p style={{ fontSize: 12, color: FAINT, margin: "10px 0 0", lineHeight: 1.6 }}>{calc.civil.note}</p>
+        </div>
+
+        {/* ================= ТРУБОПРОВОДЫ ================= */}
+        <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+          <b style={{ fontSize: 16 }}>Трубопроводы</b>
+          <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
+            Диаметры подобраны по расходу и расчётной скорости: самотёчные {a.velGravity} м/с, напорные {a.velPressure} м/с,
+            воздуховоды {a.velAir} м/с. Длины — ориентировочные, по габаритам площадки; точные даёт генплан.
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+              <thead>
+                <tr>
+                  {["Трубопровод", "Расход, м³/ч", "DN", "Скорость, м/с", "Длина ≈, м", "Объём, м³", "Материал"].map((h) => (
+                    <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calc.pipes.map((p2, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>
+                      <b>{p2.name}</b>
+                      {p2.note && <div style={{ color: FAINT, fontSize: 11, marginTop: 3, lineHeight: 1.5 }}>{p2.note}</div>}
+                    </td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{fmt(p2.flow, 1)}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", fontWeight: 700 }}>{p2.dn}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{p2.velocity}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{p2.length}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{fmt(p2.volume, 2)}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{p2.material}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ================= ПЛОЩАДЬ ================= */}
+        <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+          <b style={{ fontSize: 16 }}>Площадь под станцию</b>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, margin: "12px 0" }}>
+            {[
+              ["Сооружения с проходами", calc.area.structures, "м²"],
+              ["Здания и помещения", calc.area.buildings, "м²"],
+              ["Площадка осадка", calc.area.sludgeYard, "м²"],
+              ["Площадь застройки", calc.area.built, "м²"],
+              ["Участок с подъездами", calc.area.site, "м²"],
+              ["То же", calc.area.site / 10000, "га"],
+            ].map(([label, value, unit], i) => (
+              <div key={i} style={{ fontSize: 13 }}>
+                <div style={{ color: FAINT, fontSize: 11 }}>{label as string}</div>
+                <b style={{ fontSize: 17 }}>{fmt(value as number, unit === "га" ? 2 : 0)}</b> {unit as string}
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>{calc.area.note}</p>
+        </div>
+
+        {/* ================= ЭЛЕКТРИКА ================= */}
+        <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+          <b style={{ fontSize: 16 }}>Электрическая часть</b>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, margin: "12px 0" }}>
+            {[
+              ["Установленная мощность", fmt(calc.power.installed, 1), "кВт"],
+              ["Расчётная мощность", fmt(calc.power.demand, 1), "кВт"],
+              ["Потребление", fmt(calc.power.daily), "кВт·ч/сут"],
+              ["За год", fmt(calc.power.yearly / 1000), "тыс. кВт·ч"],
+              ["Удельно на сток", fmt(calc.power.specific, 2), "кВт·ч/м³"],
+              ["Удельно на БПК", fmt(calc.power.specificBod, 2), "кВт·ч/кг"],
+            ].map(([label, value, unit], i) => (
+              <div key={i} style={{ fontSize: 13 }}>
+                <div style={{ color: FAINT, fontSize: 11 }}>{label}</div>
+                <b style={{ fontSize: 17 }}>{value}</b> {unit}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+              <thead>
+                <tr>
+                  {["Потребитель", "Кол-во × кВт", "Установл., кВт", "ч/сут", "кВт·ч/сут", "Основание"].map((h) => (
+                    <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calc.power.items.map((it, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.name}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{it.qty} × {it.unit}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.installed}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.hours}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.daily}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>{it.basis}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: 12, color: FAINT, margin: "10px 0 0", lineHeight: 1.6 }}>{calc.power.note}</p>
+        </div>
+
         {/* ОСОБЕННОСТИ ОТРАСЛИ */}
         <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, margin: "24px 0" }}>
           <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>ЧТО ВАЖНО ЗНАТЬ ПРО ЭТУ ОТРАСЛЬ</div>
@@ -614,9 +856,13 @@ function ProResultContent() {
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
             Габариты в PDF (печать)
           </button>
+          <a href="/engineering/assumptions"
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
+            Коэффициенты расчёта
+          </a>
           <a href="/designers"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
-            Опросные листы для уточнения
+            Опросные листы
           </a>
           <a href="/#contacts"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>

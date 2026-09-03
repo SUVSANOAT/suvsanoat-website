@@ -197,6 +197,61 @@ export async function setRequestStatus(id: number, status: string): Promise<void
   await sql`UPDATE access_requests SET status = ${status} WHERE id = ${id}`;
 }
 
+/* ---------------- коэффициенты расчёта ---------------- */
+
+let assumptionsReady: Promise<void> | null = null;
+
+function ensureAssumptionsTable(): Promise<void> {
+  if (!assumptionsReady) {
+    const sql = db();
+    assumptionsReady = (async () => {
+      await sql`CREATE TABLE IF NOT EXISTS assumptions (
+        key TEXT PRIMARY KEY,
+        value DOUBLE PRECISION NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_by TEXT NOT NULL DEFAULT ''
+      )`;
+    })().catch((e) => {
+      assumptionsReady = null;
+      throw e;
+    });
+  }
+  return assumptionsReady;
+}
+
+export async function getAssumptionOverrides(): Promise<Record<string, number>> {
+  await ensureAssumptionsTable();
+  const sql = db();
+  const rows = (await sql`SELECT key, value FROM assumptions`) as { key: string; value: number }[];
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.key] = Number(r.value);
+  return out;
+}
+
+export async function saveAssumptions(values: Record<string, number>, who: string): Promise<void> {
+  await ensureAssumptionsTable();
+  const sql = db();
+  for (const [key, value] of Object.entries(values)) {
+    await sql`INSERT INTO assumptions (key, value, updated_by, updated_at)
+      VALUES (${key}, ${value}, ${who}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${value}, updated_by = ${who}, updated_at = NOW()`;
+  }
+}
+
+export async function resetAssumption(key: string): Promise<void> {
+  await ensureAssumptionsTable();
+  const sql = db();
+  await sql`DELETE FROM assumptions WHERE key = ${key}`;
+}
+
+export async function assumptionsMeta(): Promise<{ key: string; updated_at: string; updated_by: string }[]> {
+  await ensureAssumptionsTable();
+  const sql = db();
+  return (await sql`SELECT key, updated_at, updated_by FROM assumptions ORDER BY updated_at DESC`) as {
+    key: string; updated_at: string; updated_by: string;
+  }[];
+}
+
 /* ---------------- Telegram — тот же бот, что и форма заявок ---------------- */
 
 export async function notifyTelegram(text: string): Promise<void> {
