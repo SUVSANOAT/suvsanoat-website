@@ -13,8 +13,8 @@ import {
   type StageKey,
 } from "../industry/industries";
 import { chainForDischarge, findDischarge } from "../industry/targets";
-import { UI, t } from "../industry/i18n";
-import type { Language } from "../../../translations";
+import { t, ui } from "../industry/i18n";
+import type { UiStrings } from "../industry/i18n";
 import { useLanguage } from "../../../LanguageContext";
 import { SCALE_LABEL, commonEquipment, equipmentFor, scaleOf, type Ctx, type Item } from "../industry/equipment";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
@@ -88,27 +88,23 @@ const SUPPLY_COLOR: Record<Item["supply"], string> = {
   supply: "#8fa6b1",
 };
 
-const SUPPLY_TEXT: Record<Item["supply"], typeof UI.supplyOwn> = {
-  own: UI.supplyOwn,
-  either: UI.supplyEither,
-  supply: UI.supplySupply,
-};
+function supplyText(supply: Item["supply"], U: UiStrings): string {
+  return supply === "own" ? U.supplyOwn : supply === "either" ? U.supplyEither : U.supplySupply;
+}
 
-const KIND_TEXT: Record<Item["kind"], typeof UI.kindStructure> = {
-  structure: UI.kindStructure,
-  machine: UI.kindMachine,
-  instrument: UI.kindInstrument,
-};
+function kindText(kind: Item["kind"], U: UiStrings): string {
+  return kind === "structure" ? U.kindStructure : kind === "machine" ? U.kindMachine : U.kindInstrument;
+}
 
-function ItemTable({ items, language }: { items: Item[]; language: Language }) {
+function ItemTable({ items, U }: { items: Item[]; U: UiStrings }) {
   if (!items.length) return null;
   return (
     <div style={{ overflowX: "auto", marginTop: 12 }}>
       <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
         <thead>
           <tr>
-            {[UI.colItem, UI.colSpec, UI.colQty, UI.colSupply].map((h) => (
-              <th key={t(h, language)} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{t(h, language)}</th>
+            {[U.colItem, U.colSpec, U.colQty, U.colSupply].map((h) => (
+              <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -117,7 +113,7 @@ function ItemTable({ items, language }: { items: Item[]; language: Language }) {
             <tr key={i}>
               <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>
                 <b>{it.name}</b>
-                <div style={{ color: FAINT, fontSize: 11 }}>{t(KIND_TEXT[it.kind], language)}</div>
+                <div style={{ color: FAINT, fontSize: 11 }}>{kindText(it.kind, U)}</div>
                 {it.note && <div style={{ color: FAINT, fontSize: 11, marginTop: 3, lineHeight: 1.5 }}>{it.note}</div>}
               </td>
               <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", lineHeight: 1.5 }}>
@@ -127,7 +123,7 @@ function ItemTable({ items, language }: { items: Item[]; language: Language }) {
                 {it.qty}
               </td>
               <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: SUPPLY_COLOR[it.supply], whiteSpace: "nowrap" }}>
-                {t(SUPPLY_TEXT[it.supply], language)}
+                {supplyText(it.supply, U)}
               </td>
             </tr>
           ))}
@@ -156,6 +152,7 @@ function useAssumptions(): Assumptions {
 
 function ProResultContent() {
   const { language } = useLanguage();
+  const U = useMemo(() => ui(language), [language]);
   const router = useRouter();
   const sp = useSearchParams();
   const a = useAssumptions();
@@ -331,14 +328,14 @@ function ProResultContent() {
     /* ---------- строительная часть ---------- */
     const chainHas = (k: StageKey) => chain.includes(k);
     const volumes: { name: string; volume: number }[] = [];
-    if (chainHas("avg")) volumes.push({ name: t(UI.tankAvg, language), volume: vAvg });
-    if (chainHas("bio")) volumes.push({ name: t(UI.tankBio, language), volume: vBio });
-    if (chainHas("clarify")) volumes.push({ name: t(UI.tankClarify, language), volume: Math.max(4, (Qh / a.clarifyLoad) * 3) });
-    if (chainHas("daf")) volumes.push({ name: t(UI.tankDaf, language), volume: Math.max(3, (Qh / a.dafLoad) * 2.5) });
-    if (chainHas("physchem")) volumes.push({ name: t(UI.tankPhyschem, language), volume: Math.max(2, Qh * 0.4) });
-    if (chainHas("disinfect")) volumes.push({ name: t(UI.tankContact, language), volume: Math.max(2, (Qh * a.contactTime) / 60) });
-    if (chainHas("sludge")) volumes.push({ name: t(UI.tankSludge, language), volume: Math.max(4, (dryKg / (10 * a.sludgeDs)) * a.sludgeStoreDays) });
-    volumes.push({ name: t(UI.tankIntake, language), volume: Math.max(Q / 24, Qh) * a.reserveEmergency });
+    if (chainHas("avg")) volumes.push({ name: U.tankAvg, volume: vAvg });
+    if (chainHas("bio")) volumes.push({ name: U.tankBio, volume: vBio });
+    if (chainHas("clarify")) volumes.push({ name: U.tankClarify, volume: Math.max(4, (Qh / a.clarifyLoad) * 3) });
+    if (chainHas("daf")) volumes.push({ name: U.tankDaf, volume: Math.max(3, (Qh / a.dafLoad) * 2.5) });
+    if (chainHas("physchem")) volumes.push({ name: U.tankPhyschem, volume: Math.max(2, Qh * 0.4) });
+    if (chainHas("disinfect")) volumes.push({ name: U.tankContact, volume: Math.max(2, (Qh * a.contactTime) / 60) });
+    if (chainHas("sludge")) volumes.push({ name: U.tankSludge, volume: Math.max(4, (dryKg / (10 * a.sludgeDs)) * a.sludgeStoreDays) });
+    volumes.push({ name: U.tankIntake, volume: Math.max(Q / 24, Qh) * a.reserveEmergency });
 
     const civil = civilWorks(volumes, a, scale);
 
@@ -511,19 +508,19 @@ function ProResultContent() {
   function printScheme() {
     const input = schemeInput();
     if (!input) return;
-    printDxf(buildSchemeDxf(input), `${t(UI.chainTitle, language)} — ${input.industry}`);
+    printDxf(buildSchemeDxf(input), `${U.chainTitle} — ${t(input.industry.name, language)}`);
   }
 
   function printModels() {
     const input = schemeInput();
     if (!input) return;
-    printDxf(buildModelsDxf(input), `${t(UI.btnDxfModels, language)} — ${input.industry}`);
+    printDxf(buildModelsDxf(input), `${U.btnDxfModels} — ${t(input.industry.name, language)}`);
   }
 
   if (!industry || !calc) {
     return (
       <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: 60 }}>
-        <p>{t(UI.notFound, language)} <a href="/engineering/analysis" style={{ color: ACCENT }}>{t(UI.startOver, language)}</a></p>
+        <p>{U.notFound} <a href="/engineering/analysis" style={{ color: ACCENT }}>{U.startOver}</a></p>
       </main>
     );
   }
@@ -550,30 +547,30 @@ function ProResultContent() {
         </button>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
-          {t(UI.resultEyebrow, language)}
+          {U.resultEyebrow}
         </div>
         <h1 style={{ fontSize: 30, margin: "0 0 6px" }}>{t(industry.name, language)}</h1>
         <p style={{ color: FAINT, margin: "0 0 4px" }}>
-          {object && <>{t(UI.objectWord, language)}: {object} · </>}
+          {object && <>{U.objectWord}: {object} · </>}
           Расход {fmt(Q)} м³/сут · режим {hours} ч/сут · {fmt(calc.Qh, 1)} м³/ч
         </p>
         <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
-          {t(UI.scaleLine, language)}: <b>{t(SCALE_LABEL[calc.scale], language)}</b>.
+          {U.scaleLine}: <b>{t(SCALE_LABEL[calc.scale], language)}</b>.
         </p>
         {discharge && (
           <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
-            {t(UI.dischargeTo, language)}: <b>{t(discharge.name, language)}</b>. {t(UI.targetsFrom, language)} — {customTu ? t(UI.byYourTu, language) : t(discharge.source, language)}.
+            {U.dischargeTo}: <b>{t(discharge.name, language)}</b>. {U.targetsFrom} — {customTu ? U.byYourTu : t(discharge.source, language)}.
           </p>
         )}
         <p style={{ color: lab ? "#9ccc65" : "#ffb74d", fontSize: 13, margin: "0 0 26px" }}>
           {lab
-            ? t(UI.labSource, language)
-            : `${t(UI.refSource, language)} (${industry.sources.map((x) => t(x, language)).join("; ")}). ${t(UI.refTail, language)}`}
+            ? U.labSource
+            : `${U.refSource} (${industry.sources.map((x) => t(x, language)).join("; ")}). ${U.refTail}`}
         </p>
 
         {/* ИСХОДНЫЕ ДАННЫЕ */}
         <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, marginBottom: 24 }}>
-          <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 12 }}>{t(UI.influentTitle, language)}</div>
+          <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 12 }}>{U.influentTitle}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
             {KEY_ORDER.filter((key) => c[key] !== undefined).map((key) => (
               <div key={key} style={{ fontSize: 13 }}>
@@ -587,16 +584,16 @@ function ProResultContent() {
             </div>
           </div>
           {discharge && !customTu && (
-            <p style={{ fontSize: 12, color: FAINT, margin: "14px 0 0", lineHeight: 1.6 }}>{discharge.note}</p>
+            <p style={{ fontSize: 12, color: FAINT, margin: "14px 0 0", lineHeight: 1.6 }}>{t(discharge.note, language)}</p>
           )}
         </div>
 
         {/* ОСОБЫЕ ЗАГРЯЗНИТЕЛИ */}
         {industry.special && (
           <div style={{ border: "1px solid rgba(255,183,77,0.4)", background: "rgba(255,183,77,0.06)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 10 }}>{t(UI.specialTitle, language)}</div>
+            <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 10 }}>{U.specialTitle}</div>
             {industry.special.map((spec) => (
-              <p key={spec.label} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 8px" }}>
+              <p key={t(spec.label, language)} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 8px" }}>
                 <b>{t(spec.label, language)}</b> ({spec.range[0]}–{spec.range[1]} {t(spec.unit, language)}): {t(spec.note, language)}
               </p>
             ))}
@@ -605,7 +602,7 @@ function ProResultContent() {
 
         {/* ЦЕПОЧКА */}
         <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, margin: "0 0 14px" }}>
-          {t(UI.chainTitle, language)} — {calc.stages.length} {t(UI.stagesWord, language)}
+          {U.chainTitle} — {calc.stages.length} {U.stagesWord}
         </div>
 
         {calc.stages.map((stage, index) => {
@@ -617,7 +614,7 @@ function ProResultContent() {
                 <span style={{ color: ACCENT, fontWeight: 700 }}>{String(index + 1).padStart(2, "0")}</span>
                 <b style={{ fontSize: 16 }}>{t(info.title, language)}</b>
                 <span style={{ fontSize: 11, color: FAINT }}>
-                  {stage.items.length} {t(UI.itemsCount, language)}
+                  {stage.items.length} {U.itemsCount}
                 </span>
               </div>
               <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.55 }}>{t(info.what, language)}</p>
@@ -625,11 +622,11 @@ function ProResultContent() {
                 <p key={i} style={{ fontSize: 13, margin: "0 0 4px", lineHeight: 1.55 }}>— {line}</p>
               ))}
               {stage.extra && <p style={{ fontSize: 12, color: FAINT, margin: "6px 0 0" }}>{stage.extra}</p>}
-              <ItemTable items={stage.items} language={language} />
+              <ItemTable items={stage.items} U={U} />
 
               {stage.picks.length > 0 && (
                 <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: FAINT }}>{t(UI.ownProduct, language)}:</span>
+                  <span style={{ fontSize: 11, color: FAINT }}>{U.ownProduct}:</span>
                   {stage.picks.map((pick, i) => (
                     <a key={i} href={`/products/${pick.model.slug}`}
                       style={{ border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "8px 14px", color: "#eaf6fa", textDecoration: "none", fontSize: 13 }}>
@@ -646,22 +643,22 @@ function ProResultContent() {
         {/* ОБЩЕСТАНЦИОННОЕ ОБОРУДОВАНИЕ */}
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", margin: "18px 0" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 6, flexWrap: "wrap" }}>
-            <b style={{ fontSize: 16 }}>{t(UI.commonTitle, language)}</b>
-            <span style={{ fontSize: 11, color: FAINT }}>{calc.common.length} {t(UI.itemsCount, language)}</span>
+            <b style={{ fontSize: 16 }}>{U.commonTitle}</b>
+            <span style={{ fontSize: 11, color: FAINT }}>{calc.common.length} {U.itemsCount}</span>
           </div>
           <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.55 }}>
-            {t(UI.commonLead, language)}
+            {U.commonLead}
           </p>
-          <ItemTable items={calc.common} language={language} />
+          <ItemTable items={calc.common} U={U} />
         </div>
 
         {/* ================= СТРОИТЕЛЬНАЯ ЧАСТЬ ================= */}
         <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, margin: "30px 0 12px" }}>
-          {t(UI.civilTitle, language)}
+          {U.civilTitle}
         </div>
 
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
-          <b style={{ fontSize: 16 }}>{t(UI.basinsTitle, language)}</b>
+          <b style={{ fontSize: 16 }}>{U.basinsTitle}</b>
           <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
             Размеры получены от расчётного объёма при рабочей глубине {a.basinDepth} м и соотношении сторон {a.basinRatio} : 1;
             борт {a.basinFreeboard} м. Объёмы бетона — по толщинам стен {a.wallThickness} мм, днища {a.slabThickness} мм
@@ -672,7 +669,7 @@ function ProResultContent() {
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {[UI.colStructure, UI.colVolume, UI.colDims, UI.colConcrete, UI.colExcav].map((h) => (
+                  {[U.colStructure, U.colVolume, U.colDims, U.colConcrete, U.colExcav].map((h) => (
                     <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -690,7 +687,7 @@ function ProResultContent() {
                   </tr>
                 ))}
                 <tr>
-                  <td style={{ padding: "8px", fontWeight: 700 }}>{t(UI.totalWord, language)}</td>
+                  <td style={{ padding: "8px", fontWeight: 700 }}>{U.totalWord}</td>
                   <td style={{ padding: "8px", fontWeight: 700 }}>{fmt(calc.civil.basins.reduce((s2, b) => s2 + b.volume, 0))}</td>
                   <td style={{ padding: "8px" }} />
                   <td style={{ padding: "8px", fontWeight: 700 }}>{fmt(calc.civil.concrete, 1)}</td>
@@ -700,13 +697,13 @@ function ProResultContent() {
             </table>
           </div>
 
-          <ItemTable items={calc.civilList} language={language} />
+          <ItemTable items={calc.civilList} U={U} />
           <p style={{ fontSize: 12, color: FAINT, margin: "10px 0 0", lineHeight: 1.6 }}>{calc.civil.note}</p>
         </div>
 
         {/* ================= ТРУБОПРОВОДЫ ================= */}
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
-          <b style={{ fontSize: 16 }}>{t(UI.pipesTitle, language)}</b>
+          <b style={{ fontSize: 16 }}>{U.pipesTitle}</b>
           <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
             Диаметры подобраны по расходу и расчётной скорости: самотёчные {a.velGravity} м/с, напорные {a.velPressure} м/с,
             воздуховоды {a.velAir} м/с. Длины — ориентировочные, по габаритам площадки; точные даёт генплан.
@@ -715,7 +712,7 @@ function ProResultContent() {
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {[UI.colPipe, UI.colFlow, { ru: "DN", uz: "DN", en: "DN", zh: "DN" }, UI.colVelocity, UI.colLength, UI.colPipeVolume, UI.colMaterial].map((h) => (
+                  {[U.colPipe, U.colFlow, "DN", U.colVelocity, U.colLength, U.colPipeVolume, U.colMaterial].map((h) => (
                     <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -742,19 +739,19 @@ function ProResultContent() {
 
         {/* ================= ПЛОЩАДЬ ================= */}
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
-          <b style={{ fontSize: 16 }}>{t(UI.areaTitle, language)}</b>
+          <b style={{ fontSize: 16 }}>{U.areaTitle}</b>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, margin: "12px 0" }}>
             {[
-              [t(UI.areaStructures, language), calc.area.structures, t(UI.unitM2, language)],
-              [t(UI.areaBuildings, language), calc.area.buildings, t(UI.unitM2, language)],
-              [t(UI.areaSludge, language), calc.area.sludgeYard, t(UI.unitM2, language)],
-              [t(UI.areaBuilt, language), calc.area.built, t(UI.unitM2, language)],
-              [t(UI.areaSite, language), calc.area.site, t(UI.unitM2, language)],
-              [t(UI.areaSame, language), calc.area.site / 10000, t(UI.unitHa, language)],
+              [U.areaStructures, calc.area.structures, U.unitM2],
+              [U.areaBuildings, calc.area.buildings, U.unitM2],
+              [U.areaSludge, calc.area.sludgeYard, U.unitM2],
+              [U.areaBuilt, calc.area.built, U.unitM2],
+              [U.areaSite, calc.area.site, U.unitM2],
+              [U.areaSame, calc.area.site / 10000, U.unitHa],
             ].map(([label, value, unit], i) => (
               <div key={i} style={{ fontSize: 13 }}>
                 <div style={{ color: FAINT, fontSize: 11 }}>{label as string}</div>
-                <b style={{ fontSize: 17 }}>{fmt(value as number, unit === t(UI.unitHa, language) ? 2 : 0)}</b> {unit as string}
+                <b style={{ fontSize: 17 }}>{fmt(value as number, unit === U.unitHa ? 2 : 0)}</b> {unit as string}
               </div>
             ))}
           </div>
@@ -763,15 +760,15 @@ function ProResultContent() {
 
         {/* ================= ЭЛЕКТРИКА ================= */}
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
-          <b style={{ fontSize: 16 }}>{t(UI.powerTitle, language)}</b>
+          <b style={{ fontSize: 16 }}>{U.powerTitle}</b>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, margin: "12px 0" }}>
             {[
-              [t(UI.powerInstalled, language), fmt(calc.power.installed, 1), t(UI.unitKw, language)],
-              [t(UI.powerDemand, language), fmt(calc.power.demand, 1), t(UI.unitKw, language)],
-              [t(UI.powerDaily, language), fmt(calc.power.daily), t(UI.unitKwhD, language)],
-              [t(UI.powerYearly, language), fmt(calc.power.yearly / 1000), t(UI.unitKwh, language)],
-              [t(UI.powerSpecific, language), fmt(calc.power.specific, 2), t(UI.unitKwhM3, language)],
-              [t(UI.powerSpecificBod, language), fmt(calc.power.specificBod, 2), t(UI.unitKwhKg, language)],
+              [U.powerInstalled, fmt(calc.power.installed, 1), U.unitKw],
+              [U.powerDemand, fmt(calc.power.demand, 1), U.unitKw],
+              [U.powerDaily, fmt(calc.power.daily), U.unitKwhD],
+              [U.powerYearly, fmt(calc.power.yearly / 1000), U.unitKwh],
+              [U.powerSpecific, fmt(calc.power.specific, 2), U.unitKwhM3],
+              [U.powerSpecificBod, fmt(calc.power.specificBod, 2), U.unitKwhKg],
             ].map(([label, value, unit], i) => (
               <div key={i} style={{ fontSize: 13 }}>
                 <div style={{ color: FAINT, fontSize: 11 }}>{label}</div>
@@ -784,7 +781,7 @@ function ProResultContent() {
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {[UI.colConsumer, UI.colQtyKw, UI.colInstalled, UI.colHours, UI.colDaily, UI.colBasis].map((h) => (
+                  {[U.colConsumer, U.colQtyKw, U.colInstalled, U.colHours, U.colDaily, U.colBasis].map((h) => (
                     <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -808,11 +805,11 @@ function ProResultContent() {
 
         {/* ОСОБЕННОСТИ ОТРАСЛИ */}
         <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, margin: "24px 0" }}>
-          <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>{t(UI.industryNotesTitle, language)}</div>
+          <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>{U.industryNotesTitle}</div>
           {industry.notes.map((note, i) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 10px" }}>• {t(note, language)}</p>
           ))}
-          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>{t(UI.sourcesWord, language)}: {industry.sources.map((x) => t(x, language)).join("; ")}. {t(UI.methodsWord, language)}: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858.</p>
+          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>{U.sourcesWord}: {industry.sources.map((x) => t(x, language)).join("; ")}. {U.methodsWord}: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858.</p>
         </div>
 
         {/* ТЕХНИЧЕСКАЯ ЗАПИСКА */}
@@ -821,16 +818,16 @@ function ProResultContent() {
             style={{ border: `1px solid ${note.source === "ai" ? "#9ccc65" : LINE}`, background: PANEL, borderRadius: 12, padding: "22px 24px", margin: "0 0 24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 12, letterSpacing: "0.1em", color: note.source === "ai" ? "#9ccc65" : ACCENT }}>
-                {note.source === "ai" ? t(UI.noteAiBadge, language) : t(UI.noteTemplateBadge, language)}
+                {note.source === "ai" ? U.noteAiBadge : U.noteTemplateBadge}
               </div>
               <div className="noPrint" style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={downloadNote}
                   style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "#eaf6fa", fontSize: 12, cursor: "pointer" }}>
-                  {t(UI.noteDownload, language)}
+                  {U.noteDownload}
                 </button>
                 <button type="button" onClick={() => window.print()}
                   style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "#eaf6fa", fontSize: 12, cursor: "pointer" }}>
-                  {t(UI.notePdf, language)}
+                  {U.notePdf}
                 </button>
               </div>
             </div>
@@ -847,47 +844,47 @@ function ProResultContent() {
         <div className="noPrint" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
           <button type="button" onClick={makeNote} disabled={noteBusy}
             style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: noteBusy ? "wait" : "pointer", background: noteBusy ? "#2a6d80" : "#9ccc65", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
-            {noteBusy ? t(UI.btnNoteBusy, language) : note ? t(UI.btnNoteAgain, language) : t(UI.btnNote, language)}
+            {noteBusy ? U.btnNoteBusy : note ? U.btnNoteAgain : U.btnNote}
           </button>
           <button type="button" onClick={() => window.print()}
             style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: "pointer", background: ACCENT, color: "#06232e", fontSize: 15, fontWeight: 700 }}>
-            {t(UI.btnPdf, language)}
+            {U.btnPdf}
           </button>
           <button type="button" onClick={dxfScheme}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
-            {t(UI.btnDxfScheme, language)}
+            {U.btnDxfScheme}
           </button>
           <button type="button" onClick={dxfModels}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
-            {t(UI.btnDxfModels, language)}
+            {U.btnDxfModels}
           </button>
           <button type="button" onClick={printScheme}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
-            {t(UI.btnPrintScheme, language)}
+            {U.btnPrintScheme}
           </button>
           <button type="button" onClick={printModels}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
-            {t(UI.btnPrintModels, language)}
+            {U.btnPrintModels}
           </button>
           <a href="/engineering/assumptions"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
-            {t(UI.btnAssumptions, language)}
+            {U.btnAssumptions}
           </a>
           <a href="/designers"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
-            {t(UI.btnForms, language)}
+            {U.btnForms}
           </a>
           <a href="/#contacts"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
-            {t(UI.btnQuote, language)}
+            {U.btnQuote}
           </a>
         </div>
 
         <p style={{ fontSize: 11, color: FAINT, marginTop: 26, lineHeight: 1.6 }}>
-          {t(UI.disclaimer, language)} {t(UI.supplyNote, language)}
+          {U.disclaimer} {U.supplyNote}
         </p>
         <p className="noPrint" style={{ fontSize: 11, color: FAINT, marginTop: 8, lineHeight: 1.6 }}>
-          {t(UI.dxfNote, language)}
+          {U.dxfNote}
         </p>
       </div>
     </main>

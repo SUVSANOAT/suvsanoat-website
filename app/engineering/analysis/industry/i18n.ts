@@ -232,3 +232,21 @@ export const UI = {
   notFound: L("Недостаточно данных.", "Ma’lumot yetarli emas.", "Not enough data.", "数据不足。"),
   startOver: L("Начать заново", "Qaytadan boshlash", "Start over", "重新开始"),
 } satisfies Record<string, L10n>;
+
+/* ==================================================================
+ * ГОТОВЫЕ СТРОКИ ИНТЕРФЕЙСА ДЛЯ ОДНОГО ЯЗЫКА
+ *
+ * Разметка страницы работает только со строками: объект L10n в JSX
+ * попасть уже не может, а значит не может и уронить сборку ошибкой
+ * «Type 'L10n' is not assignable to type 'ReactNode'».
+ * ================================================================== */
+
+export type UiStrings = Record<keyof typeof UI, string>;
+
+export function ui(lang: Language): UiStrings {
+  const out = {} as UiStrings;
+  for (const key of Object.keys(UI) as (keyof typeof UI)[]) {
+    out[key] = t(UI[key], lang);
+  }
+  return out;
+}

@@ -12,7 +12,7 @@ import {
   type PollutantKey,
 } from "./industries";
 import { DISCHARGES, findDischarge } from "./targets";
-import { UI, t } from "./i18n";
+import { t, ui } from "./i18n";
 import { useLanguage } from "../../../LanguageContext";
 
 /* ==================================================================
@@ -34,6 +34,7 @@ const KEY_ORDER: PollutantKey[] = ["cod", "bod", "ss", "fats", "petro", "tn", "t
 
 function IndustryContent() {
   const { language } = useLanguage();
+  const U = useMemo(() => ui(language), [language]);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -77,16 +78,16 @@ function IndustryContent() {
     event.preventDefault();
 
     if (!industry) {
-      setError(t(UI.errNoIndustry, language));
+      setError(U.errNoIndustry);
       return;
     }
     if (hasLab === null) {
-      setError(t(UI.errNoLab, language));
+      setError(U.errNoLab);
       return;
     }
     const q = parseFloat(flow.replace(",", "."));
     if (!q || q <= 0) {
-      setError(t(UI.errNoFlow, language));
+      setError(U.errNoFlow);
       return;
     }
 
@@ -121,17 +122,17 @@ function IndustryContent() {
           onClick={() => router.back()}
           style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer", marginBottom: 26 }}
         >
-          ← {t(UI.back, language)}
+          ← {U.back}
         </button>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
-          {t(UI.stepIndustry, language)}
+          {U.stepIndustry}
         </div>
 
-        <h1 style={{ fontSize: 32, margin: "0 0 10px" }}>{t(UI.pageTitle, language)}</h1>
+        <h1 style={{ fontSize: 32, margin: "0 0 10px" }}>{U.pageTitle}</h1>
 
         <p style={{ color: FAINT, maxWidth: 640, lineHeight: 1.6, margin: "0 0 30px" }}>
-          {t(UI.pageLead, language)}
+          {U.pageLead}
         </p>
 
         <form onSubmit={handleContinue}>
@@ -182,7 +183,7 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{t(item.name, language)}</div>
-                <div style={{ fontSize: 12, color: FAINT }}>{item.flowHint}</div>
+                <div style={{ fontSize: 12, color: FAINT }}>{t(item.flowHint, language)}</div>
               </button>
             ))}
           </div>
@@ -200,15 +201,15 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 14 }}>
-                  {t(UI.flowSection, language)}
+                  {U.flowSection}
                 </div>
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                   <label style={{ fontSize: 13, color: FAINT }}>
-                    {t(UI.flowPerDay, language)}
+                    {U.flowPerDay}
                     <input
                       value={flow}
                       onChange={(event) => setFlow(event.target.value)}
-                      placeholder={t(UI.flowPlaceholder, language)}
+                      placeholder={U.flowPlaceholder}
                       inputMode="decimal"
                       style={{
                         display: "block", marginTop: 6, width: 180, padding: "10px 12px",
@@ -218,7 +219,7 @@ function IndustryContent() {
                     />
                   </label>
                   <label style={{ fontSize: 13, color: FAINT }}>
-                    {t(UI.workHours, language)}
+                    {U.workHours}
                     <input
                       value={hours}
                       onChange={(event) => setHours(event.target.value)}
@@ -231,7 +232,7 @@ function IndustryContent() {
                     />
                   </label>
                   <div style={{ fontSize: 12, color: FAINT, alignSelf: "flex-end", maxWidth: 320 }}>
-                    {t(UI.industryHint, language)}: {t(industry.flowHint, language)}
+                    {U.industryHint}: {t(industry.flowHint, language)}
                   </div>
                 </div>
               </div>
@@ -247,10 +248,10 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>
-                  {t(UI.dischargeSection, language)}
+                  {U.dischargeSection}
                 </div>
                 <p style={{ fontSize: 12, color: FAINT, margin: "0 0 14px", lineHeight: 1.6 }}>
-                  {t(UI.dischargeLead, language)}
+                  {U.dischargeLead}
                 </p>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
@@ -283,24 +284,24 @@ function IndustryContent() {
                         {t(d.hint, language)}. {t(d.note, language)}
                       </p>
                       <p style={{ fontSize: 11, color: "#6f8792", margin: "0 0 14px" }}>
-                        {t(UI.basisLabel, language)}: {t(d.source, language)}
+                        {U.basisLabel}: {t(d.source, language)}
                       </p>
 
                       <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#cfdde3", cursor: "pointer" }}>
                         <input type="checkbox" checked={hasTu} onChange={(e) => setHasTu(e.target.checked)} />
-                        {t(UI.hasTu, language)}
+                        {U.hasTu}
                       </label>
 
                       {hasTu && (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginTop: 14 }}>
                           {KEY_ORDER.map((key) => (
                             <label key={key} style={{ fontSize: 12, color: FAINT }}>
-                              {POLLUTANT_LABELS[key].label}, {POLLUTANT_LABELS[key].unit}
+                              {t(POLLUTANT_LABELS[key].label, language)}, {t(POLLUTANT_LABELS[key].unit, language)}
                               <input
                                 value={tu[key] ?? (d.targets[key] !== undefined ? String(d.targets[key]) : "")}
                                 onChange={(e) => setTu({ ...tu, [key]: e.target.value })}
                                 inputMode="decimal"
-                                placeholder={t(UI.tuPlaceholder, language)}
+                                placeholder={U.tuPlaceholder}
                                 style={{
                                   display: "block", marginTop: 6, width: "100%", padding: "9px 10px",
                                   borderRadius: 8, border: `1px solid ${LINE}`, background: "rgba(0,0,0,0.25)",
@@ -327,7 +328,7 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 14 }}>
-                  {t(UI.labSection, language)}
+                  {U.labSection}
                 </div>
 
                 <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
@@ -341,7 +342,7 @@ function IndustryContent() {
                       color: hasLab === true ? "#eaf6fa" : FAINT,
                     }}
                   >
-                    {t(UI.labYes, language)}
+                    {U.labYes}
                   </button>
                   <button
                     type="button"
@@ -353,7 +354,7 @@ function IndustryContent() {
                       color: hasLab === false ? "#eaf6fa" : FAINT,
                     }}
                   >
-                    {t(UI.labNo, language)}
+                    {U.labNo}
                   </button>
                 </div>
 
@@ -371,7 +372,7 @@ function IndustryContent() {
                         const info = POLLUTANT_LABELS[key];
                         return (
                           <label key={key} style={{ fontSize: 12, color: FAINT }}>
-                            {info.label}, {info.unit}
+                            {t(info.label, language)}, {t(info.unit, language)}
                             {hasLab ? (
                               <input
                                 value={values[key] ?? ""}
@@ -433,17 +434,17 @@ function IndustryContent() {
 
                     {!hasLab && (
                       <p style={{ fontSize: 12, color: FAINT, margin: "16px 0 0", lineHeight: 1.6 }}>
-                        {t(UI.refMidNote, language)} ({industry.sources.map((x) => t(x, language)).join("; ")})
+                        {U.refMidNote} ({industry.sources.map((x) => t(x, language)).join("; ")})
                       </p>
                     )}
 
                     {industry.special && industry.special.length > 0 && (
                       <div style={{ marginTop: 18 }}>
                         <div style={{ fontSize: 12, letterSpacing: "0.08em", color: "#ffb74d", marginBottom: 8 }}>
-                          {t(UI.specialIndustryTitle, language)}
+                          {U.specialIndustryTitle}
                         </div>
                         {industry.special.map((spec) => (
-                          <div key={spec.label} style={{ fontSize: 13, color: "#dfe9ec", marginBottom: 8, lineHeight: 1.55 }}>
+                          <div key={t(spec.label, language)} style={{ fontSize: 13, color: "#dfe9ec", marginBottom: 8, lineHeight: 1.55 }}>
                             <b>{t(spec.label, language)}</b>: {spec.range[0]}–{spec.range[1]} {t(spec.unit, language)}.{" "}
                             <span style={{ color: FAINT }}>{t(spec.note, language)}</span>
                           </div>
@@ -467,7 +468,7 @@ function IndustryContent() {
               background: ACCENT, color: "#06232e", fontSize: 16, fontWeight: 700,
             }}
           >
-            {t(UI.calcButton, language)} →
+            {U.calcButton} →
           </button>
         </form>
       </div>
