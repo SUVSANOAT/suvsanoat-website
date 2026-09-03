@@ -77,16 +77,16 @@ function IndustryContent() {
     event.preventDefault();
 
     if (!industry) {
-      setError("Выберите отрасль.");
+      setError(t(UI.errNoIndustry, language));
       return;
     }
     if (hasLab === null) {
-      setError("Укажите, есть ли лабораторный анализ стока.");
+      setError(t(UI.errNoLab, language));
       return;
     }
     const q = parseFloat(flow.replace(",", "."));
     if (!q || q <= 0) {
-      setError("Укажите расход сточных вод, м³/сут.");
+      setError(t(UI.errNoFlow, language));
       return;
     }
 
@@ -121,19 +121,17 @@ function IndustryContent() {
           onClick={() => router.back()}
           style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer", marginBottom: 26 }}
         >
-          ← Назад
+          ← {t(UI.back, language)}
         </button>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
-          ШАГ 02 / ОТРАСЛЬ И СОСТАВ СТОКА
+          {t(UI.stepIndustry, language)}
         </div>
 
-        <h1 style={{ fontSize: 32, margin: "0 0 10px" }}>Что за производство?</h1>
+        <h1 style={{ fontSize: 32, margin: "0 0 10px" }}>{t(UI.pageTitle, language)}</h1>
 
         <p style={{ color: FAINT, maxWidth: 640, lineHeight: 1.6, margin: "0 0 30px" }}>
-          Для каждой отрасли у нас заложены характерные загрязнения и технологическая
-          схема. Если у вас есть лабораторный анализ — введёте свои цифры, если нет —
-          возьмём справочные значения по нормативам и отраслевым данным.
+          {t(UI.pageLead, language)}
         </p>
 
         <form onSubmit={handleContinue}>
@@ -202,15 +200,15 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 14 }}>
-                  РАСХОД СТОЧНЫХ ВОД
+                  {t(UI.flowSection, language)}
                 </div>
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                   <label style={{ fontSize: 13, color: FAINT }}>
-                    Расход, м³/сут
+                    {t(UI.flowPerDay, language)}
                     <input
                       value={flow}
                       onChange={(event) => setFlow(event.target.value)}
-                      placeholder="например: 120"
+                      placeholder={t(UI.flowPlaceholder, language)}
                       inputMode="decimal"
                       style={{
                         display: "block", marginTop: 6, width: 180, padding: "10px 12px",
@@ -220,7 +218,7 @@ function IndustryContent() {
                     />
                   </label>
                   <label style={{ fontSize: 13, color: FAINT }}>
-                    Работа объекта, часов/сут
+                    {t(UI.workHours, language)}
                     <input
                       value={hours}
                       onChange={(event) => setHours(event.target.value)}
@@ -233,7 +231,7 @@ function IndustryContent() {
                     />
                   </label>
                   <div style={{ fontSize: 12, color: FAINT, alignSelf: "flex-end", maxWidth: 320 }}>
-                    Подсказка по отрасли: {industry.flowHint}
+                    {t(UI.industryHint, language)}: {t(industry.flowHint, language)}
                   </div>
                 </div>
               </div>
@@ -249,11 +247,10 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>
-                  КУДА УХОДИТ ОЧИЩЕННАЯ ВОДА
+                  {t(UI.dischargeSection, language)}
                 </div>
                 <p style={{ fontSize: 12, color: FAINT, margin: "0 0 14px", lineHeight: 1.6 }}>
-                  Точка сброса определяет глубину очистки — от неё зависит, нужны ли доочистка и
-                  обеззараживание, и какие целевые показатели закладываются в расчёт.
+                  {t(UI.dischargeLead, language)}
                 </p>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
@@ -283,15 +280,15 @@ function IndustryContent() {
                   return (
                     <>
                       <p style={{ fontSize: 12, color: FAINT, margin: "0 0 10px", lineHeight: 1.6 }}>
-                        {d.hint}. {d.note}
+                        {t(d.hint, language)}. {t(d.note, language)}
                       </p>
                       <p style={{ fontSize: 11, color: "#6f8792", margin: "0 0 14px" }}>
-                        Основание: {d.source}
+                        {t(UI.basisLabel, language)}: {t(d.source, language)}
                       </p>
 
                       <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#cfdde3", cursor: "pointer" }}>
                         <input type="checkbox" checked={hasTu} onChange={(e) => setHasTu(e.target.checked)} />
-                        У меня есть технические условия или НДС — задать свои показатели
+                        {t(UI.hasTu, language)}
                       </label>
 
                       {hasTu && (
@@ -303,7 +300,7 @@ function IndustryContent() {
                                 value={tu[key] ?? (d.targets[key] !== undefined ? String(d.targets[key]) : "")}
                                 onChange={(e) => setTu({ ...tu, [key]: e.target.value })}
                                 inputMode="decimal"
-                                placeholder="по ТУ"
+                                placeholder={t(UI.tuPlaceholder, language)}
                                 style={{
                                   display: "block", marginTop: 6, width: "100%", padding: "9px 10px",
                                   borderRadius: 8, border: `1px solid ${LINE}`, background: "rgba(0,0,0,0.25)",
@@ -330,7 +327,7 @@ function IndustryContent() {
                 }}
               >
                 <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 14 }}>
-                  ЛАБОРАТОРНЫЙ АНАЛИЗ СТОКА
+                  {t(UI.labSection, language)}
                 </div>
 
                 <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
@@ -344,7 +341,7 @@ function IndustryContent() {
                       color: hasLab === true ? "#eaf6fa" : FAINT,
                     }}
                   >
-                    Есть анализ — введу цифры
+                    {t(UI.labYes, language)}
                   </button>
                   <button
                     type="button"
@@ -356,7 +353,7 @@ function IndustryContent() {
                       color: hasLab === false ? "#eaf6fa" : FAINT,
                     }}
                   >
-                    Анализа нет — по нормативу
+                    {t(UI.labNo, language)}
                   </button>
                 </div>
 
@@ -436,21 +433,19 @@ function IndustryContent() {
 
                     {!hasLab && (
                       <p style={{ fontSize: 12, color: FAINT, margin: "16px 0 0", lineHeight: 1.6 }}>
-                        Приняты середины справочных диапазонов ({industry.sources.join("; ")}).
-                        Расчёт будет помечен как предварительный — перед рабочим проектированием
-                        нужен анализ усреднённой суточной пробы.
+                        {t(UI.refMidNote, language)} ({industry.sources.map((x) => t(x, language)).join("; ")})
                       </p>
                     )}
 
                     {industry.special && industry.special.length > 0 && (
                       <div style={{ marginTop: 18 }}>
                         <div style={{ fontSize: 12, letterSpacing: "0.08em", color: "#ffb74d", marginBottom: 8 }}>
-                          ОСОБЫЕ ЗАГРЯЗНИТЕЛИ ОТРАСЛИ
+                          {t(UI.specialIndustryTitle, language)}
                         </div>
                         {industry.special.map((spec) => (
                           <div key={spec.label} style={{ fontSize: 13, color: "#dfe9ec", marginBottom: 8, lineHeight: 1.55 }}>
-                            <b>{spec.label}</b>: {spec.range[0]}–{spec.range[1]} {spec.unit}.{" "}
-                            <span style={{ color: FAINT }}>{spec.note}</span>
+                            <b>{t(spec.label, language)}</b>: {spec.range[0]}–{spec.range[1]} {t(spec.unit, language)}.{" "}
+                            <span style={{ color: FAINT }}>{t(spec.note, language)}</span>
                           </div>
                         ))}
                       </div>
@@ -472,7 +467,7 @@ function IndustryContent() {
               background: ACCENT, color: "#06232e", fontSize: 16, fontWeight: 700,
             }}
           >
-            Рассчитать очистные →
+            {t(UI.calcButton, language)} →
           </button>
         </form>
       </div>

@@ -14,6 +14,9 @@ import type { Language } from "../../../translations";
 
 export type L10n = Record<Language, string>;
 
+/** строка, которая может быть уже переведена или ещё нет (для поэтапного перевода) */
+export type Text = L10n | string;
+
 /** короткая запись многоязычной строки */
 export function L(ru: string, uz: string, en: string, zh: string): L10n {
   return { ru, uz, en, zh };
@@ -50,6 +53,19 @@ export function num(value: number, lang: Language, digits = 0): string {
 export const UI = {
   /* --- шаг выбора отрасли --- */
   stepIndustry: L("ШАГ 02 / ОТРАСЛЬ И СОСТАВ СТОКА", "02-BOSQICH / TARMOQ VA OQOVA TARKIBI", "STEP 02 / INDUSTRY AND WASTEWATER", "第 02 步 / 行业与水质"),
+  pageTitle: L("Что за производство?", "Qanday ishlab chiqarish?", "What kind of facility is it?", "属于什么生产？"),
+  pageLead: L(
+    "Для каждой отрасли у нас заложены характерные загрязнения и технологическая схема. Если у вас есть лабораторный анализ — введёте свои цифры, если нет — возьмём справочные значения по нормативам и отраслевым данным.",
+    "Har bir tarmoq uchun xos ifloslanishlar va texnologik sxema oldindan kiritilgan. Laboratoriya tahlili bo‘lsa — o‘z raqamlaringizni kiritasiz, bo‘lmasa — me’yor va tarmoq ma’lumotlari bo‘yicha qiymatlar olinadi.",
+    "For every industry we hold typical pollutant loads and a treatment train. If you have a laboratory analysis, enter your own figures; if not, reference values from standards and industry data are used.",
+    "每个行业均预置了典型污染物与工艺流程。有化验数据可直接填写；没有则采用规范与行业手册的参考值。"
+  ),
+  errNoIndustry: L("Выберите отрасль.", "Tarmoqni tanlang.", "Select an industry.", "请选择行业。"),
+  errNoLab: L("Укажите, есть ли лабораторный анализ стока.", "Oqova suv laboratoriya tahlili bor-yo‘qligini ko‘rsating.", "Indicate whether a laboratory analysis is available.", "请说明是否有化验数据。"),
+  errNoFlow: L("Укажите расход сточных вод, м³/сут.", "Oqova suv sarfini ko‘rsating, m³/kun.", "Enter the wastewater flow, m³/day.", "请填写废水流量，m³/日。"),
+  flowPlaceholder: L("например: 120", "masalan: 120", "for example: 120", "例如：120"),
+  tuPlaceholder: L("по ТУ", "TSh bo‘yicha", "per permit", "按技术条件"),
+  calcButton: L("Рассчитать очистные", "Tozalash inshootini hisoblash", "Calculate the treatment plant", "计算污水处理站"),
   chooseGroup: L("Выберите группу", "Guruhni tanlang", "Select a group", "选择行业组"),
   chooseIndustry: L("Выберите отрасль", "Tarmoqni tanlang", "Select an industry", "选择行业"),
   flowSection: L("РАСХОД СТОЧНЫХ ВОД", "OQOVA SUV SARFI", "WASTEWATER FLOW", "废水流量"),
@@ -63,6 +79,13 @@ export const UI = {
     "The discharge point defines how deep the treatment must go: whether polishing and disinfection are required, and which target values enter the calculation.",
     "排放去向决定处理深度：是否需要深度处理与消毒，以及计算采用的目标指标。"
   ),
+  refMidNote: L(
+    "Приняты середины справочных диапазонов. Расчёт будет помечен как предварительный — перед рабочим проектированием нужен анализ усреднённой суточной пробы.",
+    "Ma’lumotnoma diapazonlarining o‘rtasi qabul qilindi. Hisob dastlabki deb belgilanadi — ishchi loyihalashdan oldin o‘rtacha sutkalik namuna tahlili kerak.",
+    "Mid-range reference values are used. The calculation is marked preliminary — a composite 24-hour sample analysis is required before detailed design.",
+    "采用手册区间的中值。计算标记为初步结果——施工图设计前需做 24 小时混合样化验。"
+  ),
+  specialIndustryTitle: L("ОСОБЫЕ ЗАГРЯЗНИТЕЛИ ОТРАСЛИ", "TARMOQNING ALOHIDA IFLOSLANTIRUVCHILARI", "SPECIAL POLLUTANTS OF THIS INDUSTRY", "该行业的特殊污染物"),
   basisLabel: L("Основание", "Asos", "Basis", "依据"),
   hasTu: L("У меня есть технические условия или НДС — задать свои показатели", "Menda texnik shartlar yoki chiqindi me’yori bor — o‘z ko‘rsatkichlarimni kiritaman", "I have technical conditions or a discharge permit — enter my own limits", "我有排放技术条件或许可 — 自行填写指标"),
   labSection: L("ЛАБОРАТОРНЫЙ АНАЛИЗ СТОКА", "OQOVA SUV LABORATORIYA TAHLILI", "LABORATORY ANALYSIS", "废水化验数据"),

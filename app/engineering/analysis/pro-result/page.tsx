@@ -397,12 +397,17 @@ function ProResultContent() {
       Qls: calc.Qls,
       ph,
       conc: KEY_ORDER.filter((k) => c[k] !== undefined).map((k) => ({
-        label: POLLUTANT_LABELS[k].label,
+        label: t(POLLUTANT_LABELS[k].label, language),
         value: c[k]!,
-        unit: POLLUTANT_LABELS[k].unit,
+        unit: t(POLLUTANT_LABELS[k].unit, language),
         target: TARGET[k],
       })),
-      special: industry.special ?? [],
+      special: (industry.special ?? []).map((sp) => ({
+        label: t(sp.label, language),
+        range: sp.range,
+        unit: t(sp.unit, language),
+        note: t(sp.note, language),
+      })),
       stages: calc.stages.map((st, i) => ({
         index: i + 1,
         key: st.key,
@@ -443,8 +448,8 @@ function ProResultContent() {
         items: calc.power.items.map((i) => ({ name: i.name, qty: i.qty, unit: i.unit, installed: i.installed, hours: i.hours, daily: i.daily, basis: i.basis })),
         note: calc.power.note,
       },
-      notes: industry.notes,
-      sources: industry.sources,
+      notes: industry.notes.map((x) => t(x, language)),
+      sources: industry.sources.map((x) => t(x, language)),
     };
   }
 
@@ -558,7 +563,7 @@ function ProResultContent() {
         <p style={{ color: lab ? "#9ccc65" : "#ffb74d", fontSize: 13, margin: "0 0 26px" }}>
           {lab
             ? "Исходные концентрации — по лабораторному анализу заказчика."
-            : `Исходные концентрации — справочные (${industry.sources.join("; ")}). Расчёт предварительный, уточняется анализом усреднённой пробы.`}
+            : `Исходные концентрации — справочные (${industry.sources.map((x) => t(x, language)).join("; ")}). Расчёт предварительный, уточняется анализом усреднённой пробы.`}
         </p>
 
         {/* ИСХОДНЫЕ ДАННЫЕ */}
@@ -567,8 +572,8 @@ function ProResultContent() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
             {KEY_ORDER.filter((key) => c[key] !== undefined).map((key) => (
               <div key={key} style={{ fontSize: 13 }}>
-                <div style={{ color: FAINT, fontSize: 11 }}>{POLLUTANT_LABELS[key].label}</div>
-                <b>{fmt(c[key]!)}</b> → {TARGET[key] ?? "—"} {POLLUTANT_LABELS[key].unit}
+                <div style={{ color: FAINT, fontSize: 11 }}>{t(POLLUTANT_LABELS[key].label, language)}</div>
+                <b>{fmt(c[key]!)}</b> → {TARGET[key] ?? "—"} {t(POLLUTANT_LABELS[key].unit, language)}
               </div>
             ))}
             <div style={{ fontSize: 13 }}>
@@ -587,7 +592,7 @@ function ProResultContent() {
             <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 10 }}>ОСОБЫЕ ЗАГРЯЗНИТЕЛИ — ОТДЕЛЬНЫЕ РЕШЕНИЯ</div>
             {industry.special.map((spec) => (
               <p key={spec.label} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 8px" }}>
-                <b>{spec.label}</b> ({spec.range[0]}–{spec.range[1]} {spec.unit}): {spec.note}
+                <b>{t(spec.label, language)}</b> ({spec.range[0]}–{spec.range[1]} {t(spec.unit, language)}): {t(spec.note, language)}
               </p>
             ))}
           </div>
@@ -800,9 +805,9 @@ function ProResultContent() {
         <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, margin: "24px 0" }}>
           <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>ЧТО ВАЖНО ЗНАТЬ ПРО ЭТУ ОТРАСЛЬ</div>
           {industry.notes.map((note, i) => (
-            <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 10px" }}>• {note}</p>
+            <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 10px" }}>• {t(note, language)}</p>
           ))}
-          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>Источники: {industry.sources.join("; ")}. Методики расчёта: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858.</p>
+          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>Источники: {industry.sources.map((x) => t(x, language)).join("; ")}. Методики расчёта: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858.</p>
         </div>
 
         {/* ТЕХНИЧЕСКАЯ ЗАПИСКА */}

@@ -9,7 +9,7 @@
  * Каждый расчёт по справочным данным помечается как предварительный
  * и подлежит уточнению лабораторным анализом усреднённой пробы.
  * ================================================================== */
-import { L, type L10n } from "./i18n";
+import { L, type L10n, type Text } from "./i18n";
 
 
 export type PollutantKey =
@@ -22,15 +22,15 @@ export type PollutantKey =
   | "tp"       // фосфор общий, мг/л
   | "surf";    // СПАВ, мг/л
 
-export const POLLUTANT_LABELS: Record<PollutantKey, { label: string; unit: string }> = {
-  cod: { label: "ХПК", unit: "мгО/л" },
-  bod: { label: "БПК₅", unit: "мгО₂/л" },
-  ss: { label: "Взвешенные вещества", unit: "мг/л" },
-  fats: { label: "Жиры", unit: "мг/л" },
-  petro: { label: "Нефтепродукты", unit: "мг/л" },
-  tn: { label: "Азот общий", unit: "мг/л" },
-  tp: { label: "Фосфор общий", unit: "мг/л" },
-  surf: { label: "СПАВ", unit: "мг/л" },
+export const POLLUTANT_LABELS: Record<PollutantKey, { label: L10n; unit: L10n }> = {
+  cod: { label: L("ХПК", "KKT (kimyoviy kislorod talabi)", "COD", "化学需氧量 COD"), unit: L("мгО/л", "mgO/l", "mgO/L", "mgO/L") },
+  bod: { label: L("БПК₅", "BKT₅ (biologik kislorod talabi)", "BOD₅", "五日生化需氧量 BOD₅"), unit: L("мгО₂/л", "mgO₂/l", "mgO₂/L", "mgO₂/L") },
+  ss: { label: L("Взвешенные вещества", "Muallaq moddalar", "Suspended solids", "悬浮物 SS"), unit: L("мг/л", "mg/l", "mg/L", "mg/L") },
+  fats: { label: L("Жиры", "Yog‘lar", "Fats, oils and grease", "油脂"), unit: L("мг/л", "mg/l", "mg/L", "mg/L") },
+  petro: { label: L("Нефтепродукты", "Neft mahsulotlari", "Petroleum hydrocarbons", "石油类"), unit: L("мг/л", "mg/l", "mg/L", "mg/L") },
+  tn: { label: L("Азот общий", "Umumiy azot", "Total nitrogen", "总氮 TN"), unit: L("мг/л", "mg/l", "mg/L", "mg/L") },
+  tp: { label: L("Фосфор общий", "Umumiy fosfor", "Total phosphorus", "总磷 TP"), unit: L("мг/л", "mg/l", "mg/L", "mg/L") },
+  surf: { label: L("СПАВ", "Yuza faol moddalar (SPAV)", "Surfactants", "表面活性剂"), unit: L("мг/л", "mg/l", "mg/L", "mg/L") },
 };
 
 /** Стадия технологической цепочки */
@@ -183,10 +183,10 @@ export const STAGE_INFO: Record<StageKey, { title: L10n; what: L10n; makes: "own
 };
 
 export type SpecialPollutant = {
-  label: string;
+  label: Text;
   range: [number, number];
-  unit: string;
-  note: string;
+  unit: Text;
+  note: Text;
 };
 
 export type Industry = {
@@ -194,7 +194,7 @@ export type Industry = {
   group: string;
   name: L10n;
   /** характерный удельный сток для подсказки, м³ на единицу */
-  flowHint: string;
+  flowHint: L10n;
   /** диапазоны загрязнений производственного стока */
   pollutants: Partial<Record<PollutantKey, [number, number]>>;
   ph: [number, number];
@@ -202,9 +202,9 @@ export type Industry = {
   /** технологическая цепочка по порядку */
   chain: StageKey[];
   /** профессиональные особенности отрасли — идут в записку */
-  notes: string[];
+  notes: Text[];
   /** источники диапазонов */
-  sources: string[];
+  sources: Text[];
 };
 
 export type IndustryGroup = {
@@ -230,7 +230,7 @@ export const INDUSTRIES: Industry[] = [
     id: "dairy",
     group: "food",
     name: L("Молокозавод / молочный цех", "Sut zavodi / sut sexi", "Dairy plant / milk processing", "乳品厂 / 牛奶车间"),
-    flowHint: "1–3 м³ на 1 т переработанного молока",
+    flowHint: L("1–3 м³ на 1 т переработанного молока", "1 t qayta ishlangan sutga 1–3 m³", "1–3 m³ per tonne of processed milk", "每吨加工牛奶 1–3 m³"),
     pollutants: { cod: [2000, 6000], bod: [1200, 4000], ss: [350, 1000], fats: [200, 800], tn: [50, 120], tp: [15, 50], surf: [5, 30] },
     ph: [5.5, 9.5],
     chain: ["screen", "avg", "grease", "daf", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -245,7 +245,7 @@ export const INDUSTRIES: Industry[] = [
     id: "meat",
     group: "food",
     name: L("Мясокомбинат / убойный цех", "Go‘sht kombinati / so‘yish sexi", "Meat plant / slaughterhouse", "肉类联合厂 / 屠宰车间"),
-    flowHint: "5–15 м³ на 1 т живого веса",
+    flowHint: L("5–15 м³ на 1 т живого веса", "1 t tirik vaznga 5–15 m³", "5–15 m³ per tonne of live weight", "每吨活重 5–15 m³"),
     pollutants: { cod: [3000, 8000], bod: [1500, 4500], ss: [800, 3000], fats: [300, 1200], tn: [120, 300], tp: [20, 60] },
     ph: [6.0, 8.5],
     special: [{ label: "Кровь (по ХПК)", range: [150000, 200000], unit: "мгО/л", note: "Кровь собирается отдельно: 1 м³ крови по нагрузке = ~500 м³ стока." }],
@@ -261,7 +261,7 @@ export const INDUSTRIES: Industry[] = [
     id: "poultry",
     group: "food",
     name: L("Птицефабрика / убой птицы", "Parrandachilik fabrikasi / parranda so‘yish", "Poultry plant / poultry slaughter", "家禽厂 / 禽类屠宰"),
-    flowHint: "8–12 л на 1 голову",
+    flowHint: L("8–12 л на 1 голову", "1 bosh uchun 8–12 l", "8–12 L per bird", "每只 8–12 L"),
     pollutants: { cod: [2500, 7000], bod: [1200, 3500], ss: [600, 2000], fats: [200, 800], tn: [100, 250], tp: [15, 40] },
     ph: [6.0, 8.0],
     chain: ["screen", "avg", "grease", "daf", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -275,7 +275,7 @@ export const INDUSTRIES: Industry[] = [
     id: "confectionery",
     group: "food",
     name: L("Кондитерская фабрика / хлебозавод", "Qandolat fabrikasi / non zavodi", "Confectionery / bakery plant", "糖果厂 / 面包厂"),
-    flowHint: "2–5 м³ на 1 т продукции",
+    flowHint: L("2–5 м³ на 1 т продукции", "1 t mahsulotga 2–5 m³", "2–5 m³ per tonne of product", "每吨产品 2–5 m³"),
     pollutants: { cod: [1500, 4000], bod: [800, 2500], ss: [300, 800], fats: [100, 400], tn: [20, 60], tp: [5, 20], surf: [5, 20] },
     ph: [5.5, 8.5],
     chain: ["screen", "avg", "grease", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -289,7 +289,7 @@ export const INDUSTRIES: Industry[] = [
     id: "beverages",
     group: "food",
     name: L("Напитки / соки / розлив", "Ichimliklar / sharbatlar / quyish", "Beverages / juices / bottling", "饮料 / 果汁 / 灌装"),
-    flowHint: "1,5–4 м³ на 1000 л продукции",
+    flowHint: L("1,5–4 м³ на 1000 л продукции", "1000 l mahsulotga 1,5–4 m³", "1.5–4 m³ per 1000 L of product", "每千升产品 1.5–4 m³"),
     pollutants: { cod: [1000, 4000], bod: [600, 2500], ss: [100, 400], tn: [10, 40], tp: [5, 15], surf: [10, 40] },
     ph: [4.5, 10.0],
     chain: ["screen", "avg", "neutral", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -303,7 +303,7 @@ export const INDUSTRIES: Industry[] = [
     id: "brewery",
     group: "food",
     name: L("Пивзавод / солодовня", "Pivo zavodi / solod ishlab chiqarish", "Brewery / malting plant", "啤酒厂 / 麦芽厂"),
-    flowHint: "4–8 м³ на 1000 л пива",
+    flowHint: L("4–8 м³ на 1000 л пива", "1000 l pivoga 4–8 m³", "4–8 m³ per 1000 L of beer", "每千升啤酒 4–8 m³"),
     pollutants: { cod: [2000, 6000], bod: [1200, 3500], ss: [300, 1000], tn: [30, 80], tp: [10, 30] },
     ph: [4.5, 11.0],
     chain: ["screen", "avg", "neutral", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -317,7 +317,7 @@ export const INDUSTRIES: Industry[] = [
     id: "cannery",
     group: "food",
     name: L("Консервный / плодоовощной завод", "Konserva / meva-sabzavot zavodi", "Cannery / fruit and vegetable plant", "罐头厂 / 果蔬加工厂"),
-    flowHint: "3–8 м³ на 1 т сырья",
+    flowHint: L("3–8 м³ на 1 т сырья", "1 t xom ashyoga 3–8 m³", "3–8 m³ per tonne of raw material", "每吨原料 3–8 m³"),
     pollutants: { cod: [1500, 5000], bod: [800, 3000], ss: [500, 2500], fats: [50, 200], tn: [20, 60], tp: [5, 20] },
     ph: [5.0, 9.0],
     chain: ["screen", "sand", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -331,7 +331,7 @@ export const INDUSTRIES: Industry[] = [
     id: "oilfat",
     group: "food",
     name: L("Масложировой комбинат", "Yog‘-moy kombinati", "Oils and fats plant", "油脂厂"),
-    flowHint: "1–3 м³ на 1 т продукции",
+    flowHint: L("1–3 м³ на 1 т продукции", "1 t mahsulotga 1–3 m³", "1–3 m³ per tonne of product", "每吨产品 1–3 m³"),
     pollutants: { cod: [3000, 10000], bod: [1500, 5000], ss: [400, 1500], fats: [500, 3000], surf: [10, 50] },
     ph: [6.0, 10.0],
     chain: ["screen", "avg", "grease", "daf", "neutral", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -345,7 +345,7 @@ export const INDUSTRIES: Industry[] = [
     id: "fish",
     group: "food",
     name: L("Рыбопереработка", "Baliqni qayta ishlash", "Fish processing", "水产加工"),
-    flowHint: "5–12 м³ на 1 т сырья",
+    flowHint: L("5–12 м³ на 1 т сырья", "1 t xom ashyoga 5–12 m³", "5–12 m³ per tonne of raw material", "每吨原料 5–12 m³"),
     pollutants: { cod: [2500, 8000], bod: [1200, 4000], ss: [500, 2000], fats: [300, 1500], tn: [80, 250], tp: [15, 50] },
     ph: [6.0, 8.5],
     chain: ["screen", "avg", "grease", "daf", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -360,7 +360,7 @@ export const INDUSTRIES: Industry[] = [
     id: "textile-dye",
     group: "textile",
     name: L("Текстильный комбинат / крашение", "To‘qimachilik kombinati / bo‘yash", "Textile mill / dyeing and finishing", "纺织厂 / 染整"),
-    flowHint: "60–150 м³ на 1 т ткани",
+    flowHint: L("60–150 м³ на 1 т ткани", "1 t matoga 60–150 m³", "60–150 m³ per tonne of fabric", "每吨织物 60–150 m³"),
     pollutants: { cod: [800, 2500], bod: [200, 800], ss: [100, 500], surf: [20, 100], tn: [15, 50], tp: [3, 15] },
     ph: [8.0, 12.0],
     special: [
@@ -379,7 +379,7 @@ export const INDUSTRIES: Industry[] = [
     id: "knitwear",
     group: "textile",
     name: L("Трикотаж / отделочная фабрика", "Trikotaj / pardozlash fabrikasi", "Knitwear / finishing mill", "针织 / 后整理厂"),
-    flowHint: "40–100 м³ на 1 т изделий",
+    flowHint: L("40–100 м³ на 1 т изделий", "1 t mahsulotga 40–100 m³", "40–100 m³ per tonne of goods", "每吨产品 40–100 m³"),
     pollutants: { cod: [600, 1800], bod: [200, 700], ss: [80, 300], surf: [30, 150], tn: [10, 40], tp: [3, 12] },
     ph: [7.5, 11.0],
     special: [{ label: "Цветность", range: [200, 2000], unit: "град. ПКШ", note: "Коагуляция обесцвечивает; доза подбирается пробным коагулированием." }],
@@ -393,7 +393,7 @@ export const INDUSTRIES: Industry[] = [
     id: "wool",
     group: "textile",
     name: L("Шерстомойка / ПОШ", "Jun yuvish korxonasi", "Wool scouring plant", "洗毛厂"),
-    flowHint: "20–50 м³ на 1 т шерсти",
+    flowHint: L("20–50 м³ на 1 т шерсти", "1 t junga 20–50 m³", "20–50 m³ per tonne of wool", "每吨羊毛 20–50 m³"),
     pollutants: { cod: [5000, 20000], bod: [2000, 8000], ss: [3000, 15000], fats: [1500, 8000], surf: [50, 300] },
     ph: [7.0, 10.0],
     chain: ["screen", "sand", "avg", "grease", "daf", "physchem", "bio", "clarify", "post", "sludge"],
@@ -407,7 +407,7 @@ export const INDUSTRIES: Industry[] = [
     id: "leather",
     group: "textile",
     name: L("Кожевенный завод", "Charm zavodi", "Tannery", "制革厂"),
-    flowHint: "30–60 м³ на 1 т сырья",
+    flowHint: L("30–60 м³ на 1 т сырья", "1 t xom ashyoga 30–60 m³", "30–60 m³ per tonne of hides", "每吨原料 30–60 m³"),
     pollutants: { cod: [3000, 8000], bod: [1000, 3000], ss: [1500, 6000], fats: [200, 800], tn: [200, 500], surf: [20, 80] },
     ph: [7.0, 12.0],
     special: [
@@ -427,7 +427,7 @@ export const INDUSTRIES: Industry[] = [
     id: "shoe",
     group: "textile",
     name: L("Обувная фабрика", "Poyabzal fabrikasi", "Footwear factory", "制鞋厂"),
-    flowHint: "0,5–2 м³ на 1000 пар",
+    flowHint: L("0,5–2 м³ на 1000 пар", "1000 juftga 0,5–2 m³", "0.5–2 m³ per 1000 pairs", "每千双 0.5–2 m³"),
     pollutants: { cod: [400, 1200], bod: [150, 500], ss: [100, 400], petro: [5, 30], surf: [10, 50] },
     ph: [6.5, 9.0],
     chain: ["screen", "avg", "physchem", "bio", "clarify", "disinfect", "sludge"],
@@ -441,7 +441,7 @@ export const INDUSTRIES: Industry[] = [
     id: "settlement",
     group: "municipal",
     name: L("Посёлок / жилой комплекс", "Posyolka / turar-joy majmuasi", "Settlement / residential complex", "居民点 / 住宅小区"),
-    flowHint: "200 л на жителя в сутки (КМК 2.04.03-97)",
+    flowHint: L("200 л на жителя в сутки (КМК 2.04.03-97)", "kuniga bir aholiga 200 l (QMQ 2.04.03-97)", "200 L per capita per day (KMK 2.04.03-97)", "每人每日 200 L（KMK 2.04.03-97）"),
     pollutants: { cod: [400, 700], bod: [200, 350], ss: [200, 350], fats: [30, 80], tn: [40, 70], tp: [8, 15], surf: [5, 15] },
     ph: [6.5, 8.5],
     chain: ["screen", "sand", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -455,7 +455,7 @@ export const INDUSTRIES: Industry[] = [
     id: "hotel",
     group: "municipal",
     name: L("Гостиница / санаторий / зона отдыха", "Mehmonxona / sanatoriy / dam olish maskani", "Hotel / sanatorium / resort", "酒店 / 疗养院 / 度假区"),
-    flowHint: "250–300 л на место в сутки",
+    flowHint: L("250–300 л на место в сутки", "kuniga bir o‘ringa 250–300 l", "250–300 L per bed per day", "每床位每日 250–300 L"),
     pollutants: { cod: [500, 900], bod: [250, 450], ss: [250, 450], fats: [50, 150], tn: [45, 80], tp: [10, 18], surf: [10, 30] },
     ph: [6.5, 8.5],
     chain: ["screen", "grease", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -470,7 +470,7 @@ export const INDUSTRIES: Industry[] = [
     id: "hospital",
     group: "municipal",
     name: L("Больница / клиника", "Kasalxona / klinika", "Hospital / clinic", "医院 / 诊所"),
-    flowHint: "250–400 л на койку в сутки",
+    flowHint: L("250–400 л на койку в сутки", "kuniga bir karavotga 250–400 l", "250–400 L per hospital bed per day", "每病床每日 250–400 L"),
     pollutants: { cod: [450, 800], bod: [220, 400], ss: [200, 400], fats: [40, 120], tn: [40, 80], tp: [8, 16], surf: [10, 40] },
     ph: [6.5, 8.5],
     chain: ["screen", "grease", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -485,7 +485,7 @@ export const INDUSTRIES: Industry[] = [
     id: "school",
     group: "municipal",
     name: L("Школа / детский сад", "Maktab / bolalar bog‘chasi", "School / kindergarten", "学校 / 幼儿园"),
-    flowHint: "20–80 л на человека в сутки",
+    flowHint: L("20–80 л на человека в сутки", "kuniga bir kishiga 20–80 l", "20–80 L per person per day", "每人每日 20–80 L"),
     pollutants: { cod: [350, 600], bod: [180, 300], ss: [180, 300], fats: [30, 100], tn: [30, 60], tp: [6, 12] },
     ph: [6.5, 8.5],
     chain: ["screen", "grease", "avg", "bio", "clarify", "disinfect", "sludge"],
@@ -499,7 +499,7 @@ export const INDUSTRIES: Industry[] = [
     id: "restaurant",
     group: "municipal",
     name: L("Ресторан / кафе / столовая", "Restoran / kafe / oshxona", "Restaurant / cafe / canteen", "餐厅 / 咖啡厅 / 食堂"),
-    flowHint: "15–25 л на блюдо",
+    flowHint: L("15–25 л на блюдо", "bir taomga 15–25 l", "15–25 L per meal served", "每份餐 15–25 L"),
     pollutants: { cod: [800, 2500], bod: [400, 1200], ss: [300, 900], fats: [150, 600], surf: [20, 60] },
     ph: [5.5, 8.5],
     chain: ["grease", "avg", "bio", "clarify", "disinfect", "sludge"],
@@ -513,7 +513,7 @@ export const INDUSTRIES: Industry[] = [
     id: "mall",
     group: "municipal",
     name: L("Торговый центр / рынок", "Savdo markazi / bozor", "Shopping centre / market", "购物中心 / 市场"),
-    flowHint: "4–10 л на м² торговой площади",
+    flowHint: L("4–10 л на м² торговой площади", "1 m² savdo maydoniga 4–10 l", "4–10 L per m² of retail area", "每 m² 营业面积 4–10 L"),
     pollutants: { cod: [400, 900], bod: [200, 450], ss: [200, 500], fats: [50, 200], petro: [3, 15], surf: [10, 40] },
     ph: [6.5, 8.5],
     chain: ["screen", "grease", "sand", "avg", "bio", "clarify", "disinfect", "sludge"],
@@ -526,7 +526,7 @@ export const INDUSTRIES: Industry[] = [
     id: "carwash",
     group: "municipal",
     name: L("Автомойка", "Avtomobil yuvish shoxobchasi", "Car wash", "洗车场"),
-    flowHint: "150–300 л на автомобиль",
+    flowHint: L("150–300 л на автомобиль", "bir avtomobilga 150–300 l", "150–300 L per vehicle", "每车 150–300 L"),
     pollutants: { cod: [300, 1000], bod: [80, 250], ss: [500, 2500], petro: [30, 300], surf: [20, 100] },
     ph: [6.5, 9.0],
     chain: ["sand", "oil", "post", "disinfect"],
@@ -540,7 +540,7 @@ export const INDUSTRIES: Industry[] = [
     id: "gasstation",
     group: "municipal",
     name: L("АЗС / СТО / паркинг", "Yoqilg‘i quyish shoxobchasi / avtoservis / avtoturargoh", "Filling station / service station / car park", "加油站 / 汽修 / 停车场"),
-    flowHint: "по площади ливнестока, 20 л/с с 1 га при q₂₀",
+    flowHint: L("по площади ливнестока, 20 л/с с 1 га при q₂₀", "yomg‘ir oqimi maydoni bo‘yicha, q₂₀ da 1 gektardan 20 l/s", "by catchment area, 20 L/s per hectare at q₂₀", "按汇水面积计，q₂₀ 时每公顷 20 L/s"),
     pollutants: { ss: [300, 1500], petro: [50, 500] },
     ph: [6.5, 8.5],
     chain: ["sand", "oil", "post"],
@@ -554,7 +554,7 @@ export const INDUSTRIES: Industry[] = [
     id: "laundry",
     group: "municipal",
     name: L("Прачечная / химчистка", "Kir yuvish korxonasi / kimyoviy tozalash", "Laundry / dry cleaning", "洗衣房 / 干洗"),
-    flowHint: "15–25 л на 1 кг белья",
+    flowHint: L("15–25 л на 1 кг белья", "1 kg kirga 15–25 l", "15–25 L per kg of laundry", "每公斤衣物 15–25 L"),
     pollutants: { cod: [600, 1500], bod: [250, 600], ss: [100, 400], surf: [50, 250], tp: [10, 30] },
     ph: [8.0, 11.0],
     chain: ["screen", "avg", "neutral", "physchem", "bio", "clarify", "disinfect", "sludge"],
@@ -569,7 +569,7 @@ export const INDUSTRIES: Industry[] = [
     id: "galvanic",
     group: "heavy",
     name: L("Гальваника / металлопокрытия", "Galvanika / metall qoplamalar", "Electroplating / metal finishing", "电镀 / 金属表面处理"),
-    flowHint: "0,2–2 м³ на 1 м² покрытия",
+    flowHint: L("0,2–2 м³ на 1 м² покрытия", "1 m² qoplamaga 0,2–2 m³", "0.2–2 m³ per m² of plated surface", "每 m² 镀层 0.2–2 m³"),
     pollutants: { cod: [100, 400], ss: [50, 300], petro: [5, 30], surf: [5, 30] },
     ph: [2.0, 12.0],
     special: [
@@ -589,7 +589,7 @@ export const INDUSTRIES: Industry[] = [
     id: "machinery",
     group: "heavy",
     name: L("Машиностроение / металлообработка", "Mashinasozlik / metallga ishlov berish", "Machine building / metalworking", "机械制造 / 金属加工"),
-    flowHint: "по паспортам участков; мойка деталей 0,5–3 м³/ч на линию",
+    flowHint: L("по паспортам участков; мойка деталей 0,5–3 м³/ч на линию", "uchastka pasportlari bo‘yicha; detallarni yuvish liniyaga 0,5–3 m³/soat", "per equipment data sheets; parts washing 0.5–3 m³/h per line", "按工段设备资料；零件清洗每线 0.5–3 m³/h"),
     pollutants: { cod: [300, 1500], bod: [100, 400], ss: [200, 800], petro: [50, 500], surf: [20, 100] },
     ph: [6.0, 10.0],
     special: [{ label: "Отработанные СОЖ (по ХПК)", range: [30000, 100000], unit: "мгО/л", note: "Эмульсии СОЖ не сбрасываются в общий сток: локальное разложение (реагентное/ультрафильтрация) отдельной установкой." }],
@@ -604,7 +604,7 @@ export const INDUSTRIES: Industry[] = [
     id: "concrete",
     group: "heavy",
     name: L("Бетонный узел / цемент / ЖБИ", "Beton uzeli / sement / temir-beton", "Concrete plant / cement / precast", "混凝土搅拌站 / 水泥 / 预制构件"),
-    flowHint: "0,3–1 м³ на 1 м³ бетона (мойка миксеров)",
+    flowHint: L("0,3–1 м³ на 1 м³ бетона (мойка миксеров)", "1 m³ betonga 0,3–1 m³ (mikserlarni yuvish)", "0.3–1 m³ per m³ of concrete (mixer washing)", "每 m³ 混凝土 0.3–1 m³（洗罐车）"),
     pollutants: { ss: [2000, 15000], petro: [5, 50] },
     ph: [11.0, 13.0],
     chain: ["sand", "avg", "neutral", "clarify", "post"],
@@ -618,7 +618,7 @@ export const INDUSTRIES: Industry[] = [
     id: "chemical",
     group: "heavy",
     name: L("Химия / бытовая химия / косметика", "Kimyo / maishiy kimyo / kosmetika", "Chemicals / household chemistry / cosmetics", "化工 / 日化 / 化妆品"),
-    flowHint: "1–5 м³ на 1 т продукции",
+    flowHint: L("1–5 м³ на 1 т продукции", "1 t mahsulotga 1–5 m³", "1–5 m³ per tonne of product", "每吨产品 1–5 m³"),
     pollutants: { cod: [1000, 5000], bod: [300, 1500], ss: [100, 500], surf: [100, 500], tp: [20, 80] },
     ph: [4.0, 11.0],
     chain: ["avg", "neutral", "physchem", "daf", "bio", "clarify", "post", "disinfect", "sludge"],
@@ -632,7 +632,7 @@ export const INDUSTRIES: Industry[] = [
     id: "mining",
     group: "heavy",
     name: L("Горнодобыча / обогащение / карьер", "Kon qazish / boyitish / karer", "Mining / ore dressing / quarry", "采矿 / 选矿 / 采石场"),
-    flowHint: "карьерный водоотлив — по гидрогеологии",
+    flowHint: L("карьерный водоотлив — по гидрогеологии", "karyer suv chiqarish — gidrogeologiya bo‘yicha", "quarry dewatering — per hydrogeology", "采坑排水——按水文地质确定"),
     pollutants: { ss: [500, 10000], petro: [5, 50] },
     ph: [3.0, 9.0],
     special: [{ label: "Тяжёлые металлы (Fe, Mn, Cu, Zn)", range: [5, 200], unit: "мг/л", note: "Состав зависит от месторождения; кислые воды — известкование до pH 9–10 с осаждением гидроксидов." }],
@@ -647,7 +647,7 @@ export const INDUSTRIES: Industry[] = [
     id: "glass",
     group: "heavy",
     name: L("Стекло / керамика / камнеобработка", "Shisha / keramika / toshga ishlov berish", "Glass / ceramics / stone processing", "玻璃 / 陶瓷 / 石材加工"),
-    flowHint: "0,5–3 м³/ч на станок резки/шлифовки",
+    flowHint: L("0,5–3 м³/ч на станок резки/шлифовки", "kesish/silliqlash dastgohiga 0,5–3 m³/soat", "0.5–3 m³/h per cutting or grinding machine", "每台切割/研磨设备 0.5–3 m³/h"),
     pollutants: { ss: [1000, 8000], petro: [5, 30] },
     ph: [6.5, 9.5],
     chain: ["avg", "physchem", "clarify", "post"],
@@ -660,7 +660,7 @@ export const INDUSTRIES: Industry[] = [
     id: "woodwork",
     group: "heavy",
     name: L("Деревообработка / мебель", "Yog‘ochga ishlov berish / mebel", "Woodworking / furniture", "木材加工 / 家具"),
-    flowHint: "0,5–2 м³/смену на покрасочную камеру",
+    flowHint: L("0,5–2 м³/смену на покрасочную камеру", "bo‘yash kamerasiga smenasiga 0,5–2 m³", "0.5–2 m³ per shift per paint booth", "每喷漆室每班 0.5–2 m³"),
     pollutants: { cod: [500, 2500], bod: [150, 800], ss: [200, 1000], petro: [10, 80], surf: [10, 50] },
     ph: [6.0, 9.0],
     chain: ["avg", "physchem", "bio", "clarify", "post", "sludge"],
@@ -673,7 +673,7 @@ export const INDUSTRIES: Industry[] = [
     id: "printing",
     group: "heavy",
     name: L("Типография / упаковка", "Bosmaxona / qadoqlash", "Printing house / packaging", "印刷 / 包装"),
-    flowHint: "0,5–3 м³/смену",
+    flowHint: L("0,5–3 м³/смену", "smenasiga 0,5–3 m³", "0.5–3 m³ per shift", "每班 0.5–3 m³"),
     pollutants: { cod: [800, 3000], bod: [200, 800], ss: [100, 500], petro: [10, 60], surf: [20, 80] },
     ph: [6.0, 10.0],
     chain: ["avg", "physchem", "bio", "clarify", "post", "sludge"],
