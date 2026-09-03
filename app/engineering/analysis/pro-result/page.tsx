@@ -1,16 +1,21 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { MODELS, type Model } from "../../../products/data";
 import {
+  INDUSTRY_GROUPS,
   POLLUTANT_LABELS,
   STAGE_INFO,
   findIndustry,
   type PollutantKey,
   type StageKey,
 } from "../industry/industries";
+import { downloadDxf } from "./dxf";
+import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
+import { buildTemplateNote, type NoteInput } from "./note-template";
+import NoteView from "./NoteView";
 
 /* ==================================================================
  * ПРОИЗВОДСТВЕННЫЙ РАСЧЁТ: ЦЕПОЧКА ОЧИСТКИ И ПОДБОР ОБОРУДОВАНИЯ
@@ -210,6 +215,108 @@ function ProResultContent() {
     return { Qh, Qls, bodLoad, stages };
   }, [industry, Q, hours, ph, c]);
 
+  function schemeInput(): SchemeInput | null {
+    if (!industry || !calc) return null;
+    return { industry, object, lab, Q, hours, Qh: calc.Qh, ph, conc: c, target: TARGET, stages: calc.stages };
+  }
+
+  const [note, setNote] = useState<{ text: string; source: "ai" | "template"; reason?: string } | null>(null);
+  const [noteBusy, setNoteBusy] = useState(false);
+
+  function modelParams(m: Model): string {
+    const parts: string[] = [];
+    if (m.diameter) parts.push(`⌀${m.diameter}×${m.length} мм`);
+    else parts.push(`${m.length}×${m.width ?? "—"}×${m.height ?? "—"} мм`);
+    if (m.vol) parts.push(`${m.vol} ${m.line === "dosing" ? "л" : "м³"}`);
+    else if (m.volumeGross) parts.push(`V ${m.volumeGross} м³`);
+    if (m.q) parts.push(`${m.q} м³/ч`);
+    if (m.ns) parts.push(`NS ${m.ns} л/с`);
+    if (m.qd) parts.push(`${m.qd} м³/сут`);
+    if (m.cl) parts.push(`${m.cl} г/ч Cl`);
+    parts.push(`DN${m.dn}`);
+    return parts.join(", ");
+  }
+
+  function noteInput(): NoteInput | null {
+    if (!industry || !calc) return null;
+    return {
+      industry: industry.name,
+      group: INDUSTRY_GROUPS.find((g) => g.id === industry.group)?.name ?? industry.group,
+      object,
+      lab,
+      Q,
+      hours,
+      Qh: calc.Qh,
+      Qls: calc.Qls,
+      ph,
+      conc: KEY_ORDER.filter((k) => c[k] !== undefined).map((k) => ({
+        label: POLLUTANT_LABELS[k].label,
+        value: c[k]!,
+        unit: POLLUTANT_LABELS[k].unit,
+        target: TARGET[k],
+      })),
+      special: industry.special ?? [],
+      stages: calc.stages.map((st, i) => ({
+        index: i + 1,
+        key: st.key,
+        title: STAGE_INFO[st.key].title,
+        what: STAGE_INFO[st.key].what,
+        makes: STAGE_INFO[st.key].makes,
+        sizing: st.sizing,
+        extra: st.extra,
+        picks: st.picks.map((p) => ({ count: p.count, code: p.model.code, line: p.model.line, note: p.note, params: modelParams(p.model) })),
+      })),
+      notes: industry.notes,
+      sources: industry.sources,
+    };
+  }
+
+  async function makeNote() {
+    const input = noteInput();
+    if (!input || noteBusy) return;
+    setNoteBusy(true);
+    try {
+      const res = await fetch("/api/engineering-note", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = await res.json();
+      if (data?.ok && typeof data.text === "string") setNote({ text: data.text, source: data.source, reason: data.reason });
+      else setNote({ text: buildTemplateNote(input), source: "template", reason: "server error" });
+    } catch {
+      setNote({ text: buildTemplateNote(input), source: "template", reason: "network" });
+    } finally {
+      setNoteBusy(false);
+      setTimeout(() => document.getElementById("techNote")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  }
+
+  function downloadNote() {
+    if (!note || !industry) return;
+    const blob = new Blob(["\ufeff" + note.text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `SUVSANOAT_zapiska_${industry.id}_${Math.round(Q)}m3.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function dxfScheme() {
+    const input = schemeInput();
+    if (!input) return;
+    downloadDxf(buildSchemeDxf(input), `SUVSANOAT_shema_${input.industry.id}_${Math.round(Q)}m3.dxf`);
+  }
+
+  function dxfModels() {
+    const input = schemeInput();
+    if (!input) return;
+    downloadDxf(buildModelsDxf(input), `SUVSANOAT_gabarity_${input.industry.id}_${Math.round(Q)}m3.dxf`);
+  }
+
   if (!industry || !calc) {
     return (
       <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: 60 }}>
@@ -226,6 +333,9 @@ function ProResultContent() {
           .proResult * { color: #111 !important; border-color: #999 !important; background: transparent !important; }
           .noPrint { display: none !important; }
           .stageCard { break-inside: avoid; }
+          #techNote { break-inside: auto; }
+          #techNote h3 { break-after: avoid; }
+          #techNote table, #techNote th, #techNote td { border-color: #999 !important; }
           a { text-decoration: none; }
         }
       `}</style>
@@ -325,11 +435,51 @@ function ProResultContent() {
           <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>Источники: {industry.sources.join("; ")}. Методики расчёта: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858.</p>
         </div>
 
+        {/* ТЕХНИЧЕСКАЯ ЗАПИСКА */}
+        {note && (
+          <div id="techNote" className="stageCard"
+            style={{ border: `1px solid ${note.source === "ai" ? "#9ccc65" : LINE}`, background: PANEL, borderRadius: 12, padding: "22px 24px", margin: "0 0 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 12, letterSpacing: "0.1em", color: note.source === "ai" ? "#9ccc65" : ACCENT }}>
+                ТЕХНИЧЕСКАЯ ЗАПИСКА · {note.source === "ai" ? "СОСТАВЛЕНА ИИ ПО РАСЧЁТУ SUVSANOAT" : "ШАБЛОН ПО РАСЧЁТУ SUVSANOAT"}
+              </div>
+              <div className="noPrint" style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={downloadNote}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "#eaf6fa", fontSize: 12, cursor: "pointer" }}>
+                  Скачать .md
+                </button>
+                <button type="button" onClick={() => window.print()}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "#eaf6fa", fontSize: 12, cursor: "pointer" }}>
+                  PDF (расчёт + записка)
+                </button>
+              </div>
+            </div>
+            {note.source === "template" && (
+              <p className="noPrint" style={{ fontSize: 12, color: "#ffb74d", margin: "0 0 12px" }}>
+                ИИ сейчас недоступен{note.reason ? ` (${note.reason})` : ""} — записка собрана по шаблону из тех же расчётных данных.
+              </p>
+            )}
+            <NoteView markdown={note.text} />
+          </div>
+        )}
+
         {/* ДЕЙСТВИЯ */}
         <div className="noPrint" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
+          <button type="button" onClick={makeNote} disabled={noteBusy}
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: noteBusy ? "wait" : "pointer", background: noteBusy ? "#2a6d80" : "#9ccc65", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            {noteBusy ? "Пишу записку… 20–40 с" : note ? "Составить записку заново" : "Техническая записка с обоснованиями (ИИ)"}
+          </button>
           <button type="button" onClick={() => window.print()}
             style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: "pointer", background: ACCENT, color: "#06232e", fontSize: 15, fontWeight: 700 }}>
             Сохранить в PDF
+          </button>
+          <button type="button" onClick={dxfScheme}
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            Скачать DXF: схема очистки
+          </button>
+          <button type="button" onClick={dxfModels}
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            Скачать DXF: габариты оборудования
           </button>
           <a href="/designers"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
@@ -345,6 +495,11 @@ function ProResultContent() {
           Документ сформирован автоматически по исходным данным {lab ? "заказчика" : "справочника отраслей"} и
           является предварительным инженерным решением SUVSANOAT. Не заменяет проектную документацию.
           Габаритные чертежи каждой модели — на её странице в разделе «Ассортимент».
+        </p>
+        <p className="noPrint" style={{ fontSize: 11, color: FAINT, marginTop: 8, lineHeight: 1.6 }}>
+          DXF (формат R12) открывается в AutoCAD, NanoCAD, ZWCAD, BricsCAD — «Сохранить как» → DWG. Схема — лист А3,
+          габариты — в миллиметрах 1:1. Кодировка текста CP1251: если кириллица не читается, в настройках CAD укажите
+          кодовую страницу ANSI_1251.
         </p>
       </div>
     </main>
