@@ -3,10 +3,13 @@
 import { type CSSProperties, useEffect, useState } from "react";
 
 /* ==================================================================
- * СТРОКА УЧЁТНОЙ ЗАПИСИ В ШАПКЕ РАЗДЕЛА
+ * УЧЁТНАЯ ЗАПИСЬ В РАЗДЕЛЕ «ИНЖИНИРИНГ»
  *
- * Не вошёл → «Вход для проектировщиков».
- * Вошёл    → имя и «Выйти»; администратору — ещё «Админка».
+ * variant="header" — мелкая строка в шапке.
+ * variant="hero"   — заметная кнопка рядом с «Начать анализ»:
+ *                    не вошёл → «Вход для проектировщиков»,
+ *                    вошёл    → «Кабинет проектировщика» / «Админка».
+ * AccountNote      — строка «Вы вошли как … · Выйти» под кнопками.
  * ================================================================== */
 
 type Me = { ok: true; login: string; role: "admin" | "user"; name: string };
@@ -26,7 +29,7 @@ const link: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-export default function AccountBar() {
+function useMe() {
   const [me, setMe] = useState<Me | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -38,19 +41,50 @@ export default function AccountBar() {
         if (alive && d?.ok) setMe(d as Me);
       })
       .catch(() => {})
-      .finally(() => alive && setReady(true));
+      .finally(() => {
+        if (alive) setReady(true);
+      });
     return () => {
       alive = false;
     };
   }, []);
 
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.reload();
-  }
+  return { me, ready };
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+  window.location.reload();
+}
+
+export default function AccountBar({
+  variant = "header",
+  buttonClass,
+}: {
+  variant?: "header" | "hero";
+  buttonClass?: string;
+}) {
+  const { me, ready } = useMe();
 
   if (!ready) return null;
 
+  /* ---------- заметная кнопка в первом экране ---------- */
+  if (variant === "hero") {
+    if (!me) {
+      return (
+        <a href="/engineering/login" className={buttonClass}>
+          Вход для проектировщиков
+        </a>
+      );
+    }
+    return (
+      <a href={me.role === "admin" ? "/engineering/admin" : "/designers"} className={buttonClass}>
+        {me.role === "admin" ? "Админка" : "Кабинет проектировщика"}
+      </a>
+    );
+  }
+
+  /* ---------- мелкая строка в шапке ---------- */
   if (!me) {
     return (
       <>
@@ -75,5 +109,25 @@ export default function AccountBar() {
         ВЫЙТИ
       </button>
     </>
+  );
+}
+
+/* строка состояния под кнопками первого экрана */
+export function AccountNote({ className }: { className?: string }) {
+  const { me, ready } = useMe();
+  if (!ready || !me) return null;
+
+  return (
+    <div className={className} style={{ marginTop: 16 }}>
+      <span>{me.role === "admin" ? "АДМИНИСТРАТОР" : "ДОСТУП ОТКРЫТ"}</span>
+      <span>
+        {"Вы вошли как "}
+        {me.name || me.login}
+        {" · "}
+        <button type="button" onClick={logout} style={{ ...link, textDecoration: "underline" }}>
+          Выйти
+        </button>
+      </span>
+    </div>
   );
 }

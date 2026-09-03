@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
-import AccountBar from "./AccountBar";
+import AccountBar, { AccountNote } from "./AccountBar";
 import type { Language } from "../translations";
 
 type EngineeringText = {
@@ -275,10 +275,14 @@ export default function EngineeringPage() {
                 <span>→</span>
               </button>
 
+              <AccountBar variant="hero" buttonClass={styles.secondaryButton} />
+
               <a href="/" className={styles.secondaryButton}>
                 SUVSANOAT
               </a>
             </div>
+
+            <AccountNote className={styles.note} />
 
             <div className={styles.note}>
               <span>AI + ENGINEERING</span>
