@@ -890,7 +890,18 @@ export default function NewHome() {
           <a href="#technologies">{t.nav.technologies}</a>
           <a href="#solutions">{t.nav.solutions}</a>
           <a href="#services">{t.nav.services}</a>
-          <a href="/engineering">{t.nav.engineering}</a>
+          <a
+            href="/engineering"
+            className={`${s.navAi}${calm ? ` ${s.navAiCalm}` : ""}`}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 1.2 9.4 5 13.2 6.4 9.4 7.8 8 11.6 6.6 7.8 2.8 6.4 6.6 5Z" />
+              <circle cx="12.6" cy="12" r="1.5" />
+              <circle cx="3.6" cy="11.4" r="1" />
+            </svg>
+            {t.nav.engineering}
+            <span className={s.navAiTag}>AI</span>
+          </a>
           <a href="#contacts">{t.nav.contacts}</a>
 
           <LanguageSwitcher />
