@@ -141,42 +141,94 @@
   flex-wrap: wrap;
 }
 
+/* Три уровня действий: основной расчёт, расчёт по отрасли и служебная
+   ссылка. Разная заливка и вес сразу показывают, что важнее. */
+
 .primaryButton,
-.secondaryButton {
-  min-height: 52px;
-  padding: 0 22px;
-  border-radius: 7px;
+.secondaryButton,
+.ghostButton {
+  position: relative;
+  min-height: 54px;
+  padding: 0 24px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 14px;
   font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.02em;
   text-decoration: none;
   cursor: pointer;
-  transition: 180ms ease;
+  overflow: hidden;
+  transition: transform 200ms ease, box-shadow 200ms ease, background 200ms ease,
+    border-color 200ms ease, color 200ms ease;
 }
 
+.arrow {
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 220ms ease;
+}
+
+.primaryButton:hover .arrow,
+.secondaryButton:hover .arrow {
+  transform: translateX(5px);
+}
+
+/* основная кнопка: заливка акцентом и мягкое свечение */
 .primaryButton {
-  border: 1px solid #fff;
-  background: #fff;
-  color: #06131d;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #ffffff 0%, #d8f6ff 55%, #9fe6f7 100%);
+  color: #05202a;
+  box-shadow: 0 10px 30px rgba(24, 201, 237, 0.18);
 }
 
 .primaryButton:hover {
-  background: #18c9ed;
-  border-color: #18c9ed;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #18c9ed 0%, #35d6f2 60%, #7fe8fb 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(24, 201, 237, 0.42);
 }
 
+/* блик пробегает по основной кнопке при наведении */
+.primaryButton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 700ms ease;
+}
+
+.primaryButton:hover::after {
+  transform: translateX(130%);
+}
+
+/* вторая кнопка: стеклянная, с акцентной рамкой */
 .secondaryButton {
-  border: 1px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.76);
+  border: 1px solid rgba(24, 201, 237, 0.45);
+  background: rgba(24, 201, 237, 0.08);
+  color: #d8f4fb;
 }
 
 .secondaryButton:hover {
-  border-color: rgba(24,201,237,0.65);
+  border-color: rgba(24, 201, 237, 0.9);
+  background: rgba(24, 201, 237, 0.16);
   color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(24, 201, 237, 0.22);
+}
+
+/* служебная ссылка: тише остальных */
+.ghostButton {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 700;
+}
+
+.ghostButton:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .note {
@@ -248,7 +300,26 @@
   width: 1px;
   height: 250px;
   margin-left: 20px;
-  background: linear-gradient(to bottom, transparent, rgba(24,201,237,0.65), transparent);
+  overflow: hidden;
+  background: linear-gradient(to bottom, transparent, rgba(24,201,237,0.35), transparent);
+}
+
+/* импульс, идущий сверху вниз — «поток воды» по схеме */
+.diagramPulse {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(to bottom, transparent, #18c9ed, transparent);
+  filter: drop-shadow(0 0 6px rgba(24, 201, 237, 0.9));
+  animation: flowPulse 2.6s linear infinite;
+}
+
+@keyframes flowPulse {
+  0% { top: -46px; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { top: 250px; opacity: 0; }
 }
 
 .node {
@@ -259,6 +330,25 @@
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 8px;
   background: rgba(255,255,255,0.025);
+  transition: border-color 420ms ease, background 420ms ease, transform 420ms ease,
+    box-shadow 420ms ease;
+}
+
+/* активный шаг подсвечивается, пока по схеме идёт расчёт */
+.nodeActive {
+  border-color: rgba(24, 201, 237, 0.75);
+  background: rgba(24, 201, 237, 0.10);
+  transform: translateX(4px);
+  box-shadow: 0 10px 30px rgba(24, 201, 237, 0.18), inset 0 0 24px rgba(24, 201, 237, 0.08);
+}
+
+.nodeActive small {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.visualCounter {
+  color: #18c9ed;
+  transition: color 300ms ease;
 }
 
 .node span {
@@ -287,7 +377,58 @@
   width: 1px;
   height: 22px;
   margin-left: 20px;
-  background: rgba(24,201,237,0.45);
+  background: rgba(24,201,237,0.25);
+  transition: background 420ms ease, box-shadow 420ms ease;
+}
+
+.connectorDone {
+  background: #18c9ed;
+  box-shadow: 0 0 8px rgba(24, 201, 237, 0.7);
+}
+
+/* индикатор готовности мягко дышит */
+.status {
+  animation: statusBlink 2.4s ease-in-out infinite;
+}
+
+@keyframes statusBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* появление первого экрана */
+.eyebrow,
+.title,
+.lead,
+.actions,
+.visual {
+  animation: riseIn 700ms ease both;
+}
+
+.title { animation-delay: 90ms; }
+.lead { animation-delay: 180ms; }
+.actions { animation-delay: 270ms; }
+.visual { animation-delay: 360ms; }
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagramPulse,
+  .status,
+  .eyebrow,
+  .title,
+  .lead,
+  .actions,
+  .visual {
+    animation: none;
+  }
+
+  .primaryButton::after {
+    display: none;
+  }
 }
 
 .trustSection {

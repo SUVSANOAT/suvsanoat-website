@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
@@ -222,6 +222,20 @@ export default function EngineeringPage() {
 
   const formRef = useRef<HTMLElement | null>(null);
 
+  /* Схема справа «оживает»: подсветка идёт по узлам 01 → 02 → 03.
+     При системной настройке «уменьшить движение» цикл не запускается. */
+  const [activeNode, setActiveNode] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timer = window.setInterval(() => {
+      setActiveNode((current) => (current + 1) % 3);
+    }, 2600);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   const handleStart = () => {
     setStarted(true);
 
@@ -306,7 +320,7 @@ export default function EngineeringPage() {
                 className={styles.primaryButton}
               >
                 {t.startButton}
-                <span>→</span>
+                <span className={styles.arrow}>→</span>
               </button>
 
               <button
@@ -315,10 +329,10 @@ export default function EngineeringPage() {
                 className={styles.secondaryButton}
               >
                 {t.heroIndustryButton}
-                <span>→</span>
+                <span className={styles.arrow}>→</span>
               </button>
 
-              <AccountBar variant="hero" buttonClass={styles.secondaryButton} />
+              <AccountBar variant="hero" buttonClass={styles.ghostButton} />
             </div>
 
             <AccountNote className={styles.note} />
@@ -334,15 +348,21 @@ export default function EngineeringPage() {
             <div className={styles.visualFrame}>
               <div className={styles.visualTop}>
                 <span>ENGINEERING SYSTEM</span>
-                <span>01 / 03</span>
+                <span className={styles.visualCounter}>
+                  {String(activeNode + 1).padStart(2, "0")} / 03
+                </span>
               </div>
 
               <div className={styles.diagram}>
-                <div className={styles.diagramLine} />
+                <div className={styles.diagramLine}>
+                  <span className={styles.diagramPulse} />
+                </div>
 
                 {t.nodes.map((node, index) => (
                   <div key={node.title} style={{ display: "contents" }}>
-                    <div className={styles.node}>
+                    <div
+                      className={`${styles.node}${index === activeNode ? ` ${styles.nodeActive}` : ""}`}
+                    >
                       <span>{String(index + 1).padStart(2, "0")}</span>
 
                       <strong>{node.title}</strong>
@@ -351,7 +371,9 @@ export default function EngineeringPage() {
                     </div>
 
                     {index < t.nodes.length - 1 && (
-                      <div className={styles.connector} />
+                      <div
+                        className={`${styles.connector}${index < activeNode ? ` ${styles.connectorDone}` : ""}`}
+                      />
                     )}
                   </div>
                 ))}
