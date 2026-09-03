@@ -15,6 +15,8 @@
 
 import type { Model } from "../../../products/data";
 import { STAGE_INFO, type Industry, type PollutantKey, POLLUTANT_LABELS } from "../industry/industries";
+import { t } from "../industry/i18n";
+import type { Language } from "../../../translations";
 import { Dxf } from "./dxf";
 
 export type SchemeStage = {
@@ -25,6 +27,9 @@ export type SchemeStage = {
 
 export type SchemeInput = {
   industry: Industry;
+  /** язык подписей; для китайского берётся английский — формат DXF R12
+      хранит текст в однобайтовой кодировке и иероглифы в нём не читаются */
+  lang: Language;
   object: string;
   lab: boolean;
   Q: number;
@@ -37,6 +42,12 @@ export type SchemeInput = {
 };
 
 /* --------------------------- утилиты --------------------------- */
+
+/** язык подписей чертежа: китайский заменяется английским —
+    DXF R12 хранит текст в однобайтовой кодировке, иероглифы в нём не читаются */
+function drawLang(lang: Language): Language {
+  return lang === "zh" ? "en" : lang;
+}
 
 function wrap(text: string, maxChars: number, maxLines = 99): string[] {
   const words = text.split(/\s+/);
@@ -111,7 +122,8 @@ export function buildSchemeDxf(input: SchemeInput): Dxf {
 
   /* заголовок */
   d.text(25, 282, 5, "ПРЕДВАРИТЕЛЬНАЯ ТЕХНОЛОГИЧЕСКАЯ СХЕМА ОЧИСТКИ", { align: "left" });
-  d.text(25, 274, 3, `${industry.name}${input.object ? " - " + input.object : ""}`, { align: "left" });
+  const lang = drawLang(input.lang);
+  d.text(25, 274, 3, `${t(industry.name, lang)}${input.object ? " - " + input.object : ""}`, { align: "left" });
   d.text(25, 269, 2.5, `Q = ${num(input.Q)} м³/сут, режим ${num(input.hours)} ч/сут, ${num(input.Qh, 1)} м³/ч. ${input.lab ? "Состав по анализу заказчика" : "Состав по справочным данным отрасли"}.`, { align: "left" });
 
   /* блоки ступеней — змейкой, до 5 в ряд */
@@ -141,7 +153,7 @@ export function buildSchemeDxf(input: SchemeInput): Dxf {
 
     /* номер и название */
     d.text(x + 2, y + BH - 5.2, 3, String(i + 1).padStart(2, "0"), { align: "left" });
-    const title = wrap(info.title.toUpperCase(), COLS === 4 ? 34 : 26, 1)[0];
+    const title = wrap(t(info.title, lang).toUpperCase(), COLS === 4 ? 34 : 26, 1)[0];
     d.text(x + 9, y + BH - 5.2, 2.6, title, { align: "left" });
 
     /* расчёт — первые строки */
@@ -217,7 +229,7 @@ export function buildSchemeDxf(input: SchemeInput): Dxf {
 
   titleBlock(d, 230, 5, {
     doc: "ТХ",
-    name: `Схема очистки сточных вод. ${industry.name}`,
+    name: `Схема очистки сточных вод. ${t(industry.name, lang)}`,
     sheet: "1",
     stage: "П (предварительная)",
   });
@@ -484,6 +496,7 @@ export function drawModel(d: Dxf, model: Model, ox: number, oy: number, caption:
 
 export function buildModelsDxf(input: SchemeInput): Dxf {
   const d = new Dxf();
+  const lang = drawLang(input.lang);
   const items: { caption: string; model: Model }[] = [];
   const seen = new Set<string>();
 
@@ -494,7 +507,7 @@ export function buildModelsDxf(input: SchemeInput): Dxf {
       seen.add(key);
       const cnt = p.count > 1 ? `${p.count} x ` : "";
       items.push({
-        caption: `${String(i + 1).padStart(2, "0")} ${STAGE_INFO[stage.key].title} - ${cnt}${p.model.code}`,
+        caption: `${String(i + 1).padStart(2, "0")} ${t(STAGE_INFO[stage.key].title, lang)} - ${cnt}${p.model.code}`,
         model: p.model,
       });
     }
@@ -503,7 +516,7 @@ export function buildModelsDxf(input: SchemeInput): Dxf {
   /* заголовок листа — над самым высоким изделием */
   const top = Math.max(0, ...items.map((it) => (it.model.height ?? it.model.diameter ?? it.model.depth ?? it.model.length) + 2600)) + 1200;
   d.text(0, top + 500, TH * 2, "SUVSANOAT - ГАБАРИТЫ ПОДОБРАННОГО ОБОРУДОВАНИЯ (вид сбоку, мм, 1:1)", { align: "left" });
-  d.text(0, top, TH, `${input.industry.name}. Q = ${num(input.Q)} м³/сут. Схемы автоматические, не рабочие чертежи. ${today()}`, { align: "left" });
+  d.text(0, top, TH, `${t(input.industry.name, drawLang(input.lang))}. Q = ${num(input.Q)} м³/сут. Схемы автоматические, не рабочие чертежи. ${today()}`, { align: "left" });
 
   /* раскладка: в ряд, при ширине более 40 м — новый ряд */
   let x = 0;

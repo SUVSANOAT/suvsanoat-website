@@ -13,6 +13,8 @@ import {
   type StageKey,
 } from "../industry/industries";
 import { chainForDischarge, findDischarge } from "../industry/targets";
+import { UI, t } from "../industry/i18n";
+import { useLanguage } from "../../../LanguageContext";
 import { SCALE_LABEL, commonEquipment, equipmentFor, scaleOf, type Ctx, type Item } from "../industry/equipment";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
 import {
@@ -148,6 +150,7 @@ function useAssumptions(): Assumptions {
 }
 
 function ProResultContent() {
+  const { language } = useLanguage();
   const router = useRouter();
   const sp = useSearchParams();
   const a = useAssumptions();
@@ -361,7 +364,7 @@ function ProResultContent() {
 
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
-    return { industry, object, lab, Q, hours, Qh: calc.Qh, ph, conc: c, target: TARGET, stages: calc.stages };
+    return { industry, object, lab, Q, hours, Qh: calc.Qh, ph, conc: c, target: TARGET, stages: calc.stages, lang: language };
   }
 
   const [note, setNote] = useState<{ text: string; source: "ai" | "template"; reason?: string } | null>(null);
@@ -384,8 +387,8 @@ function ProResultContent() {
   function noteInput(): NoteInput | null {
     if (!industry || !calc) return null;
     return {
-      industry: industry.name,
-      group: INDUSTRY_GROUPS.find((g) => g.id === industry.group)?.name ?? industry.group,
+      industry: t(industry.name, language),
+      group: t(INDUSTRY_GROUPS.find((g) => g.id === industry.group)?.name, language) || industry.group,
       object,
       lab,
       Q,
@@ -403,8 +406,8 @@ function ProResultContent() {
       stages: calc.stages.map((st, i) => ({
         index: i + 1,
         key: st.key,
-        title: STAGE_INFO[st.key].title,
-        what: STAGE_INFO[st.key].what,
+        title: t(STAGE_INFO[st.key].title, language),
+        what: t(STAGE_INFO[st.key].what, language),
         makes: STAGE_INFO[st.key].makes,
         sizing: st.sizing,
         extra: st.extra,
@@ -498,13 +501,13 @@ function ProResultContent() {
   function printScheme() {
     const input = schemeInput();
     if (!input) return;
-    printDxf(buildSchemeDxf(input), `Схема очистки — ${input.industry.name}`);
+    printDxf(buildSchemeDxf(input), `${t(UI.chainTitle, language)} — ${input.industry}`);
   }
 
   function printModels() {
     const input = schemeInput();
     if (!input) return;
-    printDxf(buildModelsDxf(input), `Габариты оборудования — ${input.industry.name}`);
+    printDxf(buildModelsDxf(input), `${t(UI.btnDxfModels, language)} — ${input.industry}`);
   }
 
   if (!industry || !calc) {
@@ -539,7 +542,7 @@ function ProResultContent() {
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
           ПРЕДВАРИТЕЛЬНОЕ ИНЖЕНЕРНОЕ РЕШЕНИЕ
         </div>
-        <h1 style={{ fontSize: 30, margin: "0 0 6px" }}>{industry.name}</h1>
+        <h1 style={{ fontSize: 30, margin: "0 0 6px" }}>{t(industry.name, language)}</h1>
         <p style={{ color: FAINT, margin: "0 0 4px" }}>
           {object && <>Объект: {object} · </>}
           Расход {fmt(Q)} м³/сут · режим {hours} ч/сут · {fmt(calc.Qh, 1)} м³/ч
@@ -549,7 +552,7 @@ function ProResultContent() {
         </p>
         {discharge && (
           <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
-            Сброс: <b>{discharge.name}</b>. Целевые показатели — {customTu ? "по вашим техническим условиям / НДС" : discharge.source}.
+            Сброс: <b>{t(discharge.name, language)}</b>. Целевые показатели — {customTu ? "по вашим техническим условиям / НДС" : discharge.source}.
           </p>
         )}
         <p style={{ color: lab ? "#9ccc65" : "#ffb74d", fontSize: 13, margin: "0 0 26px" }}>
@@ -602,12 +605,12 @@ function ProResultContent() {
               style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
                 <span style={{ color: ACCENT, fontWeight: 700 }}>{String(index + 1).padStart(2, "0")}</span>
-                <b style={{ fontSize: 16 }}>{info.title}</b>
+                <b style={{ fontSize: 16 }}>{t(info.title, language)}</b>
                 <span style={{ fontSize: 11, color: FAINT }}>
                   {stage.items.length} позиц. оборудования
                 </span>
               </div>
-              <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.55 }}>{info.what}</p>
+              <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.55 }}>{t(info.what, language)}</p>
               {stage.sizing.map((line, i) => (
                 <p key={i} style={{ fontSize: 13, margin: "0 0 4px", lineHeight: 1.55 }}>— {line}</p>
               ))}

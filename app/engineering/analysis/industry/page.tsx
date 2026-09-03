@@ -12,6 +12,8 @@ import {
   type PollutantKey,
 } from "./industries";
 import { DISCHARGES, findDischarge } from "./targets";
+import { UI, t } from "./i18n";
+import { useLanguage } from "../../../LanguageContext";
 
 /* ==================================================================
  * ШАГ: ОТРАСЛЬ И ИСХОДНЫЙ СОСТАВ СТОКА
@@ -31,6 +33,7 @@ const FAINT = "#8fa6b1";
 const KEY_ORDER: PollutantKey[] = ["cod", "bod", "ss", "fats", "petro", "tn", "tp", "surf"];
 
 function IndustryContent() {
+  const { language } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -151,7 +154,7 @@ function IndustryContent() {
                   cursor: "pointer",
                 }}
               >
-                {group.name}
+                {t(group.name, language)}
               </button>
             ))}
           </div>
@@ -180,7 +183,7 @@ function IndustryContent() {
                   cursor: "pointer",
                 }}
               >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{item.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{t(item.name, language)}</div>
                 <div style={{ fontSize: 12, color: FAINT }}>{item.flowHint}</div>
               </button>
             ))}
@@ -269,7 +272,7 @@ function IndustryContent() {
                         cursor: "pointer",
                       }}
                     >
-                      {d.name}
+                      {t(d.name, language)}
                     </button>
                   ))}
                 </div>
