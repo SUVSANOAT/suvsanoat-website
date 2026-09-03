@@ -23,6 +23,7 @@ import {
   noteUserPrompt,
   NOTE_SYSTEM_PROMPT,
 } from "../../engineering/analysis/pro-result/note-template";
+import { sessionFromRequest } from "../../../lib/session";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-sonnet-5";
@@ -41,6 +42,11 @@ function allowed(ip: string): boolean {
 }
 
 export async function POST(request: Request) {
+  /* записку получают только вошедшие пользователи (дублирует proxy.ts) */
+  if (!(await sessionFromRequest(request))) {
+    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();

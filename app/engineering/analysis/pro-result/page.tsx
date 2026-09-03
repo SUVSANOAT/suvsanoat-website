@@ -281,6 +281,10 @@ function ProResultContent() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(input),
       });
+      if (res.status === 401) {
+        router.push(`/engineering/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
       const data = await res.json();
       if (data?.ok && typeof data.text === "string") setNote({ text: data.text, source: data.source, reason: data.reason });
       else setNote({ text: buildTemplateNote(input), source: "template", reason: "server error" });
