@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import AccountBar from "./AccountBar";
 import type { Language } from "../translations";
 
 type EngineeringText = {
@@ -239,6 +240,7 @@ export default function EngineeringPage() {
             <LanguageSwitcher />
             <span className={styles.headerDot} />
             <span>ENGINEERING</span>
+            <AccountBar />
           </div>
         </div>
       </header>
