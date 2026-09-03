@@ -23,6 +23,9 @@ type EngineeringText = {
   label: string;
   placeholder: string;
   analyzeButton: string;
+  heroIndustryButton: string;
+  industryButton: string;
+  industryHint: string;
   formHint: string;
   disclaimer: string;
   emptyAlert: string;
@@ -63,6 +66,11 @@ const T: Record<Language, EngineeringText> = {
     placeholder:
       "Например: гостиница на 300 человек, расход сточных вод около 50 м³/сутки...",
     analyzeButton: "Проанализировать",
+    heroIndustryButton: "Расчёт по отрасли",
+    industryButton:
+      "Производственный объект — выбрать отрасль",
+    industryHint:
+      "Для заводов и производств: 27 отраслей со справочником загрязнений, расчёт ступеней очистки, подбор оборудования, чертежи DXF и техническая записка.",
     formHint: "Результат будет предварительным",
     disclaimer:
       "Предварительный результат не является рабочим проектом. Окончательные технологические решения принимаются после проверки исходных данных инженером.",
@@ -103,6 +111,11 @@ const T: Record<Language, EngineeringText> = {
     placeholder:
       "Masalan: 300 kishilik mehmonxona, oqava suv sarfi taxminan 50 m³/sutka...",
     analyzeButton: "Tahlil qilish",
+    heroIndustryButton: "Tarmoq bo‘yicha hisob",
+    industryButton:
+      "Ishlab chiqarish obyekti — tarmoqni tanlash",
+    industryHint:
+      "Zavod va ishlab chiqarish uchun: 27 tarmoq ifloslanishlar ma’lumotnomasi bilan, tozalash bosqichlari hisobi, uskuna tanlovi, DXF chizmalar va texnik yozuv.",
     formHint: "Natija dastlabki bo‘ladi",
     disclaimer:
       "Dastlabki natija ishchi loyiha hisoblanmaydi. Yakuniy texnologik yechimlar dastlabki ma’lumotlar muhandis tomonidan tekshirilgandan so‘ng qabul qilinadi.",
@@ -143,6 +156,11 @@ const T: Record<Language, EngineeringText> = {
     placeholder:
       "For example: a hotel for 300 people, wastewater flow about 50 m³/day...",
     analyzeButton: "Analyse",
+    heroIndustryButton: "Calculate by industry",
+    industryButton:
+      "Industrial site — choose the industry",
+    industryHint:
+      "For plants and factories: 27 industries with a pollutant reference, treatment-stage sizing, equipment selection, DXF drawings and a technical note.",
     formHint: "The result will be preliminary",
     disclaimer:
       "A preliminary result is not a working design. Final process decisions are made after an engineer has verified the input data.",
@@ -182,6 +200,11 @@ const T: Record<Language, EngineeringText> = {
     label: "您正在设计什么？",
     placeholder: "例如：可容纳 300 人的酒店，污水流量约 50 m³/天……",
     analyzeButton: "进行分析",
+    heroIndustryButton: "按行业计算",
+    industryButton:
+      "工业项目 — 选择行业",
+    industryHint:
+      "面向工厂：27 个行业的污染物手册、处理段计算、设备选型、DXF 图纸与技术说明书。",
     formHint: "结果为初步方案",
     disclaimer:
       "初步结果不构成施工图设计。最终工艺方案需在工程师核实原始数据后确定。",
@@ -225,6 +248,17 @@ export default function EngineeringPage() {
     query.set("object", project.trim());
 
     router.push(`/engineering/analysis/flow?${query.toString()}`);
+  };
+
+  /* производственная ветка: выбор отрасли и справочник загрязнений */
+  const handleIndustry = () => {
+    const query = new URLSearchParams();
+
+    if (project.trim()) {
+      query.set("object", project.trim());
+    }
+
+    router.push(`/engineering/analysis/industry?${query.toString()}`);
   };
 
   return (
@@ -275,11 +309,16 @@ export default function EngineeringPage() {
                 <span>→</span>
               </button>
 
-              <AccountBar variant="hero" buttonClass={styles.secondaryButton} />
+              <button
+                type="button"
+                onClick={handleIndustry}
+                className={styles.secondaryButton}
+              >
+                {t.heroIndustryButton}
+                <span>→</span>
+              </button>
 
-              <a href="/" className={styles.secondaryButton}>
-                SUVSANOAT
-              </a>
+              <AccountBar variant="hero" buttonClass={styles.secondaryButton} />
             </div>
 
             <AccountNote className={styles.note} />
@@ -385,9 +424,22 @@ export default function EngineeringPage() {
                   <span>→</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={handleIndustry}
+                  className={styles.secondaryButton}
+                >
+                  {t.industryButton}
+                  <span>→</span>
+                </button>
+
                 <span className={styles.formHint}>{t.formHint}</span>
               </div>
             </div>
+
+            <p className={styles.formHint} style={{ marginTop: 14, display: "block" }}>
+              {t.industryHint}
+            </p>
 
             <p className={styles.disclaimer}>{t.disclaimer}</p>
           </div>
