@@ -116,7 +116,7 @@ export function buildSchemeDxf(input: SchemeInput): Dxf {
 
   /* блоки ступеней — змейкой, до 5 в ряд */
   const COLS = stages.length <= 8 ? 4 : 5;
-  const BW = COLS === 4 ? 90 : 72;
+  const BW = COLS === 4 ? 88 : 70;
   const BH = 62;
   const GX = 10;
   const GY = 26;

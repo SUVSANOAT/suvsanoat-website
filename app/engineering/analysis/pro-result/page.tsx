@@ -12,7 +12,7 @@ import {
   type PollutantKey,
   type StageKey,
 } from "../industry/industries";
-import { downloadDxf } from "./dxf";
+import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
 import { buildTemplateNote, type NoteInput } from "./note-template";
 import NoteView from "./NoteView";
@@ -321,6 +321,18 @@ function ProResultContent() {
     downloadDxf(buildModelsDxf(input), `SUVSANOAT_gabarity_${input.industry.id}_${Math.round(Q)}m3.dxf`);
   }
 
+  function printScheme() {
+    const input = schemeInput();
+    if (!input) return;
+    printDxf(buildSchemeDxf(input), `Схема очистки — ${input.industry.name}`);
+  }
+
+  function printModels() {
+    const input = schemeInput();
+    if (!input) return;
+    printDxf(buildModelsDxf(input), `Габариты оборудования — ${input.industry.name}`);
+  }
+
   if (!industry || !calc) {
     return (
       <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: 60 }}>
@@ -485,6 +497,14 @@ function ProResultContent() {
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
             Скачать DXF: габариты оборудования
           </button>
+          <button type="button" onClick={printScheme}
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
+            Схема в PDF (печать)
+          </button>
+          <button type="button" onClick={printModels}
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
+            Габариты в PDF (печать)
+          </button>
           <a href="/designers"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
             Опросные листы для уточнения
@@ -502,8 +522,10 @@ function ProResultContent() {
         </p>
         <p className="noPrint" style={{ fontSize: 11, color: FAINT, marginTop: 8, lineHeight: 1.6 }}>
           DXF (формат R12) открывается в AutoCAD, NanoCAD, ZWCAD, BricsCAD — «Сохранить как» → DWG. Схема — лист А3,
-          габариты — в миллиметрах 1:1. Кодировка текста CP1251: если кириллица не читается, в настройках CAD укажите
-          кодовую страницу ANSI_1251.
+          габариты — в миллиметрах 1:1. Если чертёж не виден сразу — команда «Показать границы» (Zoom → Extents, в
+          командной строке Z ↵ E ↵). Кодировка текста CP1251: если кириллица не читается, в настройках CAD укажите
+          кодовую страницу ANSI_1251. Кнопки «в PDF (печать)» открывают тот же чертёж в новой вкладке — печать
+          браузера → «Сохранить как PDF».
         </p>
       </div>
     </main>
