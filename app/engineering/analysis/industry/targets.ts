@@ -22,13 +22,14 @@
  * ================================================================== */
 
 import type { PollutantKey, StageKey } from "./industries";
+import { L, type Text } from "./i18n";
 
 export type DischargeId = "sewer" | "water" | "relief" | "irrigation" | "reuse";
 
 export type Discharge = {
   id: DischargeId;
-  name: string;
-  hint: string;
+  name: Text;
+  hint: Text;
   /** целевые концентрации, мг/л; undefined — норматив задаётся ТУ/НДС */
   targets: Partial<Record<PollutantKey, number>>;
   ph: [number, number];
@@ -37,16 +38,16 @@ export type Discharge = {
   /** ступени, которые для этой точки сброса избыточны */
   drop: StageKey[];
   /** что писать в документе про происхождение цифр */
-  source: string;
+  source: Text;
   /** предупреждение проектировщику */
-  note: string;
+  note: Text;
 };
 
 export const DISCHARGES: Discharge[] = [
   {
     id: "sewer",
-    name: "Городская канализация",
-    hint: "Сброс в коммунальную сеть по договору с водоканалом",
+    name: L("Городская канализация", "Shahar kanalizatsiyasi", "Municipal sewer", "市政污水管网"),
+    hint: L("Сброс в коммунальную сеть по договору с водоканалом", "Suv ta’minoti tashkiloti bilan shartnoma bo‘yicha kommunal tarmoqqa chiqarish", "Discharge to the municipal network under a utility contract", "按与自来水公司的合同排入市政管网"),
     /* ПКМ РУз № 11 от 03.02.2010, приложение 1 */
     targets: { bod: 15, ss: 150, fats: 1, petro: 1, tn: 1, tp: 2.5 },
     ph: [6.5, 8.5],
@@ -62,8 +63,8 @@ export const DISCHARGES: Discharge[] = [
   },
   {
     id: "water",
-    name: "Водный объект (река, канал, коллектор)",
-    hint: "Выпуск в поверхностный водоём — нужен НДС и разрешение на спецводопользование",
+    name: L("Водный объект (река, канал, коллектор)", "Suv obyekti (daryo, kanal, kollektor)", "Surface water body (river, canal, drain)", "地表水体（河流、渠道、排水沟）"),
+    hint: L("Выпуск в поверхностный водоём — нужен НДС и разрешение на спецводопользование", "Yer usti suv havzasiga chiqarish — chiqindi me’yori va maxsus suvdan foydalanish ruxsati kerak", "Outfall to a surface water body — a discharge permit is required", "排入地表水体——需取得排污许可"),
     /* значения на выпуске считаются по НДС; здесь — ориентир предпроектной стадии */
     targets: { bod: 3, ss: 15, fats: 0.5, petro: 0.05, tn: 10, tp: 1, cod: 30 },
     ph: [6.5, 8.5],
@@ -80,8 +81,8 @@ export const DISCHARGES: Discharge[] = [
   },
   {
     id: "relief",
-    name: "Рельеф, поля фильтрации, накопитель",
-    hint: "Сброс на местность или в испарительный накопитель",
+    name: L("Рельеф, поля фильтрации, накопитель", "Relef, filtratsiya maydonlari, to‘plagich", "Ground surface, filtration fields, storage pond", "地面、渗滤场、蓄水池"),
+    hint: L("Сброс на местность или в испарительный накопитель", "Yerga yoki bug‘lanish to‘plagichiga chiqarish", "Discharge to the ground or to an evaporation pond", "排至地面或蒸发塘"),
     targets: { bod: 15, ss: 30, fats: 5, petro: 0.3, tn: 20, tp: 5 },
     ph: [6.5, 8.5],
     require: ["disinfect"],
@@ -94,8 +95,8 @@ export const DISCHARGES: Discharge[] = [
   },
   {
     id: "irrigation",
-    name: "Полив и орошение",
-    hint: "Использование очищенной воды для полива насаждений или полей",
+    name: L("Полив и орошение", "Sug‘orish", "Irrigation", "灌溉"),
+    hint: L("Использование очищенной воды для полива насаждений или полей", "Tozalangan suvdan ko‘chatlar yoki dalalarni sug‘orishda foydalanish", "Use of treated water for irrigating plantings or fields", "处理后水用于绿化或农田灌溉"),
     targets: { bod: 15, ss: 30, fats: 5, petro: 0.3, tn: 30, tp: 10 },
     ph: [6.5, 8.5],
     require: ["disinfect"],
@@ -108,8 +109,8 @@ export const DISCHARGES: Discharge[] = [
   },
   {
     id: "reuse",
-    name: "Оборотное водоснабжение",
-    hint: "Возврат воды в производство: мойка, охлаждение, техпроцесс",
+    name: L("Оборотное водоснабжение", "Aylanma suv ta’minoti", "Water reuse / recirculation", "循环回用"),
+    hint: L("Возврат воды в производство: мойка, охлаждение, техпроцесс", "Suvni ishlab chiqarishga qaytarish: yuvish, sovutish, texnologik jarayon", "Return of water to production: washing, cooling, process use", "回用于生产：冲洗、冷却、工艺用水"),
     targets: { bod: 5, ss: 5, fats: 0.5, petro: 0.05, tn: 15, tp: 2, cod: 30 },
     ph: [6.5, 8.5],
     require: ["post", "disinfect"],

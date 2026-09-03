@@ -23,6 +23,8 @@
 
 import type { StageKey } from "./industries";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
+import { L, t as tr, type L10n } from "./i18n";
+import type { Language } from "../../../translations";
 
 export type Supply = "own" | "supply" | "either";
 export type ItemKind = "structure" | "machine" | "instrument";
@@ -41,10 +43,25 @@ export type Item = {
 
 export type Scale = "compact" | "modular" | "concrete";
 
-export const SCALE_LABEL: Record<Scale, string> = {
-  compact: "блочная установка заводской готовности (стеклопластик)",
-  modular: "блочно-модульное или железобетонное исполнение",
-  concrete: "железобетонные сооружения, оборудование поставное",
+export const SCALE_LABEL: Record<Scale, L10n> = {
+  compact: L(
+    "блочная установка заводской готовности (стеклопластик)",
+    "to‘liq zavod tayyorligidagi blokli qurilma (shishaplastik)",
+    "packaged factory-built unit (GRP)",
+    "工厂预制一体化设备（玻璃钢）"
+  ),
+  modular: L(
+    "блочно-модульное или железобетонное исполнение",
+    "blok-modulli yoki temir-beton bajarilish",
+    "modular or reinforced-concrete construction",
+    "模块化或钢筋混凝土结构"
+  ),
+  concrete: L(
+    "железобетонные сооружения, оборудование поставное",
+    "temir-beton inshootlar, uskunalar yetkazib beriladi",
+    "reinforced-concrete structures with supplied equipment",
+    "钢筋混凝土构筑物，设备采购供货"
+  ),
 };
 
 export function scaleOf(Q: number, a: Assumptions = DEFAULT_ASSUMPTIONS): Scale {
@@ -79,6 +96,8 @@ export type Ctx = {
   dryKg?: number;
   /** утверждённые коэффициенты расчёта */
   a: Assumptions;
+  /** язык вывода */
+  lang: Language;
 };
 
 const f = (v: number, d = 0) => v.toLocaleString("ru-RU", { maximumFractionDigits: d });
@@ -281,7 +300,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Усреднитель-накопитель",
-        spec: `рабочий объём ${f(V)} м³; ${SCALE_LABEL[ctx.scale]}`,
+        spec: `рабочий объём ${f(V)} м³; ${tr(SCALE_LABEL[ctx.scale], ctx.lang)}`,
         qty: ctx.scale === "compact" ? "1" : "1 (2 секции для чистки без остановки)",
         supply: ctx.scale === "concrete" ? "supply" : "own",
       });
@@ -514,7 +533,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
           spec:
             `рабочий объём ${f(V)} м³` +
             (deNitro ? `, из них аноксидная зона ${f((V * ctx.a.denitroShare) / 100)} м³ (${ctx.a.denitroShare} %)` : "") +
-            `; ${SCALE_LABEL[ctx.scale]}`,
+            `; ${tr(SCALE_LABEL[ctx.scale], ctx.lang)}`,
           qty: ctx.scale === "concrete" ? "2 коридора (для вывода в ремонт)" : "1",
           supply: ctx.scale === "concrete" ? "supply" : "own",
         });

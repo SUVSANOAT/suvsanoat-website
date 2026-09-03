@@ -96,6 +96,7 @@ export const UI = {
 
   /* --- результат --- */
   resultEyebrow: L("ПРЕДВАРИТЕЛЬНОЕ ИНЖЕНЕРНОЕ РЕШЕНИЕ", "DASTLABKI MUHANDISLIK YECHIMI", "PRELIMINARY ENGINEERING SOLUTION", "初步工程方案"),
+  objectWord: L("Объект", "Obyekt", "Facility", "对象"),
   flowLine: L("Расход", "Sarf", "Flow", "流量"),
   mode: L("режим", "rejim", "operating mode", "运行"),
   dischargeTo: L("Сброс", "Chiqindi", "Discharge", "排放"),
@@ -157,6 +158,27 @@ export const UI = {
   colHours: L("ч/сут", "soat/kun", "h/day", "小时/日"),
   colDaily: L("кВт·ч/сут", "kVt·soat/kun", "kWh/day", "kWh/日"),
   colBasis: L("Основание", "Asos", "Basis", "计算依据"),
+
+  /* --- единицы --- */
+  unitM3: L("м³", "m³", "m³", "m³"),
+  unitM2: L("м²", "m²", "m²", "m²"),
+  unitHa: L("га", "ga", "ha", "公顷"),
+  unitKw: L("кВт", "kVt", "kW", "kW"),
+  unitKwh: L("тыс. кВт·ч", "ming kVt·soat", "thousand kWh", "千 kWh"),
+  unitKwhD: L("кВт·ч/сут", "kVt·soat/kun", "kWh/day", "kWh/日"),
+  unitKwhM3: L("кВт·ч/м³", "kVt·soat/m³", "kWh/m³", "kWh/m³"),
+  unitKwhKg: L("кВт·ч/кг", "kVt·soat/kg", "kWh/kg", "kWh/kg"),
+  unitL: L("л", "l", "L", "L"),
+
+  /* --- названия ёмкостей в строительной части --- */
+  tankAvg: L("Усреднитель", "Tenglashtirgich", "Equalization tank", "调节池"),
+  tankBio: L("Биологический блок (аэротенк)", "Biologik blok (aerotenk)", "Biological block (aeration tank)", "生物池（曝气池）"),
+  tankClarify: L("Вторичный отстойник", "Ikkilamchi tindirgich", "Secondary clarifier", "二沉池"),
+  tankDaf: L("Флотатор с камерой флокуляции", "Flotator va flokulyatsiya kamerasi", "DAF unit with flocculation chamber", "气浮池及絮凝室"),
+  tankPhyschem: L("Камеры смешения и хлопьеобразования", "Aralashtirish va parcha hosil qilish kameralari", "Rapid mix and flocculation chambers", "混合与絮凝池"),
+  tankContact: L("Контактный резервуар", "Kontakt rezervuar", "Chlorine contact tank", "接触池"),
+  tankSludge: L("Илоуплотнитель и стабилизатор", "Loyqa quyuqlashtirgich va stabilizator", "Sludge thickener and stabiliser", "污泥浓缩与稳定池"),
+  tankIntake: L("Приёмная камера и аварийная ёмкость", "Qabul kamerasi va avariya rezervuari", "Inlet chamber and emergency tank", "进水井与事故池"),
 
   /* --- ведомость оборудования --- */
   colItem: L("Позиция", "Pozitsiya", "Item", "项目"),
