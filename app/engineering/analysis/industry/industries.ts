@@ -3,13 +3,32 @@
  *
  * Диапазоны концентраций — справочные, для предварительного
  * проектирования, когда у заказчика нет лабораторных анализов.
- * Основания: КМК 2.04.03-97 (Узбекистан), справочник проектировщика
- * «Канализация населённых мест и промышленных предприятий»,
- * Metcalf & Eddy «Wastewater Engineering», отраслевые нормали ВНТП.
+ * Основания: ҚМҚ 2.04.03-19 «Канализация. Наружные сети и сооружения»
+ * (взамен КМК 2.04.03-97) — только для бытового стока: табл. 25
+ * (загрязнения на жителя, п. 6.4) и табл. 3 (удельное водоотведение,
+ * п. 2.9). Концентраций производственных стоков по отраслям ҚМҚ-19 не
+ * содержит (п. 2.8–2.9 отсылают к укрупнённым нормам и аналогам), поэтому
+ * отраслевые диапазоны — справочник проектировщика «Канализация
+ * населённых мест и промышленных предприятий», Metcalf & Eddy
+ * «Wastewater Engineering», отраслевые нормали ВНТП, и подписаны так.
  * Каждый расчёт по справочным данным помечается как предварительный
  * и подлежит уточнению лабораторным анализом усреднённой пробы.
  * ================================================================== */
 import { L, type L10n, type Text } from "./i18n";
+import {
+  BIO_INLET_LIMITS,
+  BOD5_TO_BODFULL,
+  GRIT,
+  KMK_2_04_03_19_DOC,
+  P2O5_TO_P,
+  REAGENTS,
+  TABLE_2_UNEVENNESS,
+  TABLE_25_PER_CAPITA_G_DAY,
+  DISINFECTION,
+  domesticConcentrations,
+  kmkRef,
+  specificWaterUse,
+} from "../../../../norms/kmk-2-04-03-19";
 
 
 export type PollutantKey =
@@ -49,6 +68,9 @@ export type StageKey =
   | "disinfect"  // обеззараживание (NaOCl / УФ)
   | "sludge";    // обработка осадка
 
+/** диаметр задерживаемых частиц по табл. 27 ҚМҚ 2.04.03-19: 0,15–0,25 мм */
+const SAND_D_RANGE = `${GRIT.table27[0].dMm}–${GRIT.table27[GRIT.table27.length - 1].dMm}`.replace(/\./g, ",");
+
 export const STAGE_INFO: Record<StageKey, { title: L10n; what: L10n; makes: "own" | "own-partial" | "supply" }> = {
   screen: {
     title: L("Механическая очистка", "Mexanik tozalash", "Preliminary (mechanical) treatment", "机械预处理"),
@@ -83,10 +105,10 @@ export const STAGE_INFO: Record<StageKey, { title: L10n; what: L10n; makes: "own
   sand: {
     title: L("Песколовка", "Qum tutgich", "Grit chamber", "沉砂池"),
     what: L(
-      "Осаждение минеральных примесей гидравлической крупностью от 0,10 мм.",
-      "Gidravlik yirikligi 0,10 mm dan boshlab mineral qo‘shimchalarni cho‘ktirish.",
-      "Settling of mineral particles with a hydraulic size from 0.10 mm upwards.",
-      "沉降水力粒径 0.10 mm 以上的无机颗粒。"
+      `Осаждение минеральных примесей крупностью ${SAND_D_RANGE} мм (${KMK_2_04_03_19_DOC.code}, п. 6.27, табл. 27).`,
+      `Yirikligi ${SAND_D_RANGE} mm mineral qo‘shimchalarni cho‘ktirish (QMQ 2.04.03-19, 6.27-band, 27-jadval).`,
+      `Settling of mineral particles ${SAND_D_RANGE.replace(/,/g, ".")} mm in size (KMK 2.04.03-19, cl. 6.27, table 27).`,
+      `沉降粒径 ${SAND_D_RANGE.replace(/,/g, ".")} mm 的无机颗粒（KMK 2.04.03-19 第 6.27 条，表 27）。`
     ),
     makes: "own",
   },
@@ -123,7 +145,7 @@ export const STAGE_INFO: Record<StageKey, { title: L10n; what: L10n; makes: "own
   physchem: {
     title: L("Реагентная обработка", "Reagentli ishlov berish", "Chemical treatment", "化学混凝处理"),
     what: L(
-      "Коагуляция и флокуляция: осаждение красителей, металлов, коллоидов; хлопья удаляются отстаиванием/флотацией.",
+      `Коагуляция и флокуляция: осаждение красителей, металлов, коллоидов; хлопья удаляются отстаиванием/флотацией (дозы — ${REAGENTS.table61Municipal.ref}).`,
       "Koagulyatsiya va flokulyatsiya: bo‘yoq, metall va kolloidlarni cho‘ktirish; parchalar tindirish yoki flotatsiya bilan olinadi.",
       "Coagulation and flocculation precipitate dyes, metals and colloids; the flocs are removed by settling or flotation.",
       "混凝与絮凝沉淀染料、金属和胶体，絮体经沉淀或气浮去除。"
@@ -133,10 +155,10 @@ export const STAGE_INFO: Record<StageKey, { title: L10n; what: L10n; makes: "own
   bio: {
     title: L("Биологическая очистка", "Biologik tozalash", "Biological treatment", "生物处理"),
     what: L(
-      "Аэротенк (MBBR/SBR) окисляет растворённую органику; расчёт по DWA-A 131 и КМК 2.04.03-97.",
-      "Aerotenk (MBBR/SBR) erigan organikani oksidlaydi; hisob DWA-A 131 va QMQ 2.04.03-97 bo‘yicha.",
-      "The aeration tank (MBBR/SBR) oxidises dissolved organics; sized to DWA-A 131 and KMK 2.04.03-97.",
-      "曝气池（MBBR/SBR）氧化溶解性有机物；按 DWA-A 131 与 KMK 2.04.03-97 计算。"
+      "Аэротенк (MBBR/SBR) окисляет растворённую органику; расчёт по ҚМҚ 2.04.03-19 (пп. 6.140–6.179) и DWA-A 131.",
+      "Aerotenk (MBBR/SBR) erigan organikani oksidlaydi; hisob QMQ 2.04.03-19 (6.140–6.179-bandlar) va DWA-A 131 bo‘yicha.",
+      "The aeration tank (MBBR/SBR) oxidises dissolved organics; sized to KMK 2.04.03-19 (cl. 6.140–6.179) and DWA-A 131.",
+      "曝气池（MBBR/SBR）氧化溶解性有机物；按 KMK 2.04.03-19（第 6.140–6.179 条）与 DWA-A 131 计算。"
     ),
     makes: "own",
   },
@@ -220,9 +242,40 @@ export const INDUSTRY_GROUPS: IndustryGroup[] = [
   { id: "heavy", name: L("Промышленность и производство", "Sanoat va ishlab chiqarish", "Industry and manufacturing", "工业与制造"), icon: "gear" },
 ];
 
-const KMK = "КМК 2.04.03-97";
 const REF = "Справочник проектировщика «Канализация населённых мест и промпредприятий»";
 const ME = "Metcalf & Eddy, Wastewater Engineering (типичные производственные стоки)";
+
+/* ------------------------------------------------------------------
+ * Бытовой сток по ҚМҚ 2.04.03-19
+ *
+ * Табл. 25 (п. 6.4) задаёт нагрузку на одного жителя, г/сут; концентрация
+ * получается делением на удельное водоотведение по табл. 3 (п. 2.9).
+ * Диапазон концентраций взят между крайними позициями табл. 3 на
+ * расчётный срок 2035 г.: 280 л/(чел·сут) — города свыше 100 тыс. чел.
+ * (нижняя концентрация) и 170 л/(чел·сут) — посёлки и райцентры до
+ * 50 тыс. чел. (верхняя). БПК₅ — через BOD5_TO_BODFULL (норматив
+ * оперирует БПКполн), P — из P₂O₅ через P2O5_TO_P.
+ * ------------------------------------------------------------------ */
+const WATER_USE_TOWN = specificWaterUse("town-under-50k");
+const WATER_USE_CITY = specificWaterUse("city-over-100k");
+const DOM_HI = domesticConcentrations(WATER_USE_TOWN.lpcd);
+const DOM_LO = domesticConcentrations(WATER_USE_CITY.lpcd);
+const domRange = (key: "cod" | "bod5" | "ss" | "fats" | "nh4N" | "pTotal" | "surfactants"): [number, number] => [
+  Math.round(DOM_LO[key]),
+  Math.round(DOM_HI[key]),
+];
+const T25 = TABLE_25_PER_CAPITA_G_DAY;
+const gf = (v: number, d = 1) => v.toLocaleString("ru-RU", { maximumFractionDigits: d });
+
+/** источник для бытового стока — нормируется ҚМҚ 2.04.03-19 */
+const KMK_DOMESTIC = `${KMK_2_04_03_19_DOC.code}: табл. 25 (п. 6.4, загрязнения на жителя) при удельном водоотведении по табл. 3 (п. 2.9, расчётный срок 2035 г.)`;
+/** источник для объектов, чьи концентрации в ҚМҚ-19 не заданы */
+const NOT_IN_KMK = `концентрации ${KMK_2_04_03_19_DOC.code} не нормируются (табл. 25 задаёт только нагрузку на жителя, п. 2.2 отсылает к КМК 2.04.01-98); принято по справочным данным`;
+/** дождевая канализация */
+const KMK_RAIN = `${KMK_2_04_03_19_DOC.code}, пп. 2.11–2.19 (дождевая канализация, метод предельных интенсивностей); удельный сток 20 л/(с·га) — упрощение, нормативом не задан`;
+
+const T2_FIRST = TABLE_2_UNEVENNESS[0];
+const T2_100 = TABLE_2_UNEVENNESS.find((r) => r.averageLps === 100) ?? TABLE_2_UNEVENNESS[4];
 
 export const INDUSTRIES: Industry[] = [
   /* ============================ ПИЩЕВАЯ ============================ */
@@ -280,7 +333,7 @@ export const INDUSTRIES: Industry[] = [
     ph: [5.5, 8.5],
     chain: ["screen", "avg", "grease", "bio", "clarify", "post", "disinfect", "sludge"],
     notes: [
-      "Сахара и крахмал дают быстроокисляемый ХПК: биология работает хорошо, но склонна к вспуханию ила при недостатке азота — контролируется соотношение БПК:N:P = 100:5:1, при дефиците дозируется карбамид.",
+      `Сахара и крахмал дают быстроокисляемый ХПК: биология работает хорошо, но склонна к вспуханию ила при недостатке азота — контролируется соотношение БПКполн:N:P = 100:${BIO_INLET_LIMITS.nPer100Bod}:${BIO_INLET_LIMITS.pPer100Bod} (${BIO_INLET_LIMITS.ref}), при дефиците дозируется карбамид.`,
       "Мойка форм с маслом — жироуловитель обязателен до биологии.",
     ],
     sources: [REF, ME],
@@ -370,7 +423,7 @@ export const INDUSTRIES: Industry[] = [
     chain: ["screen", "avg", "neutral", "physchem", "bio", "clarify", "post", "disinfect", "sludge"],
     notes: [
       "Соотношение БПК/ХПК низкое (0,25–0,35): значительная часть органики биологически трудноокисляема, поэтому реагентная ступень стоит ДО биологии, а не после.",
-      "Горячие стоки крашения (60–90 °C) охлаждаются в усреднителе; выше 35 °C биология гибнет.",
+      `Горячие стоки крашения (60–90 °C) охлаждаются в усреднителе: температура на входе в биологическую очистку не выше ${BIO_INLET_LIMITS.tempMaxC} °C (${BIO_INLET_LIMITS.ref}).`,
       "Щелочная среда мерсеризации и отварки: нейтрализация кислотой со станцией дозирования — обязательный узел.",
     ],
     sources: [REF, ME, "ВНТП текстильной промышленности"],
@@ -411,7 +464,7 @@ export const INDUSTRIES: Industry[] = [
     pollutants: { cod: [3000, 8000], bod: [1000, 3000], ss: [1500, 6000], fats: [200, 800], tn: [200, 500], surf: [20, 80] },
     ph: [7.0, 12.0],
     special: [
-      { label: "Хром общий (Cr³⁺)", range: [30, 120], unit: "мг/л", note: "Хромовые стоки дубления собираются ОТДЕЛЬНО: осаждение щёлочью при pH 8,5–9,5, осадок гидроксида хрома — на регенерацию или спецполигон." },
+      { label: "Хром общий (Cr³⁺)", range: [30, 120], unit: "мг/л", note: `Хромовые стоки дубления собираются ОТДЕЛЬНО: осаждение известковым молоком при pH 8,5–9 (${kmkRef("6.286")}), осадок гидроксида хрома — на регенерацию или спецполигон.` },
       { label: "Сульфиды S²⁻", range: [100, 400], unit: "мг/л", note: "Зольные стоки тоже отдельно: окисление сульфидов (аэрация с катализатором MnSO₄) до смешения — иначе при подкислении выделяется смертельно опасный H₂S." },
       { label: "Хлориды", range: [3000, 15000], unit: "мг/л", note: "Соль от консервации шкур; биология адаптируется при плавном усреднении." },
     ],
@@ -441,15 +494,29 @@ export const INDUSTRIES: Industry[] = [
     id: "settlement",
     group: "municipal",
     name: L("Посёлок / жилой комплекс", "Posyolka / turar-joy majmuasi", "Settlement / residential complex", "居民点 / 住宅小区"),
-    flowHint: L("200 л на жителя в сутки (КМК 2.04.03-97)", "kuniga bir aholiga 200 l (QMQ 2.04.03-97)", "200 L per capita per day (KMK 2.04.03-97)", "每人每日 200 L（KMK 2.04.03-97）"),
-    pollutants: { cod: [400, 700], bod: [200, 350], ss: [200, 350], fats: [30, 80], tn: [40, 70], tp: [8, 15], surf: [5, 15] },
-    ph: [6.5, 8.5],
+    flowHint: L(
+      `${WATER_USE_TOWN.lpcd} л на жителя в сутки для посёлков и райцентров до 50 тыс. чел., ${WATER_USE_CITY.lpcd} л — для городов свыше 100 тыс. чел. (${KMK_2_04_03_19_DOC.code}, п. 2.9, табл. 3, 2035 г.)`,
+      `kuniga bir aholiga ${WATER_USE_TOWN.lpcd} l (50 ming kishigacha posyolka va tuman markazlari), ${WATER_USE_CITY.lpcd} l — 100 ming kishidan ortiq shaharlar (QMQ 2.04.03-19, 2.9-band, 3-jadval, 2035 y.)`,
+      `${WATER_USE_TOWN.lpcd} L per capita per day for towns under 50 000, ${WATER_USE_CITY.lpcd} L for cities over 100 000 (KMK 2.04.03-19, cl. 2.9, table 3, year 2035)`,
+      `每人每日 ${WATER_USE_TOWN.lpcd} L（5 万人以下城镇），${WATER_USE_CITY.lpcd} L（10 万人以上城市）（KMK 2.04.03-19 第 2.9 条，表 3，2035 年）`
+    ),
+    /* табл. 25 при 280…170 л/(чел·сут); tn — по аммонийному азоту табл. 25 (общий азот бытового стока нормативом не задан) */
+    pollutants: {
+      cod: domRange("cod"),
+      bod: domRange("bod5"),
+      ss: domRange("ss"),
+      fats: domRange("fats"),
+      tn: domRange("nh4N"),
+      tp: domRange("pTotal"),
+      surf: domRange("surfactants"),
+    },
+    ph: [BIO_INLET_LIMITS.phMin, BIO_INLET_LIMITS.phMax],
     chain: ["screen", "sand", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
     notes: [
-      "Классический хозбытовой сток по КМК 2.04.03-97: нагрузка на жителя — 65 г БПК₅, 65 г взвешенных, 8 г N, 1,7 г P в сутки.",
-      "Коэффициент неравномерности притока для малых объектов 1,6–2,5: усреднитель или запас ёмкости приёмной камеры обязателен.",
+      `Хозбытовой сток по ${kmkRef("6.4", "табл. 25")}: нагрузка на жителя в сутки — ${T25.bodFull} г БПКполн (≈${gf(T25.bodFull * BOD5_TO_BODFULL, 0)} г БПК₅ при БПК₅/БПКполн = ${gf(BOD5_TO_BODFULL, 2)}), ${T25.suspendedSolids} г взвешенных, ${T25.ammoniumN} г азота аммонийного, ${gf(T25.phosphatesP2O5)} г фосфатов P₂O₅ (≈${gf(T25.phosphatesP2O5 * P2O5_TO_P)} г P), ${T25.cod} г ХПК, ${T25.fats} г жиров, ${gf(T25.surfactants)} г ПАВ. Концентрации выше получены делением на удельное водоотведение ${WATER_USE_CITY.lpcd}…${WATER_USE_TOWN.lpcd} л/(чел·сут) по табл. 3.`,
+      `Коэффициент общей неравномерности притока по ${kmkRef("2.7", "табл. 2")}: K_gen.max = ${gf(T2_FIRST.kMax)} при ${T2_FIRST.averageLps} л/с … ${gf(T2_100.kMax)} при ${T2_100.averageLps} л/с (при среднем расходе менее ${T2_FIRST.averageLps} л/с — по КМК 2.04.01-98, прим. 2): усреднитель или запас ёмкости приёмной камеры обязателен.`,
     ],
-    sources: [KMK],
+    sources: [KMK_DOMESTIC],
   },
   {
     id: "hotel",
@@ -464,7 +531,7 @@ export const INDUSTRIES: Industry[] = [
       "Кухня ресторана даёт жиры: жироуловитель на кухонной линии до смешения с общим стоком.",
       "Сезонные объекты: биология с быстрым запуском (биоплёнка на носителе выходит на режим за 2–3 недели).",
     ],
-    sources: [KMK, REF],
+    sources: [NOT_IN_KMK, REF],
   },
   {
     id: "hospital",
@@ -475,11 +542,11 @@ export const INDUSTRIES: Industry[] = [
     ph: [6.5, 8.5],
     chain: ["screen", "grease", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
     notes: [
-      "Обеззараживание стока — обязательное требование санитарных норм для медицинских учреждений; доза активного хлора выше коммунальной (до 10 г/м³), время контакта не менее 30 минут.",
+      `Обеззараживание стока — обязательное требование санитарных норм для медицинских учреждений; доза активного хлора выше коммунальной (до ${DISINFECTION.chlorineDose.afterMechanical} г/м³ по санитарным требованиям; ${DISINFECTION.chlorineDose.ref} даёт ${DISINFECTION.chlorineDose.afterBio} г/м³ после биологической очистки), время контакта не менее ${DISINFECTION.contactMinutes.value} мин (${DISINFECTION.contactMinutes.ref}).`,
       "Дезинфицирующие средства из отделений могут угнетать биологию — усреднение сглаживает залпы.",
       "Инфекционные отделения — отдельный локальный узел обеззараживания до общего стока.",
     ],
-    sources: [KMK, "СанПиН РУз"],
+    sources: [NOT_IN_KMK, "СанПиН РУз"],
   },
   {
     id: "school",
@@ -493,7 +560,7 @@ export const INDUSTRIES: Industry[] = [
       "Сток только в учебные часы и полное отсутствие ночью и на каникулах: биология на прикреплённой биоплёнке переносит паузы лучше взвешенного ила.",
       "Пищеблок — жироуловитель под мойку.",
     ],
-    sources: [KMK],
+    sources: [NOT_IN_KMK, REF],
   },
   {
     id: "restaurant",
@@ -504,10 +571,10 @@ export const INDUSTRIES: Industry[] = [
     ph: [5.5, 8.5],
     chain: ["grease", "avg", "bio", "clarify", "disinfect", "sludge"],
     notes: [
-      "Жиры — главный параметр: жироуловитель по EN 1825 с временем пребывания не менее 60 минут при расчётном расходе кухни.",
+      "Жиры — главный параметр: жироуловитель по EN 1825 с временем пребывания не менее 60 минут при расчётном расходе кухни (жироуловители в ҚМҚ 2.04.03-19 не нормируются).",
       "При сбросе в городскую сеть часто достаточно жироуловителя и усреднителя — полная биология нужна только при автономном сбросе.",
     ],
-    sources: ["EN 1825-2", KMK],
+    sources: ["EN 1825-2 (жироуловители; в ҚМҚ 2.04.03-19 не нормируются)", NOT_IN_KMK],
   },
   {
     id: "mall",
@@ -518,9 +585,9 @@ export const INDUSTRIES: Industry[] = [
     ph: [6.5, 8.5],
     chain: ["screen", "grease", "sand", "avg", "bio", "clarify", "disinfect", "sludge"],
     notes: [
-      "Смешанный сток: фудкорт даёт жиры, паркинг — нефтепродукты в ливнёвке. Кухонная и дождевая линии обрабатываются раздельно: жироуловитель на фудкорт, нефтеуловитель на ливнёвку паркинга.",
+      "Смешанный сток: фудкорт даёт жиры, паркинг — нефтепродукты в ливнёвке. Кухонная и дождевая линии обрабатываются раздельно: жироуловитель на фудкорт, нефтеуловитель на ливнёвку паркинга (расход дождевого стока — по пп. 2.11–2.19 ҚМҚ 2.04.03-19).",
     ],
-    sources: [KMK, REF],
+    sources: [NOT_IN_KMK, REF],
   },
   {
     id: "carwash",
@@ -545,10 +612,10 @@ export const INDUSTRIES: Industry[] = [
     ph: [6.5, 8.5],
     chain: ["sand", "oil", "post"],
     notes: [
-      "Ливневый сток с покрытий: расчёт по интенсивности дождя района строительства (КМК 2.04.03-97, раздел дождевой канализации).",
+      `Ливневый сток с покрытий: расчётный расход — по интенсивности дождя района строительства методом предельных интенсивностей (${KMK_2_04_03_19_DOC.code}, пп. 2.11–2.19, ф. (2)–(11)); 20 л/(с·га) в подсказке — упрощение для предварительной оценки.`,
       "Нефтеуловитель с тонкослойным модулем и автоматическим затвором на выходе — требование при сбросе в сеть; норматив на выходе — 0,3 мг/л с фильтром доочистки.",
     ],
-    sources: [KMK, "EN 858"],
+    sources: [KMK_RAIN, "EN 858 (сепараторы нефтепродуктов; в ҚМҚ 2.04.03-19 не нормируются)"],
   },
   {
     id: "laundry",
@@ -560,7 +627,7 @@ export const INDUSTRIES: Industry[] = [
     chain: ["screen", "avg", "neutral", "physchem", "bio", "clarify", "disinfect", "sludge"],
     notes: [
       "СПАВ и фосфаты от моющих средств — определяющие: коагуляция с флотацией до биологии, иначе пена и угнетение ила.",
-      "Щелочной сток: нейтрализация до pH 6,5–8,5.",
+      `Щелочной сток: нейтрализация до pH ${gf(BIO_INLET_LIMITS.phMin)}–${gf(BIO_INLET_LIMITS.phMax)} (${kmkRef("6.2")}, п. 6.258).`,
     ],
     sources: [REF, ME],
   },
@@ -573,7 +640,7 @@ export const INDUSTRIES: Industry[] = [
     pollutants: { cod: [100, 400], ss: [50, 300], petro: [5, 30], surf: [5, 30] },
     ph: [2.0, 12.0],
     special: [
-      { label: "Хром Cr⁶⁺", range: [5, 100], unit: "мг/л", note: "Хромовые стоки отдельно: восстановление Cr⁶⁺→Cr³⁺ (бисульфит при pH 2–3), затем осаждение." },
+      { label: "Хром Cr⁶⁺", range: [5, 100], unit: "мг/л", note: `Хромовые стоки отдельно: восстановление Cr⁶⁺→Cr³⁺ бисульфитом натрия при pH 2,5–3 (${kmkRef("6.284")}), затем осаждение.` },
       { label: "Никель / цинк / медь", range: [10, 150], unit: "мг/л", note: "Осаждение гидроксидов при pH 9–10,5, каждый металл имеет свой оптимум." },
       { label: "Циансодержащие стоки", range: [5, 50], unit: "мг/л", note: "Строго отдельная линия: окисление гипохлоритом в щелочной среде до смешения." },
     ],

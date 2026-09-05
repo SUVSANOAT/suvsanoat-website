@@ -9,6 +9,9 @@ export const maxDuration = 60;
  * Если в Vercel задан ANTHROPIC_API_KEY — записку пишет модель Claude
  * по системному промпту, который запрещает выдумывать числа: она
  * получает готовый расчёт страницы и только обосновывает его.
+ * Нормативная база в промпте — ҚМҚ 2.04.03-19 (взамен КМК 2.04.03-97);
+ * номера пунктов модель берёт только из поля norms (kmkClausesFor),
+ * которое сервер дописывает, если клиент его не передал.
  * Без ключа (или при ошибке API) возвращается детерминированный
  * шаблон из тех же данных — страница всегда получает документ.
  *
@@ -20,6 +23,7 @@ export const maxDuration = 60;
 import {
   buildTemplateNote,
   isNoteInput,
+  kmkClausesFor,
   noteUserPrompt,
   NOTE_SYSTEM_PROMPT,
 } from "../../engineering/analysis/pro-result/note-template";
@@ -55,6 +59,10 @@ export async function POST(request: Request) {
   }
   if (!isNoteInput(body)) {
     return Response.json({ ok: false, error: "bad input" }, { status: 400 });
+  }
+  /* перечень пунктов ҚМҚ 2.04.03-19 — единственные номера, на которые ИИ вправе ссылаться */
+  if (!Array.isArray(body.norms) || !body.norms.length) {
+    body.norms = kmkClausesFor(body.stages.map((s) => s.key));
   }
 
   const template = buildTemplateNote(body);

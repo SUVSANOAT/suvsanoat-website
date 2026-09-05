@@ -11,6 +11,56 @@ import {
 import { calculateMBR } from "../../../../calculations/mbr";
 import { calculateUASB } from "../../../../calculations/uasb";
 import { calculateABR } from "../../../../calculations/abr";
+import {
+  KMK_2_04_03_19_DOC,
+  AEROTANK,
+  BOD5_TO_BODFULL,
+  DISINFECTION,
+  PRIMARY_SETTLING,
+  SLUDGE,
+  BIO_INLET_LIMITS,
+  kMaxByDailyFlow,
+} from "../../../../norms/kmk-2-04-03-19";
+
+/**
+ * Требования ҚМҚ 2.04.03-19 к обеззараживанию, числу сооружений и осадку.
+ * Те же формулы и пункты, что на шаге «Оборудование» (equipment/page.tsx).
+ */
+function kmkRequirements(
+  technology: Technology,
+  flow: number,
+  qPeak: number,
+  bod: number,
+  tss: number,
+) {
+  if (!Number.isFinite(flow) || flow <= 0) return null;
+  const aerobic = ["CAS", "IFAS", "MBBR", "SBR", "MBR"].includes(technology);
+  const withSecondarySettling = ["CAS", "IFAS", "MBBR"].includes(technology);
+  const chlorDose = DISINFECTION.chlorineDose.afterBio; // п. 6.230
+  const chlorKgDay = (flow * chlorDose) / 1000;
+  const chlorStorageKgDay = chlorKgDay * DISINFECTION.chlorineDose.storageFactor;
+  const contactFlow = qPeak > 0 ? qPeak : flow / 24;
+  const contactVolume = (contactFlow * DISINFECTION.contactMinutes.value) / 60; // п. 6.235
+  const g = AEROTANK.sludgeGrowth; // ф. (67)
+  const bodFullIn = bod > 0 ? bod / BOD5_TO_BODFULL : 0;
+  const sludgeGrowthMgL = g.ssFactor * tss + g.bodFactorMunicipal * bodFullIn;
+  const sludgeKgDay = (flow * sludgeGrowthMgL) / 1000;
+  const sludgeDesignKgDay = sludgeKgDay * g.designFactor;
+  const fp = SLUDGE.dewatering.activatedSludgeCake.filterPress; // табл. 69
+  const cakeT = [sludgeKgDay / 1000 / (1 - fp[1] / 100), sludgeKgDay / 1000 / (1 - fp[0] / 100)];
+  return {
+    aerobic,
+    withSecondarySettling,
+    chlorDose,
+    chlorKgDay,
+    chlorStorageKgDay,
+    contactVolume,
+    sludgeGrowthMgL,
+    sludgeKgDay,
+    sludgeDesignKgDay,
+    cakeT,
+  };
+}
 
 type Technology = TechnologyCode;
 
@@ -454,6 +504,7 @@ function PrintDocument({
     calc
   );
   const assumptions = calc.result.assumptions || [];
+  const kmk = kmkRequirements(technology, flow, Number(calc.qPeak) || 0, bod, tss);
 
   const specializedRows = detail.map((r) => [r.label, r.value]);
 
@@ -514,7 +565,7 @@ function PrintDocument({
               ["Производительность", `${f(flow, 1)} м³/сут`],
               ["Количество людей", people ? `${people} чел.` : "—"],
               ["Режим работы", `${hours} ч/сут`],
-              ["Температура сточных вод", "20 °C"],
+              ["Температура сточных вод (принято)", `20 °C (ф. (51) ҚМҚ 2.04.03-19 — базис 15 °C; п. 6.2: ${BIO_INLET_LIMITS.tempMinC}–${BIO_INLET_LIMITS.tempMaxC} °C на входе в биологию)`],
               ["Технология", technology],
             ]}
           />
@@ -526,6 +577,7 @@ function PrintDocument({
             rows={[
               ["Производительность", "Qсут", f(flow, 2), "м³/сут"],
               ["Производительность", "Qчас", f(calc.qHour, 2), "м³/ч"],
+              [`Максимальный расход (K gen.max = ${f(calc.kGenMax, 2)}, п. 2.7, табл. 2)`, "Qmax", f(calc.qPeak, 2), "м³/ч"],
               ["Время удержания (HRT)", "HRT", f(tech.hrt, 2), "ч"],
               ["Необходимый объём", "Vreq", f(calc.volume, 2), "м³"],
               ["Рабочий объём", "Vwork", f(calc.volume * 1.10, 2), "м³"],
@@ -650,11 +702,11 @@ function PrintDocument({
             <PrintTable
               columns={["Параметр", "Значение", "Единицы"]}
               rows={[
-                ["Потребность в O₂", f(calc.oxygen), "кг O₂/сут"],
-                ["Расход воздуха", f(calc.air, 0), "Нм³/ч"],
+                [`Потребность в O₂ (q_O = ${AEROTANK.air.qO.toBod15_20} кг/кг БПКполн, п. 6.156)`, f(calc.oxygen), "кг O₂/сут"],
+                ["Расход воздуха (ф. (70), п. 6.156)", f(calc.air, 0), "Нм³/ч"],
                 ["Рабочие воздуходувки", "2", "шт."],
-                ["Резерв", "1", "шт."],
-                ["Диффузоры", String(Math.max(1, Math.ceil(calc.air / 5))), "шт."],
+                ["Резерв (п. 5.29: до 3 рабочих — 1)", "1", "шт."],
+                ["Диффузоры (5 м³/ч на диффузор — практика)", String(Math.max(1, Math.ceil(calc.air / 5))), "шт."],
               ]}
             />
           </PrintSection>
@@ -688,9 +740,35 @@ function PrintDocument({
           </PrintSection>
         )}
 
+        {kmk && (
+          <PrintSection title={`ТРЕБОВАНИЯ ${KMK_2_04_03_19_DOC.code}: ОБЕЗЗАРАЖИВАНИЕ, СООРУЖЕНИЯ, ОСАДОК`}>
+            <PrintTable
+              columns={["Параметр", "Значение", "Основание"]}
+              rows={[
+                ["Доза активного хлора после биологической очистки", `${kmk.chlorDose} г/м³ · ${f(kmk.chlorKgDay)} кг/сут`, DISINFECTION.chlorineDose.ref],
+                ["Хлорное хозяйство (×1,5 дозы)", `${f(kmk.chlorStorageKgDay)} кг/сут`, DISINFECTION.chlorineDose.ref],
+                ["Контактные резервуары", `≥ ${DISINFECTION.contactTanksMin.value} шт., ${f(kmk.contactVolume, 1)} м³ (${DISINFECTION.contactMinutes.value} мин при Qmax)`, `${DISINFECTION.contactMinutes.ref}; ${DISINFECTION.contactTanksMin.ref}`],
+                ...(kmk.withSecondarySettling
+                  ? [["Вторичные отстойники", `≥ ${PRIMARY_SETTLING.minSecondary.value} шт. (при минимальном числе V ×${PRIMARY_SETTLING.minCountVolumeFactor.value[0]}–${PRIMARY_SETTLING.minCountVolumeFactor.value[1]})`, PRIMARY_SETTLING.minSecondary.ref]]
+                  : []),
+                ...(kmk.aerobic
+                  ? [
+                      ["Прирост активного ила P_i = 0,8·C_cdp + 0,3·L_en", `${f(kmk.sludgeGrowthMgL, 0)} мг/л · ${f(kmk.sludgeKgDay, 1)} кг с.в./сут`, AEROTANK.sludgeGrowth.ref],
+                      ["Ил на уплотнители и перекачку (×1,3)", `${f(kmk.sludgeDesignKgDay, 1)} кг с.в./сут`, AEROTANK.sludgeGrowth.ref],
+                      ["Кек фильтр-пресса (влажность 80–83 %)", `${f(kmk.cakeT[0])}–${f(kmk.cakeT[1])} т/сут`, SLUDGE.dewatering.ref],
+                    ]
+                  : []),
+              ]}
+            />
+          </PrintSection>
+        )}
+
         <div className="pdf-callout">
           <b>Примечание.</b> Все параметры данной страницы являются предварительными
           инженерными значениями и подлежат подтверждению рабочим проектированием.
+          HRT по технологиям, параметры MBBR/SBR/MBR (OLR, заполнение, flux, цикл),
+          анаэробные реакторы и выход биогаза не нормируются {KMK_2_04_03_19_DOC.code};
+          приняты по DWA/практике.
         </div>
         <PrintFooter page={5} />
       </div>
@@ -1065,10 +1143,14 @@ function CompleteContent() {
     const biogas = metric("biogas");
     const methane = metric("methane", biogas * 0.65);
 
+    // Резервный расчёт (если модуль технологии не вернул O₂): q_O = 1,1 кг O₂
+    // на кг снятой БПКполн (ҚМҚ 2.04.03-19, п. 6.156); БПК₅ → БПКполн через 0,68.
     const oxygen = metric(
       "oxygen",
-      removedBod * 1.42
+      (removedBod / BOD5_TO_BODFULL) * AEROTANK.air.qO.toBod15_20
     );
+
+    const kGenMax = flow > 0 ? kMaxByDailyFlow(flow).kMax : 0;
 
     const air = metric("air");
 
@@ -1134,6 +1216,7 @@ function CompleteContent() {
       qHour,
       qAvg,
       qPeak,
+      kGenMax,
       hydraulic,
       bodLoad,
       codLoad,
@@ -1205,6 +1288,7 @@ function CompleteContent() {
 
   const uasbCalc = calc.uasbCalc;
   const abrCalc = calc.abrCalc;
+  const kmkScreen = kmkRequirements(technology, flow, Number(calc.qPeak) || 0, bod, tss);
 
   const detail = useMemo(() => {
     const rows: { label: string; value: string }[] = [];
@@ -1878,7 +1962,7 @@ function CompleteContent() {
             />
 
             <Card
-              label="QMAX"
+              label={`QMAX (K = ${f(calc.kGenMax, 2)}, ТАБЛ. 2)`}
               value={`${f(calc.qPeak)} м³/ч`}
             />
 
@@ -2014,7 +2098,9 @@ function CompleteContent() {
 
               <div style={paragraph}>
                 3 цикла/сут на каждый из 2 реакторов;
-                обменный объём — 25%. Рабочий объём
+                обменный объём — 25% (цикл SBR не нормируется
+                ҚМҚ 2.04.03-19; принят по практике, единый источник
+                с шагом «Оборудование»). Рабочий объём
                 одного реактора —{" "}
                 <strong>
                   {f(calc.volume / 2)} м³
@@ -2299,12 +2385,12 @@ function CompleteContent() {
             </div>
 
             <p style={note}>
-              Расход воздуха является концептуальной
-              оценкой. Для рабочего проекта необходимо
-              уточнить температуру, DO, фактическую
-              нитрификацию, эффективность переноса
-              кислорода и характеристики конкретных
-              диффузоров и воздуходувок.
+              O₂ — q_O = {AEROTANK.air.qO.toBod15_20} кг O₂/кг снятой БПКполн
+              (очистка до 15–20 мг/л; 0,9 — свыше 20 мг/л; 1,25 — продлённая
+              аэрация, п. 6.175), воздух — по ф. (70) {AEROTANK.air.ref}.
+              Для рабочего проекта необходимо уточнить K₁ (табл. 44а),
+              K₂ (табл. 45), температуру, DO, фактическую нитрификацию
+              и характеристики конкретных диффузоров и воздуходувок.
             </p>
           </Section>
         )}
@@ -2408,6 +2494,63 @@ function CompleteContent() {
               и требуют уточнения по типу мембран,
               температуре, MLSS, режиму фильтрации
               и требованиям производителя.
+            </p>
+          </Section>
+        )}
+
+        {kmkScreen && (
+          <Section title={`ТРЕБОВАНИЯ ${KMK_2_04_03_19_DOC.code}: ОБЕЗЗАРАЖИВАНИЕ, СООРУЖЕНИЯ, ОСАДОК`}>
+            <div style={grid}>
+              <Card
+                label="ХЛОР ПОСЛЕ БИОЛОГИИ, П. 6.230"
+                value={`${kmkScreen.chlorDose} г/м³ · ${f(kmkScreen.chlorKgDay)} кг/сут`}
+                accent
+              />
+              <Card
+                label="ХЛОРНОЕ ХОЗЯЙСТВО ×1,5"
+                value={`${f(kmkScreen.chlorStorageKgDay)} кг/сут`}
+              />
+              <Card
+                label="КОНТАКТНЫЕ РЕЗЕРВУАРЫ, П. 6.235–6.236"
+                value={`≥ ${DISINFECTION.contactTanksMin.value} шт. · ${f(kmkScreen.contactVolume, 1)} м³`}
+              />
+              {kmkScreen.withSecondarySettling && (
+                <Card
+                  label="ВТОРИЧНЫЕ ОТСТОЙНИКИ, П. 6.58"
+                  value={`≥ ${PRIMARY_SETTLING.minSecondary.value} шт. (или V ×1,2–1,3)`}
+                />
+              )}
+              {kmkScreen.aerobic && (
+                <>
+                  <Card
+                    label="ПРИРОСТ ИЛА, Ф. (67) П. 6.148"
+                    value={`${f(kmkScreen.sludgeGrowthMgL, 0)} мг/л · ${f(kmkScreen.sludgeKgDay, 1)} кг/сут`}
+                  />
+                  <Card
+                    label="ИЛ НА УПЛОТНИТЕЛИ ×1,3"
+                    value={`${f(kmkScreen.sludgeDesignKgDay, 1)} кг/сут`}
+                  />
+                  <Card
+                    label="КЕК ФИЛЬТР-ПРЕСС 80–83 %, ТАБЛ. 69"
+                    value={`${f(kmkScreen.cakeT[0])}–${f(kmkScreen.cakeT[1])} т/сут`}
+                  />
+                </>
+              )}
+            </div>
+            <p style={note}>
+              {DISINFECTION.chlorineDose.ref}: {DISINFECTION.chlorineDose.afterBio} г/м³
+              после биологической очистки ({DISINFECTION.chlorineDose.afterPartialBio} — после
+              неполной биологической, {DISINFECTION.chlorineDose.afterMechanical} — после
+              механической), хлорное хозяйство на ×{DISINFECTION.chlorineDose.storageFactor}.
+              {" "}{DISINFECTION.contactMinutes.ref}: контакт {DISINFECTION.contactMinutes.value} мин
+              при максимальном расходе; {DISINFECTION.contactTanksMin.ref}: не менее{" "}
+              {DISINFECTION.contactTanksMin.value} резервуаров.
+              {" "}{AEROTANK.sludgeGrowth.ref}: P_i = 0,8·C_cdp + 0,3·L_en
+              (C_cdp — взвешенные {f(tss, 0)} мг/л; L_en — БПКполн из БПК₅ через{" "}
+              {BOD5_TO_BODFULL}, практика). {SLUDGE.dewatering.ref}: кек активного
+              ила — фильтр-пресс {SLUDGE.dewatering.activatedSludgeCake.filterPress[0]}–{SLUDGE.dewatering.activatedSludgeCake.filterPress[1]} %,
+              центрифуга {SLUDGE.dewatering.activatedSludgeCake.centrifuge[0]}–{SLUDGE.dewatering.activatedSludgeCake.centrifuge[1]} % влажности;
+              плотность кека 1 т/м³ — практика.
             </p>
           </Section>
         )}

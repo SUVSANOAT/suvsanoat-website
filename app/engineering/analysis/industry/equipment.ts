@@ -16,15 +16,36 @@
  * Границы приняты по практике проектирования, не по нормативу, и
  * подлежат уточнению компоновкой на площадке.
  *
- * Расчётные величины: КМК 2.04.03-97, DWA-A 131, EN 858, EN 1825,
- * Metcalf & Eddy «Wastewater Engineering». Резервирование насосов и
- * воздуходувок — по КМК 2.04.03-97 (рабочий + резервный).
+ * Расчётные величины: ҚМҚ 2.04.03-19 «Канализация. Наружные сети и
+ * сооружения» (взамен КМК 2.04.03-97) — все нормативные числа берутся
+ * из norms/kmk-2-04-03-19.ts с номером пункта; там, где ҚМҚ-19 величину
+ * не задаёт, источник назван явно (DWA-A 131, EN 858, EN 1825, Metcalf &
+ * Eddy, практика). Число сооружений — пп. 6.26, 6.38, 6.58, 6.150, 6.236;
+ * резерв насосов — табл. 21 (п. 5.10), воздуходувок — п. 5.29.
  * ================================================================== */
 
 import type { StageKey } from "./industries";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
 import { L, t as tr, type L10n } from "./i18n";
 import type { Language } from "../../../translations";
+import {
+  AEROTANK,
+  BIO_INLET_LIMITS,
+  DISINFECTION,
+  EQUALIZATION,
+  FLOTATION,
+  GRIT,
+  KMK_2_04_03_19_DOC,
+  PRIMARY_SETTLING,
+  PUMP_STATIONS,
+  REAGENTS,
+  SCREENS,
+  SECONDARY_SETTLING,
+  SLUDGE,
+  TERTIARY_FILTERS,
+  kMaxByDailyFlow,
+  kmkRef,
+} from "../../../../norms/kmk-2-04-03-19";
 
 export type Supply = "own" | "supply" | "either";
 export type ItemKind = "structure" | "machine" | "instrument";
@@ -102,9 +123,33 @@ export type Ctx = {
 
 const f = (v: number, d = 0) => v.toLocaleString("ru-RU", { maximumFractionDigits: d });
 
-/* насосная группа: рабочие + резерв по КМК */
+const T58 = TERTIARY_FILTERS.table58.sandSingleLayer;
+const SECONDARY_HOPPER_H = SECONDARY_SETTLING.hopperMaxHours.value;
+const BIO_N_TEXT = `не менее ${BIO_INLET_LIMITS.nPer100Bod} мг/л N и ${BIO_INLET_LIMITS.pPer100Bod} мг/л P на 100 мг/л БПКполн, ${BIO_INLET_LIMITS.ref}`;
+
+/* насосная группа: рабочие + резерв по табл. 21 ҚМҚ 2.04.03-19 (п. 5.10):
+   при 1–2 рабочих — 1 резервный, при 3 и более — 2 */
 function pumpQty(n = 1): string {
-  return `${n + 1} (${n} раб. + 1 рез.)`;
+  const r = n >= 3 ? 2 : 1;
+  return `${n + r} (${n} раб. + ${r} рез.)`;
+}
+
+/* воздуходувки: п. 5.29 — до 3 рабочих 1 резервная, 4 и более — 2 */
+function blowerQty(n = 1): string {
+  const r = n <= 3 ? 1 : 2;
+  return `${n + r} (${n} раб. + ${r} рез., ${PUMP_STATIONS.blowerReserve.ref})`;
+}
+
+/**
+ * Максимальный часовой приток, м³/ч: средний часовой расход рабочего периода
+ * × K_gen.max по табл. 2 (п. 2.7) × запас решётки сверх нормы (assumptions.screenPeak,
+ * по умолчанию 1). K_gen.max выбран по среднесуточному расходу — при работе
+ * менее 24 ч/сут это даёт запас в сторону безопасности.
+ */
+export function peakHourly(ctx: Pick<Ctx, "Q" | "Qh" | "a">): { qMax: number; kMax: number; source: string } {
+  const u = kMaxByDailyFlow(ctx.Q);
+  const screenPeak = ctx.a.screenPeak ?? 1;
+  return { qMax: ctx.Qh * u.kMax * screenPeak, kMax: u.kMax, source: u.source };
 }
 
 /* ------------------------------------------------------------------
@@ -137,7 +182,7 @@ export function commonEquipment(ctx: Ctx): Item[] {
   items.push({
     kind: "structure",
     name: "Аварийно-регулирующая ёмкость",
-    spec: `объём не менее ${f(Math.max(ctx.Q / 24, ctx.Qh) * ctx.a.reserveEmergency)} м³ (${ctx.a.reserveEmergency} ч притока)`,
+    spec: `объём не менее ${f(Math.max(ctx.Q / 24, ctx.Qh) * ctx.a.reserveEmergency)} м³ (${ctx.a.reserveEmergency} ч притока — практика; ${KMK_2_04_03_19_DOC.code} нормирует только приёмный резервуар НС: не менее ${PUMP_STATIONS.wetWellMinMinutes.value} мин подачи насоса, п. 5.18)`,
     qty: "1",
     supply: "own",
     note: "Приём стока при отключении питания и на время ремонта; опорожнение обратно в голову сооружений",
@@ -186,6 +231,8 @@ export function commonEquipment(ctx: Ctx): Item[] {
 export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
   const items: Item[] = [];
   const fine = ["meat", "poultry", "fish", "leather", "textile-dye", "knitwear", "wool"].includes(ctx.industryId);
+  const peak = peakHourly(ctx);
+  const peakText = `${f(peak.qMax, 1)} м³/ч (K_gen.max = ${peak.kMax.toFixed(2)} по ${peak.source}${ctx.a.screenPeak && ctx.a.screenPeak !== 1 ? `; запас ×${ctx.a.screenPeak}` : ""})`;
 
   switch (stage) {
     /* ---------------- механическая очистка ---------------- */
@@ -194,7 +241,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Решётка-корзина в приёмной камере",
-          spec: "прозор 5–8 мм, ручная выгрузка в контейнер",
+          spec: `прозор 5–8 мм (не более ${SCREENS.maxGapMm.value} мм, ${SCREENS.maxGapMm.ref}), ручная выгрузка в контейнер — допускается при отбросах менее ${SCREENS.mechanizedFromM3Day.value} м³/сут (${SCREENS.mechanizedFromM3Day.ref})`,
           qty: "1",
           supply: "own",
         });
@@ -202,7 +249,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Решётка механизированная шнековая (компактор)",
-          spec: `прозор ${fine ? "2–3" : "3–6"} мм, пропускная способность от ${f(ctx.Qh * ctx.a.screenPeak, 1)} м³/ч`,
+          spec: `прозор ${fine ? "2–3" : "3–6"} мм (не более ${SCREENS.maxGapMm.value} мм, ${SCREENS.maxGapMm.ref}), пропускная способность на максимальный приток ${peakText}; скорость в прозорах ${PUMP_STATIONS.screenGapVelocity.mechanized[0]}–${PUMP_STATIONS.screenGapVelocity.mechanized[1]} м/с (${PUMP_STATIONS.screenGapVelocity.ref})`,
           qty: "1 + байпас с ручной решёткой",
           supply: "supply",
           note: "Отбросы прессуются и обезвоживаются в самой решётке",
@@ -211,14 +258,14 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Решётка механическая грабельная или ступенчатая",
-          spec: `прозор ${fine ? "2–3" : "3–6"} мм, каждая на полный расход ${f(ctx.Qh * ctx.a.screenPeak, 1)} м³/ч`,
-          qty: "2 (1 раб. + 1 рез.) + байпасный канал с ручной решёткой",
+          spec: `прозор ${fine ? "2–3" : "3–6"} мм (не более ${SCREENS.maxGapMm.value} мм, ${SCREENS.maxGapMm.ref}), каждая на максимальный приток ${peakText}; скорость в прозорах ${PUMP_STATIONS.screenGapVelocity.mechanized[0]}–${PUMP_STATIONS.screenGapVelocity.mechanized[1]} м/с (${PUMP_STATIONS.screenGapVelocity.ref})`,
+          qty: `2 (1 раб. + 1 рез., ${PUMP_STATIONS.screenReserve.ref}) + байпасный канал с ручной решёткой`,
           supply: "supply",
         });
         items.push({
           kind: "machine",
           name: "Транспортёр-пресс отбросов",
-          spec: "шнековый, обезвоживание отбросов до 35–40 % СВ",
+          spec: `шнековый, обезвоживание отбросов до 35–40 % СВ (практика; ${KMK_2_04_03_19_DOC.code} задаёт плотность отбросов ${PUMP_STATIONS.screeningsDensityKgM3.value} кг/м³ и часовую неравномерность ${PUMP_STATIONS.screeningsHourlyPeak.value}, п. 5.13)`,
           qty: "1",
           supply: "supply",
         });
@@ -231,7 +278,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
           spec: `сетка 0,5–1,0 мм, ${f(ctx.Qh, 1)} м³/ч — снятие пера, шерсти, мездры, ворса`,
           qty: ctx.scale === "concrete" ? pumpQty(1) : "1",
           supply: "supply",
-          note: "Снимает до 30 % взвешенных и заметную часть БПК до биологии",
+          note: `Снимает ${TERTIARY_FILTERS.drumScreens.drumSsEffect[0]}–${TERTIARY_FILTERS.drumScreens.drumSsEffect[1]} % взвешенных и часть БПК до биологии (барабанные сетки, ${TERTIARY_FILTERS.drumScreens.ref})`,
         });
       }
 
@@ -247,30 +294,36 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
 
     /* ---------------- песколовка ---------------- */
     case "sand": {
+      /* п. 6.26: песколовки обязательны при Q > 100 м³/сут, не менее двух, все рабочие */
+      const gritRequired = ctx.Q > GRIT.requiredFromM3Day.value;
+      const gritQty = gritRequired
+        ? `${GRIT.minUnits.value} (обе рабочие, ${GRIT.minUnits.ref})`
+        : `1 (при Q ≤ ${GRIT.requiredFromM3Day.value} м³/сут песколовка нормой не требуется, ${GRIT.requiredFromM3Day.ref}; принята по составу стока)`;
+      const sandText = `задержание частиц от ${ctx.a.sandSize} мм (${GRIT.table28.ref})`;
       if (ctx.scale === "compact") {
         items.push({
           kind: "structure",
           name: "Песколовка тангенциальная (вертикальная)",
-          spec: `${f(ctx.Qls, 1)} л/с, задержание частиц от ${ctx.a.sandSize} мм`,
-          qty: "1",
+          spec: `${f(ctx.Qls, 1)} л/с, ${sandText}; нагрузка ${GRIT.tangentialLoad.value} ${GRIT.tangentialLoad.unit} → площадь ${f(Math.max(0.2, peak.qMax / GRIT.tangentialLoad.value), 2)} м² (${GRIT.tangentialLoad.ref})`,
+          qty: gritQty,
           supply: "own",
         });
       } else if (ctx.scale === "modular") {
         items.push({
           kind: "structure",
-          name: "Песколовка горизонтальная двухсекционная",
-          spec: `${f(ctx.Qls, 1)} л/с, скорость потока 0,15–0,3 м/с, 2 отделения с возможностью отключения`,
-          qty: "1 (2 секции)",
+          name: "Песколовка горизонтальная",
+          spec: `${f(ctx.Qls, 1)} л/с, ${sandText}; скорость потока ${GRIT.table28.horizontal.vMinLps}–${GRIT.table28.horizontal.vMaxLps} м/с (табл. 28), пребывание не менее ${GRIT.horizontalMinRetentionS.value} с (${GRIT.horizontalMinRetentionS.ref}); отделения с возможностью отключения`,
+          qty: gritQty,
           supply: "either",
         });
       } else {
         items.push({
           kind: "structure",
           name: "Песколовка аэрируемая",
-          spec: `${f(ctx.Qls, 1)} л/с, время пребывания 2–3 мин, расход воздуха 3–5 м³/(м²·ч)`,
-          qty: "2 секции",
+          spec: `${f(ctx.Qls, 1)} л/с, ${sandText}; скорость ${GRIT.table28.aerated.vMaxLps[0]}–${GRIT.table28.aerated.vMaxLps[1]} м/с (табл. 28), интенсивность аэрации ${GRIT.aeratedIntensity.value[0]}–${GRIT.aeratedIntensity.value[1]} ${GRIT.aeratedIntensity.unit} (${GRIT.aeratedIntensity.ref})`,
+          qty: gritQty,
           supply: "supply",
-          note: "Аэрация отмывает песок от органики — осадок не загнивает",
+          note: `Аэрация отмывает песок от органики — содержание песка в осадке ${GRIT.table28.aerated.sandInSediment[0]}–${GRIT.table28.aerated.sandInSediment[1]} % (табл. 28), осадок не загнивает`,
         });
       }
 
@@ -286,7 +339,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Классификатор (пескопромыватель) с бункером",
-          spec: "отмывка песка до содержания органики менее 10 %, обезвоживание",
+          spec: `отмывка песка до содержания песка в осадке ${GRIT.table28.aerated.sandInSediment[0]}–${GRIT.table28.aerated.sandInSediment[1]} % (табл. 28), обезвоживание; песковые площадки — не более ${GRIT.sandBedLoad.value} ${GRIT.sandBedLoad.unit} (${GRIT.sandBedLoad.ref})`,
           qty: "1",
           supply: "supply",
         });
@@ -301,7 +354,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         kind: "structure",
         name: "Усреднитель-накопитель",
         spec: `рабочий объём ${f(V)} м³; ${tr(SCALE_LABEL[ctx.scale], ctx.lang)}`,
-        qty: ctx.scale === "compact" ? "1" : "1 (2 секции для чистки без остановки)",
+        qty: `${EQUALIZATION.minSections.value} секции, обе рабочие (${EQUALIZATION.minSections.ref})`,
         supply: ctx.scale === "concrete" ? "supply" : "own",
       });
       items.push({
@@ -313,7 +366,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
             : `удельная мощность ${ctx.a.mixPower} Вт/м³ — около ${f((V * ctx.a.mixPower) / 1000, 1)} кВт`,
         qty: ctx.scale === "concrete" ? "2" : "1",
         supply: "supply",
-        note: "Без перемешивания взвешенные осаждаются, а органика в осадке загнивает",
+        note: `Без перемешивания взвешенные осаждаются, а органика в осадке загнивает. Удельные величины — Metcalf & Eddy; ${KMK_2_04_03_19_DOC.code} задаёт барботаж на 1 м барботёра: ${EQUALIZATION.bubblerIntensity.wall}/${EQUALIZATION.bubblerIntensity.middle} ${EQUALIZATION.bubblerIntensity.unit} (${EQUALIZATION.bubblerIntensity.ref}), барботаж — при ВВ до ${EQUALIZATION.bubblingUpToSsMgL.value} мг/л (${EQUALIZATION.bubblingUpToSsMgL.ref})`,
       });
       items.push({
         kind: "machine",
@@ -338,7 +391,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Жироуловитель гравитационный",
-        spec: `${f(ctx.Qh, 1)} м³/ч, расчёт по EN 1825; жиры ${f(ctx.fats)} → не более ${ctx.a.greaseTarget} мг/л перед биологией`,
+        spec: `${f(ctx.Qh, 1)} м³/ч, расчёт по EN 1825 (в ${KMK_2_04_03_19_DOC.code} жироуловители не нормируются); жиры ${f(ctx.fats)} → не более ${ctx.a.greaseTarget} мг/л перед биологией`,
         qty: "1",
         supply: ctx.scale === "concrete" ? "either" : "own",
       });
@@ -367,7 +420,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Нефтеуловитель с тонкослойными модулями",
-        spec: `NS ${f(ctx.Qls, 1)} л/с по EN 858, всплытие капли ${ctx.a.oilDroplet} мкм; нефтепродукты ${f(ctx.petro)} → 0,3 мг/л`,
+        spec: `NS ${f(ctx.Qls, 1)} л/с по EN 858 (в ${KMK_2_04_03_19_DOC.code} расчёт по капле не нормируется), всплытие капли ${ctx.a.oilDroplet} мкм; нефтепродукты ${f(ctx.petro)} → 0,3 мг/л`,
         qty: "1",
         supply: "own",
       });
@@ -401,14 +454,14 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Камера нейтрализации с мешалкой",
-        spec: `время пребывания 10–20 мин, объём ${f(Math.max(1, ctx.Qh * 0.25), 1)} м³`,
+        spec: `время пребывания 10–20 мин (практика; ${KMK_2_04_03_19_DOC.code} время в камере не нормирует), объём ${f(Math.max(1, ctx.Qh * 0.25), 1)} м³; нейтрализация при pH < 6,5 и > 8,5 (${kmkRef("6.258")})`,
         qty: "1",
         supply: "own",
       });
       items.push({
         kind: "machine",
         name: "Станция дозирования кислоты и щёлочи",
-        spec: "два контура: серная кислота и NaOH (или известковое молоко), баки с обваловкой",
+        spec: `два контура: серная кислота и NaOH или известковое молоко 5 % CaO (${kmkRef("6.260")}–6.261; доза — по уравнению реакции с запасом 10 %, п. 6.259), баки с обваловкой`,
         qty: `${pumpQty(1)} на каждый реагент`,
         supply: "supply",
       });
@@ -422,7 +475,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Склад реагентов с поддонами и аварийным душем",
-        spec: "запас не менее 15 суток, вентиляция, поддон на полный объём наибольшей ёмкости",
+        spec: `запас не менее 15 суток (известь — ${kmkRef("6.385")}), вентиляция, поддон на полный объём наибольшей ёмкости`,
         qty: "1",
         supply: "either",
         note: "Требование промышленной безопасности при работе с кислотами и щелочами",
@@ -435,28 +488,28 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Камера быстрого смешения",
-        spec: `время 1–2 мин, градиент скорости G ≈ 500–700 с⁻¹, объём ${f(Math.max(0.5, ctx.Qh / 40), 1)} м³`,
+        spec: `время 1–2 мин, градиент скорости G = ${REAGENTS.gradientG.mixerCoag} с⁻¹ с коагулянтом, ${REAGENTS.gradientG.mixerFloc[0]}–${REAGENTS.gradientG.mixerFloc[1]} с⁻¹ с флокулянтом (${REAGENTS.gradientG.ref}), объём ${f(Math.max(0.5, ctx.Qh / 40), 1)} м³`,
         qty: "1",
         supply: "own",
       });
       items.push({
         kind: "structure",
         name: "Камера хлопьеобразования",
-        spec: `время 15–25 мин, G ≈ 30–70 с⁻¹, объём ${f(Math.max(1, ctx.Qh * 0.35), 1)} м³, тихоходная мешалка`,
+        spec: `время ${REAGENTS.flocculationMin.settlingCoag[0]}–${REAGENTS.flocculationMin.settlingCoag[1]} мин с коагулянтом, ${REAGENTS.flocculationMin.settlingFloc[0]}–${REAGENTS.flocculationMin.settlingFloc[1]} мин с флокулянтом перед отстаиванием (${REAGENTS.flocculationMin.ref}); G = ${REAGENTS.gradientG.flocSettling[0]}–${REAGENTS.gradientG.flocSettling[1]} с⁻¹ (${REAGENTS.gradientG.ref}); объём ${f(Math.max(1, ctx.Qh * 0.35), 1)} м³ (21 мин), тихоходная мешалка`,
         qty: "1",
         supply: "own",
       });
       items.push({
         kind: "machine",
         name: "Станция приготовления и дозирования коагулянта",
-        spec: `доза ${ctx.a.coagDose} г/м³ (уточняется пробным коагулированием) — ${f((ctx.Q * ctx.a.coagDose) / 1000, 1)} кг/сут`,
+        spec: `доза ${ctx.a.coagDose} г/м³ (${REAGENTS.table61Municipal.ref}; уточняется пробным коагулированием; соли Al при pH ≤ ${REAGENTS.coagulantByPh.alUpToPh}, соли Fe при большем — ${REAGENTS.coagulantByPh.ref}) — ${f((ctx.Q * ctx.a.coagDose) / 1000, 1)} кг/сут`,
         qty: pumpQty(1),
         supply: "supply",
       });
       items.push({
         kind: "machine",
         name: "Автоматическая станция приготовления флокулянта",
-        spec: `трёхкамерная, доза ${ctx.a.flocDose} г/м³ — ${f((ctx.Q * ctx.a.flocDose) / 1000, 2)} кг/сут по сухому продукту`,
+        spec: `трёхкамерная, доза ${ctx.a.flocDose} г/м³ (${REAGENTS.table61Municipal.ref}) — ${f((ctx.Q * ctx.a.flocDose) / 1000, 2)} кг/сут по сухому продукту`,
         qty: "1",
         supply: "supply",
         note: "Полимер требует созревания 40–60 мин, ручное приготовление нестабильно",
@@ -464,7 +517,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Отстойник-осветлитель с тонкослойными модулями",
-        spec: `гидравлическая нагрузка 1,5–2,5 м³/(м²·ч) → площадь ${f(ctx.Qh / 2, 1)} м²`,
+        spec: `гидравлическая нагрузка 1,5–2,5 м³/(м²·ч) (практика для тонкослойных модулей; ${KMK_2_04_03_19_DOC.code} считает отстойники по ф. (36)–(37) п. 6.62 через K_set и u₀) → площадь ${f(ctx.Qh / 2, 1)} м²`,
         qty: "1",
         supply: ctx.scale === "concrete" ? "supply" : "own",
       });
@@ -477,14 +530,14 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Флотатор напорный (DAF)",
-        spec: `нагрузка ${ctx.a.dafLoad} м³/(м²·ч) → площадь ${f(area, 1)} м²; рециркуляция ${ctx.a.dafRecycle} %`,
-        qty: "1",
+        spec: `нагрузка ${ctx.a.dafLoad} м³/(м²·ч) (${FLOTATION.hydraulicLoad.value[0]}–${FLOTATION.hydraulicLoad.value[1]}, ${FLOTATION.hydraulicLoad.ref}) → площадь ${f(area, 1)} м²; рабочая глубина ${FLOTATION.workingDepthM.value[0]}–${FLOTATION.workingDepthM.value[1]} м; пребывание ${FLOTATION.pressureRetentionMin.value[0]}–${FLOTATION.pressureRetentionMin.value[1]} мин (${FLOTATION.pressureRetentionMin.ref}); рециркуляция ${ctx.a.dafRecycle} % (практика, для воды нормой не задана)`,
+        qty: `${FLOTATION.minChambers.value} камеры (${FLOTATION.minChambers.ref})`,
         supply: "either",
       });
       items.push({
         kind: "machine",
         name: "Сатуратор с рециркуляционным насосом",
-        spec: `давление насыщения 4–6 бар, рециркуляция ${f((ctx.Qh * ctx.a.dafRecycle) / 100, 1)} м³/ч`,
+        spec: `давление насыщения 4–6 бар (практика; ${KMK_2_04_03_19_DOC.code} для флотационного илоуплотнения — ${SLUDGE.flotationThickener.pressureMPa} МПа, п. 6.354), рециркуляция ${f((ctx.Qh * ctx.a.dafRecycle) / 100, 1)} м³/ч`,
         qty: pumpQty(1),
         supply: "supply",
       });
@@ -505,7 +558,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Сборник флотошлама",
-        spec: "объём на 2–3 суток, подача на обезвоживание",
+        spec: `объём на 2–3 суток (практика), влажность пены ${FLOTATION.foamMoisture.value[0]}–${FLOTATION.foamMoisture.value[1]} % (${FLOTATION.foamMoisture.ref}); подача на обезвоживание`,
         qty: "1",
         supply: "own",
       });
@@ -517,12 +570,18 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       const V = ctx.vBio ?? 0;
       const air = ctx.air ?? 0;
       const deNitro = ctx.tn > ctx.a.denitroTn;
+      const ext = AEROTANK.extendedAeration;
+      /* блочные установки работают в режиме полного окисления (п. 6.175); крупные — как обычные аэротенки (п. 6.156) */
+      const qO = ctx.scale === "compact" ? ext.qO : AEROTANK.air.qO.toBod15_20;
+      const bod5Ratio = ctx.a.bod5Ratio || 0.68;
+      const bodFullLoad = ctx.bodLoad / bod5Ratio;
+      const o2Kg = bodFullLoad * qO;
 
       if (ctx.scale === "compact") {
         items.push({
           kind: "structure",
-          name: "Блочная установка биологической очистки (MBBR/SBR)",
-          spec: `расчётный объём ${f(V)} м³, нагрузка ${ctx.a.bodVolLoad} кг БПК₅/(м³·сут); полная заводская готовность`,
+          name: "Блочная установка биологической очистки на полное окисление (MBBR/SBR)",
+          spec: `расчётный объём ${f(V)} м³, нагрузка ${ctx.a.bodVolLoad} кг БПК₅/(м³·сут) — из скорости окисления ρ = ${ext.rho} мг БПКполн/(г·ч), дозы ила ${ext.doseGL[0]}–${ext.doseGL[1]} г/л, зольности ${ext.ash} (${ext.ref}); полная заводская готовность`,
           qty: "1",
           supply: "own",
         });
@@ -534,7 +593,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
             `рабочий объём ${f(V)} м³` +
             (deNitro ? `, из них аноксидная зона ${f((V * ctx.a.denitroShare) / 100)} м³ (${ctx.a.denitroShare} %)` : "") +
             `; ${tr(SCALE_LABEL[ctx.scale], ctx.lang)}`,
-          qty: ctx.scale === "concrete" ? "2 коридора (для вывода в ремонт)" : "1",
+          qty: `${AEROTANK.minSections.value} секции (${AEROTANK.minSections.ref}; рабочая глубина ${AEROTANK.depthM.value[0]}–${AEROTANK.depthM.value[1]} м)`,
           supply: ctx.scale === "concrete" ? "supply" : "own",
         });
         items.push({
@@ -545,24 +604,24 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
             "MBR: удельный поток 8–12 л/(м²·ч) — выбор по требуемому качеству и площади",
           qty: "комплект",
           supply: "supply",
-          note: "MBBR устойчив к перегрузкам, MBR даёт воду под доочистку и оборот без отстойника",
+          note: `MBBR устойчив к перегрузкам, MBR даёт воду под доочистку и оборот без отстойника (параметры загрузки и мембран в ${KMK_2_04_03_19_DOC.code} не нормируются)`,
         });
       }
 
       items.push({
         kind: "machine",
         name: "Аэрационная система мелкопузырчатая",
-        spec: `мембранные диспергаторы (дисковые или трубчатые), потребность воздуха ${f(air)} м³/ч`,
+        spec: `мембранные диспергаторы (дисковые или трубчатые), потребность воздуха ${f(air)} м³/ч; кислород ${f(o2Kg)} кг O₂/сут при q_O = ${qO} мг O₂/мг снятой БПКполн (${ctx.scale === "compact" ? ext.ref : AEROTANK.air.ref}); расход воздуха — ф. (70) п. 6.156`,
         qty: "комплект по площади дна",
         supply: "supply",
       });
       items.push({
         kind: "machine",
         name: ctx.scale === "concrete" ? "Воздуходувки (турбокомпрессоры)" : "Воздуходувки роторные или винтовые",
-        spec: `подача ${f(air)} м³/ч, напор 45–60 кПа; регулирование частотой по датчику кислорода`,
-        qty: pumpQty(ctx.scale === "concrete" ? 2 : 1),
+        spec: `подача ${f(air)} м³/ч, напор ${ctx.a.blowerPressure} кПа (потери в мелкопузырчатых аэраторах до ${PUMP_STATIONS.diffuserLossKPa.fine} кПа, ${PUMP_STATIONS.diffuserLossKPa.ref}); регулирование частотой по датчику кислорода`,
+        qty: blowerQty(ctx.scale === "concrete" ? 2 : 1),
         supply: "supply",
-        note: "Резерв обязателен: остановка аэрации на 2–3 часа губит активный ил",
+        note: `Воздуходувная станция — ${PUMP_STATIONS.blowerStationCategory.value} категория надёжности электроснабжения (${PUMP_STATIONS.blowerStationCategory.ref}): перерыв подачи воздуха не допускается`,
       });
       if (deNitro) {
         items.push({
@@ -576,7 +635,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Насосы возвратного активного ила",
-        spec: `рециркуляция ила ${ctx.a.sludgeReturn} % — ${f((ctx.Qh * ctx.a.sludgeReturn) / 100, 1)} м³/ч`,
+        spec: `рециркуляция ила ${ctx.a.sludgeReturn} % — ${f((ctx.Qh * ctx.a.sludgeReturn) / 100, 1)} м³/ч (R = a/(1000/J − a), ${AEROTANK.recirculation.ref}; не менее ${AEROTANK.recirculation.minGravity * 100} % при самотёчном удалении ила)`,
         qty: pumpQty(1),
         supply: "supply",
       });
@@ -591,7 +650,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         items.push({
           kind: "machine",
           name: "Станция дозирования органического субстрата",
-          spec: `соотношение БПК : N = ${(ctx.bod / Math.max(ctx.tn, 1)).toFixed(1)} : 1 — для денитрификации нужно не менее ${ctx.a.bodTnRatio} : 1`,
+          spec: `соотношение БПК : N = ${(ctx.bod / Math.max(ctx.tn, 1)).toFixed(1)} : 1 — для денитрификации нужно не менее ${ctx.a.bodTnRatio} : 1 (DWA-A 131; ${KMK_2_04_03_19_DOC.code} нормирует только биогены: ${BIO_N_TEXT})`,
           qty: pumpQty(1),
           supply: "supply",
           note: "Без внешнего источника углерода (ацетат, меласса) азот до норматива не снять",
@@ -602,20 +661,26 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
 
     /* ---------------- вторичное отстаивание ---------------- */
     case "clarify": {
+      /* п. 6.58: вторичных отстойников не менее трёх, все рабочие; при минимальном
+         числе расчётный объём ×1,2–1,3. Принято: modular/concrete — 3 отстойника с
+         площадью ×1,3 (верхняя граница, так как число минимальное); compact — один
+         отстойник в составе блока с тем же запасом ×1,3 и явной пометкой об отступлении. */
+      const kMin = PRIMARY_SETTLING.minCountVolumeFactor.value[1];
+      const areaTotal = (ctx.Qh / ctx.a.clarifyLoad) * kMin;
       if (ctx.scale === "compact") {
         items.push({
           kind: "structure",
           name: "Вторичный отстойник с тонкослойными модулями",
-          spec: `нагрузка ${ctx.a.clarifyLoad} м³/(м²·ч) → площадь зеркала ${f(ctx.Qh / ctx.a.clarifyLoad, 1)} м²; в составе блока`,
-          qty: "1",
+          spec: `нагрузка ${ctx.a.clarifyLoad} м³/(м²·ч) (ф. (85) п. 6.170) → площадь зеркала ${f(areaTotal, 1)} м² с запасом ×${kMin}; отстаивание не менее ${AEROTANK.extendedAeration.settlingMinHoursAtMaxFlow} ч при максимальном притоке (${AEROTANK.extendedAeration.ref}); в составе блока`,
+          qty: `1 (отступление от ${PRIMARY_SETTLING.minSecondary.ref}: не менее ${PRIMARY_SETTLING.minSecondary.value} — компенсировано запасом объёма ×${kMin}, блочная установка полного окисления)`,
           supply: "own",
         });
       } else {
         items.push({
           kind: "structure",
           name: ctx.scale === "concrete" ? "Вторичный отстойник радиальный" : "Вторичный отстойник вертикальный",
-          spec: `нагрузка ${ctx.a.clarifyLoad} м³/(м²·ч) → площадь ${f(ctx.Qh / ctx.a.clarifyLoad, 1)} м²; иловый приямок`,
-          qty: "2 (для вывода в ремонт)",
+          spec: `нагрузка ${ctx.a.clarifyLoad} м³/(м²·ч) (ф. (85) п. 6.170) → суммарная площадь ${f(areaTotal, 1)} м² (×${kMin} при минимальном числе, ${PRIMARY_SETTLING.minCountVolumeFactor.ref}), по ${f(areaTotal / PRIMARY_SETTLING.minSecondary.value, 1)} м² каждый; иловый приямок (пребывание ила не более ${SECONDARY_HOPPER_H} ч, п. 6.66); нагрузка на водослив не более 8–10 л/(с·м) (п. 6.172)`,
+          qty: `${PRIMARY_SETTLING.minSecondary.value} (все рабочие, ${PRIMARY_SETTLING.minSecondary.ref})`,
           supply: ctx.scale === "concrete" ? "supply" : "own",
         });
         items.push({
@@ -641,15 +706,15 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       const reuse = ctx.dischargeId === "reuse";
       items.push({
         kind: "machine",
-        name: ctx.scale === "compact" ? "Фильтр доочистки напорный" : "Фильтры скорые двухслойные",
-        spec: `скорость фильтрования ${ctx.a.filterRate} м/ч → площадь ${f(ctx.Qh / ctx.a.filterRate, 1)} м²; загрузка кварц + антрацит`,
+        name: ctx.scale === "compact" ? "Фильтр доочистки напорный" : "Фильтры скорые песчаные однослойные",
+        spec: `скорость фильтрования ${ctx.a.filterRate} м/ч (${T58.vNormal[0]}–${T58.vNormal[1]} нормальный, ${T58.vForced[0]}–${T58.vForced[1]} форсированный режим, ${TERTIARY_FILTERS.table58.ref}) → площадь ${f(ctx.Qh / ctx.a.filterRate, 1)} м²; слой кварцевого песка ${T58.layerM[0]}–${T58.layerM[1]} м; эффект по ВВ ${T58.effectSs[0]}–${T58.effectSs[1]} %, по БПК ${T58.effectBod[0]}–${T58.effectBod[1]} %`,
         qty: ctx.scale === "compact" ? "1" : "2 (поочерёдная промывка)",
         supply: "either",
       });
       items.push({
         kind: "machine",
         name: "Система промывки фильтров",
-        spec: "насос промывной воды, воздуходувка водовоздушной промывки, бак промывной воды",
+        spec: `насос промывной воды, воздуходувка водовоздушной промывки, резервуар промывной воды не менее чем на ${TERTIARY_FILTERS.washTanksMinWashes.value} промывки (${TERTIARY_FILTERS.washTanksMinWashes.ref})`,
         qty: "комплект",
         supply: "supply",
         note: `Промывные воды возвращаются в усреднитель — это ${ctx.a.backwashShare} % расхода, учтите в балансе`,
@@ -680,11 +745,13 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
     /* ---------------- обеззараживание ---------------- */
     case "disinfect": {
       const uv = ctx.dischargeId === "water" || ctx.dischargeId === "reuse" || ctx.scale === "concrete";
+      const chlorDose = ctx.industryId === "hospital" ? ctx.a.chlorDoseHospital : ctx.a.chlorDose;
+      const storeK = ctx.a.chlorStorageFactor ?? DISINFECTION.chlorineDose.storageFactor;
       if (uv) {
         items.push({
           kind: "machine",
           name: "Ультрафиолетовая установка обеззараживания",
-          spec: `доза не менее ${ctx.a.uvDose} мДж/см² при пропускной способности ${f(ctx.Qh, 1)} м³/ч; лоточное или напорное исполнение`,
+          spec: `доза не менее ${ctx.a.uvDose} мДж/см² (практика; ${DISINFECTION.uvAllowed.ref} допускает УФ, дозу не нормирует) при пропускной способности ${f(ctx.Qh, 1)} м³/ч; лоточное или напорное исполнение`,
           qty: "1 (с резервным блоком ламп)",
           supply: "supply",
           note: "Без реагентов и без хлорорганики; требует прозрачности воды и регулярной чистки кварцевых чехлов",
@@ -693,7 +760,7 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "machine",
         name: "Установка получения гипохлорита натрия (электролизная)",
-        spec: `доза активного хлора ${ctx.industryId === "hospital" ? ctx.a.chlorDoseHospital : ctx.a.chlorDose} г/м³ → ${f((ctx.Q * (ctx.industryId === "hospital" ? ctx.a.chlorDoseHospital : ctx.a.chlorDose)) / ctx.hours, 1)} г/ч`,
+        spec: `доза активного хлора ${chlorDose} г/м³ (${ctx.industryId === "hospital" ? `санитарные требования для медицинских объектов; ${DISINFECTION.chlorineDose.ref} — ${DISINFECTION.chlorineDose.afterBio} г/м³ после биологической очистки` : `${DISINFECTION.chlorineDose.afterBio} после биологической, ${DISINFECTION.chlorineDose.afterPartialBio} после неполной биологической, ${DISINFECTION.chlorineDose.afterMechanical} после механической очистки, ${DISINFECTION.chlorineDose.ref}`}) → ${f((ctx.Q * chlorDose) / ctx.hours, 1)} г/ч; хлорное хозяйство на ×${storeK} — ${f((ctx.Q * chlorDose * storeK) / ctx.hours, 1)} г/ч (п. 6.230); остаточный хлор не менее ${DISINFECTION.chlorineDose.residualMin} г/м³`,
         qty: "1",
         supply: "own",
         note: uv ? "Резервный способ обеззараживания к УФ и для промывок" : "Основное обеззараживание",
@@ -701,10 +768,10 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Контактный резервуар",
-        spec: `время контакта не менее ${ctx.a.contactTime} мин → объём ${f((ctx.Qh * ctx.a.contactTime) / 60, 1)} м³`,
-        qty: "1",
+        spec: `время контакта не менее ${ctx.a.contactTime} мин (${DISINFECTION.contactMinutes.ref}) → объём ${f((ctx.Qh * ctx.a.contactTime) / 60, 1)} м³; как первичный отстойник без скребков, барботаж ${DISINFECTION.contactAeration.value} ${DISINFECTION.contactAeration.unit} (${DISINFECTION.contactTanksMin.ref})`,
+        qty: `${DISINFECTION.contactTanksMin.value} (${DISINFECTION.contactTanksMin.ref})`,
         supply: "own",
-        note: "Обязателен при хлорировании; при УФ не требуется",
+        note: `Обязателен при хлорировании; при УФ не требуется. Осадок ${DISINFECTION.contactSludgeLPerM3.afterBio} л/м³ после биологической очистки (${DISINFECTION.contactSludgeLPerM3.ref})`,
       });
       break;
     }
@@ -713,27 +780,45 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
     case "sludge": {
       const dry = ctx.dryKg ?? 0;
       const vol = dry / (10 * ctx.a.sludgeDs);
+      const th = SLUDGE.thickener;
+      const radial = ctx.scale === "concrete";
+      const thHours = radial ? th.hoursRadial : th.hoursVertical;
+      const thOut = radial ? th.moistureOutRadial : th.moistureOutVertical;
+      const thVol = vol * th.designFactor;
+      const st = SLUDGE.aerobicStabilization;
+      /* избыточный ил без первичных отстойников: ближайший нормативный случай —
+         смесь первичного осадка и уплотнённого ила, 5,5 сут при 18 °C (верхняя граница п. 6.373) */
+      const stDays = st.daysAt18C.primaryPlusThickenedExcess;
+      const stVol = vol * stDays;
+      const dw = SLUDGE.dewatering;
+      const beds = SLUDGE.dryingBeds;
+      const climate = beds.climateFactor.tashkent;
+      const climateAll = Object.values(beds.climateFactor) as number[];
+      const climateMin = Math.min(...climateAll);
+      const climateMax = Math.max(...climateAll);
+      const bedLoad = beds.aerobicStabilized.naturalDrained * climate;
+      const bedArea = (dry * 365 * dw.emergencyBedsShare) / bedLoad;
       items.push({
         kind: "structure",
-        name: "Илоуплотнитель гравитационный",
-        spec: `время уплотнения 8–12 ч, поступление ${f(vol, 1)} м³/сут при ${ctx.a.sludgeDs} % СВ, на выходе 4–5 % СВ`,
-        qty: "1",
+        name: radial ? "Илоуплотнитель гравитационный радиальный" : "Илоуплотнитель гравитационный вертикальный",
+        spec: `время уплотнения ${thHours[0]}–${thHours[1]} ч, поступление ${f(vol, 1)} м³/сут при ${ctx.a.sludgeDs} % СВ (влажность ${100 - ctx.a.sludgeDs} %), на выходе влажность ${thOut} % (${f(100 - thOut, 1)} % СВ) — ${th.ref}; расчётный объём ${f(thVol, 1)} м³ с коэффициентом ${th.designFactor} (п. 6.352)`,
+        qty: `${th.minUnits} (п. 6.350)`,
         supply: ctx.scale === "concrete" ? "supply" : "own",
       });
       if (ctx.scale === "concrete" && ctx.Q > ctx.a.digesterFrom) {
         items.push({
           kind: "structure",
           name: "Метантенк или аэробный стабилизатор",
-          spec: `стабилизация ${f(dry, 1)} кг СВ/сут; при метановом сбраживании — утилизация биогаза`,
-          qty: "1",
+          spec: `стабилизация ${f(dry, 1)} кг СВ/сут; при метановом сбраживании — утилизация биогаза (пп. 6.355–6.371; граница ${ctx.a.digesterFrom} м³/сут — практика)`,
+          qty: "2 (п. 6.364)",
           supply: "supply",
         });
       } else {
         items.push({
           kind: "structure",
           name: "Аэробный стабилизатор осадка",
-          spec: `время стабилизации 7–10 сут, аэрация от общей воздуходувной станции`,
-          qty: "1",
+          spec: `время стабилизации ${stDays} сут при 18 °C (${st.ref}; ${st.daysAt18C.disinfectedSludge}–${stDays} сут по виду осадка) → объём ${f(stVol, 1)} м³; воздух ${st.airPerM3Volume[0]}–${st.airPerM3Volume[1]} м³/ч на 1 м³ (п. 6.375), интенсивность не менее ${st.aerationIntensityMin} м³/(м²·ч); влажность на входе не более ${st.inletMoistureMax} %`,
+          qty: `${st.minUnits} (п. 6.373)`,
           supply: "own",
           note: "Без стабилизации осадок загнивает и не принимается на полигон",
         });
@@ -746,15 +831,15 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
             : dry < 500
             ? "Декантерная центрифуга"
             : "Камерный или ленточный фильтр-пресс",
-        spec: `производительность по сухому веществу ${f(dry, 1)} кг/сут, кек ${ctx.a.cakeDs} % СВ`,
+        spec: `производительность по сухому веществу ${f(dry, 1)} кг/сут, кек ${ctx.a.cakeDs} % СВ (уплотнённый активный ил: фильтр-пресс ${dw.activatedSludgeCake.filterPress[0]}–${dw.activatedSludgeCake.filterPress[1]} %, центрифуга ${dw.activatedSludgeCake.centrifuge[0]}–${dw.activatedSludgeCake.centrifuge[1]} % влажности — ${dw.ref})`,
         qty: "1",
         supply: "supply",
-        note: "Обезвоживание сокращает объём вывоза в 8–10 раз и окупается на транспорте",
+        note: `Обезвоживание сокращает объём вывоза в ${f(ctx.a.cakeDs / ctx.a.sludgeDs)} раз и окупается на транспорте; резерв — ${dw.reserve}`,
       });
       items.push({
         kind: "machine",
         name: "Станция приготовления флокулянта для обезвоживания",
-        spec: `доза ${ctx.a.sludgeFlocDose} кг на тонну сухого вещества — ${f((dry * ctx.a.sludgeFlocDose) / 1000, 2)} кг/сут`,
+        spec: `доза ${ctx.a.sludgeFlocDose} кг на тонну сухого вещества (катионный флокулянт ${dw.flocculantKgPerT[0]}–${dw.flocculantKgPerT[1]} кг/т, п. 6.391) — ${f((dry * ctx.a.sludgeFlocDose) / 1000, 2)} кг/сут`,
         qty: "1",
         supply: "supply",
       });
@@ -768,10 +853,19 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       items.push({
         kind: "structure",
         name: "Площадка (контейнер) обезвоженного осадка",
-        spec: `накопление ${f((dry * 30) / (10 * ctx.a.cakeDs), 1)} м³/мес кека, навес, отвод фильтрата в голову сооружений`,
+        spec: `накопление ${f((dry * 30) / (10 * ctx.a.cakeDs), 1)} м³/мес кека; склад на ${SLUDGE.storageMonths.value[0]}–${SLUDGE.storageMonths.value[1]} мес (${SLUDGE.storageMonths.ref}) — до ${f((dry * 30 * SLUDGE.storageMonths.value[1]) / (10 * ctx.a.cakeDs), 1)} м³; навес, отвод фильтрата в голову сооружений`,
         qty: "1",
         supply: "either",
       });
+      if (ctx.scale !== "compact") {
+        items.push({
+          kind: "structure",
+          name: "Иловые площадки аварийные",
+          spec: `на ${dw.emergencyBedsShare * 100} % годового осадка (п. 6.393): нагрузка ${beds.aerobicStabilized.naturalDrained} кг/(м²·год) на естественном основании с дренажом × климатический коэффициент ${climate} (Ташкент, черт. 3; для других регионов ${climateMin}–${climateMax}) → площадь ${f(bedArea)} м² (${beds.ref})`,
+          qty: `не менее ${beds.minCards} карт (п. 6.399)`,
+          supply: "either",
+        });
+      }
       break;
     }
   }

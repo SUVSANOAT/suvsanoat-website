@@ -1,3 +1,5 @@
+import { kMaxByDailyFlow, oxygenTransferKgPerNm3 } from "../norms/kmk-2-04-03-19";
+
 export type MBRCalculationInput = {
   flowM3Day: number;
   hrtHours: number;
@@ -68,9 +70,11 @@ export function calculateMBR(
     40
   );
 
+  // Коэффициент максимальной неравномерности — по табл. 2 ҚМҚ 2.04.03-19
+  // (п. 2.7) от среднего расхода; явно заданный peakFactor имеет приоритет.
   const peakFactor = positive(
     input.peakFactor,
-    1.5
+    flow > 0 ? kMaxByDailyFlow(flow).kMax : 2.5
   );
 
   const sections = Math.max(
@@ -173,11 +177,13 @@ const volumePerSectionM3 =
   // Предварительный расход воздуха
   // --------------------------------------------------
 
-  // Скрининговое допущение:
-  // 0.28 кг O₂ на 1 Нм³ воздуха.
+  // Фактическая передача кислорода воздухом — знаменатель ф. (70)
+  // ҚМҚ 2.04.03-19 п. 6.156 (не 0,28 кг O₂/Нм³ — это полное содержание
+  // кислорода в воздухе, усваивается лишь ~10 %). Для MBR глубина
+  // погружения аэраторов принята 4 м, мелкопузырчатая аэрация.
   const airNm3H =
     oxygenKgDay /
-    0.28 /
+    oxygenTransferKgPerNm3({ depthM: 4, fRatio: 0.2, tempC: 20 }) /
     24;
 
   return {

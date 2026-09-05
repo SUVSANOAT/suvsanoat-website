@@ -4,13 +4,15 @@
  * и очистки сточных вод.
  *
  * Основная нормативная база:
- * КМК 2.04.03-19
+ * ҚМҚ 2.04.03-19 (взамен КМК 2.04.03-97; табличные данные — kmk-2-04-03-19.ts)
  *
  * ВАЖНО:
  * Эти данные используются системой как справочная нормативная база.
  * Они НЕ заменяют рабочий проект, ПДС, санитарное согласование
  * или проверку инженером.
  */
+
+import { KMK_2_04_03_19_DOC, unevenness, BIO_INLET_LIMITS } from "./kmk-2-04-03-19";
 
 export type NormativeDocument = {
   code: string;
@@ -27,13 +29,12 @@ export type NormativeDocument = {
 
 export const uzbekistanNorms: NormativeDocument[] = [
   {
-    code: "КМК 2.04.03-19",
+    code: "ҚМҚ 2.04.03-19",
     title: "Канализация. Наружные сети и сооружения",
     category: "design",
     description:
-      "Основной нормативный документ для проектирования вновь строящихся и реконструируемых систем наружной канализации населённых пунктов и объектов народного хозяйства Республики Узбекистан.",
-    sourceUrl:
-      "https://mc.uz/uploads/mcuz_91974688657649.pdf",
+      "Основной нормативный документ для проектирования вновь строящихся и реконструируемых систем наружной канализации населённых пунктов и объектов народного хозяйства Республики Узбекистан. Вторая редакция, взамен КМК 2.04.03-97; утверждена приказом Минстроя РУз № 439 от 27.09.2019, действует с 01.01.2020.",
+    sourceUrl: KMK_2_04_03_19_DOC.sourceUrl,
   },
 
   {
@@ -104,81 +105,12 @@ export const uzbekistanNorms: NormativeDocument[] = [
 ];
 
 /* =========================================================
- * КМК 2.04.03-19
+ * ҚМҚ 2.04.03-19, п. 2.7, ТАБЛИЦА 2
+ * Общие коэффициенты неравномерности притока сточных вод.
  *
- * ТАБЛИЦА 2
- * Общие коэффициенты неравномерности притока
- * сточных вод.
- *
- * Средний расход, л/с:
- * 5 / 10 / 20 / 50 / 100 / 300 / 500 / 1000 / 5000
- *
- * Kgen.max:
- * 2.50 / 2.10 / 1.90 / 1.70 / 1.60 / 1.55 /
- * 1.50 / 1.47 / 1.44
- *
- * Kgen.min:
- * 0.38 / 0.45 / 0.50 / 0.55 / 0.59 / 0.62 /
- * 0.66 / 0.69 / 0.71
- *
- * Для промежуточных значений применяется
- * линейная интерполяция согласно примечанию
- * к таблице 2 КМК 2.04.03-19.
+ * Единственная копия таблицы — norms/kmk-2-04-03-19.ts;
+ * здесь только совместимая обёртка для calculations/flow.ts.
  * ========================================================= */
-
-type KmkUnevennessRow = {
-  averageLps: number;
-  kMax: number;
-  kMin: number;
-};
-
-const KMK_2_04_03_19_TABLE_2: KmkUnevennessRow[] = [
-  {
-    averageLps: 5,
-    kMax: 2.5,
-    kMin: 0.38,
-  },
-  {
-    averageLps: 10,
-    kMax: 2.1,
-    kMin: 0.45,
-  },
-  {
-    averageLps: 20,
-    kMax: 1.9,
-    kMin: 0.5,
-  },
-  {
-    averageLps: 50,
-    kMax: 1.7,
-    kMin: 0.55,
-  },
-  {
-    averageLps: 100,
-    kMax: 1.6,
-    kMin: 0.59,
-  },
-  {
-    averageLps: 300,
-    kMax: 1.55,
-    kMin: 0.62,
-  },
-  {
-    averageLps: 500,
-    kMax: 1.5,
-    kMin: 0.66,
-  },
-  {
-    averageLps: 1000,
-    kMax: 1.47,
-    kMin: 0.69,
-  },
-  {
-    averageLps: 5000,
-    kMax: 1.44,
-    kMin: 0.71,
-  },
-];
 
 export type Kmk2040319UnevennessCoefficients = {
   kMax: number;
@@ -188,127 +120,28 @@ export type Kmk2040319UnevennessCoefficients = {
 };
 
 /**
- * Получение общих коэффициентов неравномерности
- * по таблице 2 КМК 2.04.03-19.
- *
- * Правила:
- *
- * 1. Для расхода 5 л/с используется первая строка таблицы.
- *
- * 2. Для значений от 5 до 5000 л/с применяется
- *    линейная интерполяция между соседними строками.
- *
- * 3. Для значений свыше 5000 л/с принимается
- *    последнее значение таблицы.
- *
- * 4. Значения менее 5 л/с требуют применения
- *    соответствующей методики КМК 2.04.01-98.
- *
- * Функция используется предварительным инженерным
- * расчётом SUVSANOAT ENGINEERING.
+ * Общие коэффициенты неравномерности по табл. 2 ҚМҚ 2.04.03-19 (п. 2.7):
+ * 5…5000 л/с — линейная интерполяция (прим. 3); свыше 5000 л/с — последняя
+ * строка; менее 5 л/с — первая строка с пометкой (прим. 2: расчётные
+ * расходы малых объектов — по КМК 2.04.01-98).
  */
 export function getKmk2040319UnevennessCoefficients(
   averageLps: number,
 ): Kmk2040319UnevennessCoefficients {
-  if (!Number.isFinite(averageLps) || averageLps <= 0) {
-    throw new Error(
-      "Средний расход сточных вод должен быть положительным числом.",
-    );
-  }
-
-  const rows = KMK_2_04_03_19_TABLE_2;
-
-  /*
-   * Для расходов менее 5 л/с таблица 2 КМК 2.04.03-19
-   * непосредственно не применяется.
-   *
-   * Для совместимости с предварительным расчётом
-   * возвращаем ближайшее значение первой строки,
-   * но явно отмечаем это в источнике.
-   */
-  if (averageLps < rows[0].averageLps) {
-    return {
-      kMax: rows[0].kMax,
-      kMin: rows[0].kMin,
-      interpolated: false,
-      source:
-        "КМК 2.04.03-19, таблица 2; расход менее 5 л/с — требуется проверка по КМК 2.04.01-98.",
-    };
-  }
-
-  /*
-   * Расход выше верхнего значения таблицы.
-   */
-  if (averageLps >= rows[rows.length - 1].averageLps) {
-    return {
-      kMax: rows[rows.length - 1].kMax,
-      kMin: rows[rows.length - 1].kMin,
-      interpolated: false,
-      source:
-        "КМК 2.04.03-19, таблица 2; принято верхнее табличное значение для расхода 5000 л/с и более.",
-    };
-  }
-
-  /*
-   * Точное табличное значение.
-   */
-  for (const row of rows) {
-    if (averageLps === row.averageLps) {
-      return {
-        kMax: row.kMax,
-        kMin: row.kMin,
-        interpolated: false,
-        source:
-          "КМК 2.04.03-19, таблица 2.",
-      };
-    }
-  }
-
-  /*
-   * Поиск соседних значений для интерполяции.
-   */
-  for (let i = 0; i < rows.length - 1; i++) {
-    const lower = rows[i];
-    const upper = rows[i + 1];
-
-    if (
-      averageLps > lower.averageLps &&
-      averageLps < upper.averageLps
-    ) {
-      const ratio =
-        (averageLps - lower.averageLps) /
-        (upper.averageLps - lower.averageLps);
-
-      const kMax =
-        lower.kMax +
-        ratio * (upper.kMax - lower.kMax);
-
-      const kMin =
-        lower.kMin +
-        ratio * (upper.kMin - lower.kMin);
-
-      return {
-        kMax,
-        kMin,
-        interpolated: true,
-        source:
-          `КМК 2.04.03-19, таблица 2; интерполяция между ${lower.averageLps} и ${upper.averageLps} л/с.`,
-      };
-    }
-  }
-
-  /*
-   * Защитный случай.
-   */
-  throw new Error(
-    "Не удалось определить коэффициенты неравномерности КМК 2.04.03-19.",
-  );
+  const r = unevenness(averageLps);
+  return { kMax: r.kMax, kMin: r.kMin, interpolated: r.interpolated, source: r.source };
 }
 
 /* =========================================================
  * ПРОМЫШЛЕННЫЕ СТОЧНЫЕ ВОДЫ
  * ========================================================= */
 
+/**
+ * Контрольные значения приёма производственных сточных вод в коммунальную
+ * сеть (Правила приёма — прил. 1 к ПКМ РУз № 11 от 03.02.2010). Это НЕ
+ * условия входа в биологическую очистку: те заданы ҚМҚ 2.04.03-19 п. 6.2
+ * (pH 6,5–8,5; 6–30 °C; БПКполн ≤ 250–500) — см. bioInletChecks.
+ */
 export const industrialWastewaterChecks = {
   temperatureMaxC: 40,
 
@@ -316,6 +149,8 @@ export const industrialWastewaterChecks = {
   phMax: 9.0,
 
   suspendedSolidsMaxMgL: 500,
+
+  source: "Правила приёма производственных сточных вод в системы коммунальной канализации (прил. 1 к ПКМ РУз № 11 от 03.02.2010)",
 
   notes: [
     "Производственные сточные воды не должны нарушать работу канализационных сетей и очистных сооружений.",
@@ -325,12 +160,24 @@ export const industrialWastewaterChecks = {
   ],
 };
 
+/** ҚМҚ 2.04.03-19 п. 6.2, прим. 2–3 — смесь на входе в сооружения биологической очистки. */
+export const bioInletChecks = {
+  phMin: BIO_INLET_LIMITS.phMin,
+  phMax: BIO_INLET_LIMITS.phMax,
+  temperatureMinC: BIO_INLET_LIMITS.tempMinC,
+  temperatureMaxC: BIO_INLET_LIMITS.tempMaxC,
+  bodFullMaxMgL: BIO_INLET_LIMITS.bodFullMaxMgL[1],
+  nPer100Bod: BIO_INLET_LIMITS.nPer100Bod,
+  pPer100Bod: BIO_INLET_LIMITS.pPer100Bod,
+  source: BIO_INLET_LIMITS.ref,
+};
+
 /* =========================================================
  * БАЗОВЫЕ ТРЕБОВАНИЯ К ИНЖЕНЕРНОМУ РАСЧЁТУ
  * ========================================================= */
 
 export const engineeringRules = {
-  designDocument: "КМК 2.04.03-19",
+  designDocument: "ҚМҚ 2.04.03-19",
 
   considerFactors: [
     "расход сточных вод",

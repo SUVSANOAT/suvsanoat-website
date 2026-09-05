@@ -15,6 +15,7 @@
 
 import type { Model } from "../../../products/data";
 import { STAGE_INFO, type Industry, type PollutantKey, POLLUTANT_LABELS } from "../industry/industries";
+import { KMK_2_04_03_19_DOC } from "../../../../norms/kmk-2-04-03-19";
 import { t } from "../industry/i18n";
 import type { Language } from "../../../translations";
 import { Dxf } from "./dxf";
@@ -224,7 +225,7 @@ export function buildSchemeDxf(input: SchemeInput): Dxf {
     cy -= 3.6;
   });
   d.text(IX + 100, IY + 10, 1.9, `pH: ${num(input.ph, 1)} -> 6,5-8,5`, { align: "left" });
-  d.text(IX + 100, IY + 6, 1.7, "Методики: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858", { align: "left" });
+  d.text(IX + 100, IY + 6, 1.7, `Методики: ${KMK_2_04_03_19_DOC.code}, DWA-A 131, EN 1825, EN 858`, { align: "left" });
   d.text(IX + 100, IY + 2.5, 1.7, `${t(industry.sources[0] ?? "-", lang)}`.slice(0, 60), { align: "left" });
 
   titleBlock(d, 230, 5, {

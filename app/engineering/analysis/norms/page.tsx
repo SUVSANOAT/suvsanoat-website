@@ -10,12 +10,58 @@ import {
 
 import {
   KMK_2_04_01_98,
-  calculateAverageDailyFlow,
   calculateAverageHourlyFlow,
   m3DayToLps,
   lpsToM3Hour,
-  getKmkSmallFlowBasis,
 } from "./kmk-2-04-01-98";
+
+import {
+  KMK_2_04_03_19_DOC,
+  TABLE_2_NOTES,
+  TABLE_3_WATER_USE,
+  TABLE_3_NOTES,
+  TABLE_25_PER_CAPITA_G_DAY,
+  TABLE_25_NOTES,
+  BIO_INLET_LIMITS,
+  BIO_INLET_CONCENTRATIONS_REF,
+  STAGE_EFFECTS,
+  BOD5_TO_BODFULL,
+  DEFAULT_WATER_USE_HORIZON,
+  specificWaterUse,
+  domesticConcentrations,
+  kmkRef,
+  type SettlementCategory,
+  type WaterUseHorizon,
+} from "../../../../norms/kmk-2-04-03-19";
+
+const SETTLEMENT_CATEGORIES: readonly SettlementCategory[] = [
+  "city-over-100k",
+  "city-under-100k",
+  "town-under-50k",
+];
+
+/** Диапазон табл. 3 (все категории и горизонты), л/(чел·сут). */
+const TABLE_3_RANGE = (() => {
+  const all = SETTLEMENT_CATEGORIES.flatMap((id) => [
+    TABLE_3_WATER_USE[id].lps[2020],
+    TABLE_3_WATER_USE[id].lps[2035],
+  ]);
+  return { min: Math.min(...all), max: Math.max(...all) };
+})();
+
+function parseSettlementCategory(
+  raw: string | null,
+): SettlementCategory | null {
+  if (raw && (SETTLEMENT_CATEGORIES as readonly string[]).includes(raw)) {
+    return raw as SettlementCategory;
+  }
+  if (raw === "over100-central") return "city-over-100k";
+  if (raw === "under100-central") return "city-under-100k";
+  if (raw === "under50-no-central" || raw === "under50-central") {
+    return "town-under-50k";
+  }
+  return null;
+}
 
 function num(value: string | null, fallback = 0) {
   const n = Number(value);
@@ -201,9 +247,16 @@ function NormsContent() {
     params.get("projectType") ||
     "Не указан";
 
-  const consumer =
-    params.get("consumer") ||
-    "residential";
+  /*
+   * Категория населённого пункта и горизонт табл. 3 — из состояния
+   * мастера (шаг 02 пишет `category`, `year`, `specificFlow`).
+   */
+  const settlementCategory = parseSettlementCategory(
+    params.get("category"),
+  );
+  const horizon: WaterUseHorizon =
+    params.get("year") === "2020" ? 2020 : DEFAULT_WATER_USE_HORIZON;
+  const specificFlowParam = num(params.get("specificFlow"));
 
   const calculation = useMemo(() => {
     const qAverageLps = m3DayToLps(flow);
@@ -243,20 +296,54 @@ function NormsContent() {
         ? lpsToM3Hour(qMinLps)
         : null;
 
-    const residentialNorm =
-      people > 0
-        ? calculateAverageDailyFlow(
-            "residential",
-            people,
-          )
+    /*
+     * Проверка по числу жителей — табл. 3 ҚМҚ 2.04.03-19 (п. 2.9).
+     * Если категория известна из состояния мастера — точное значение
+     * по выбранной категории/горизонту; иначе — диапазон табл. 3.
+     */
+    const waterUse =
+      settlementCategory !== null
+        ? specificWaterUse(settlementCategory, horizon)
         : null;
 
-    const residentialGasNorm =
+    const table3Check =
       people > 0
-        ? calculateAverageDailyFlow(
-            "residentialWithGasSupply",
-            people,
-          )
+        ? waterUse
+          ? {
+              mode: "exact" as const,
+              lpcd: waterUse.lpcd,
+              source: waterUse.source,
+              qMin: (people * waterUse.lpcd) / 1000,
+              qMax: (people * waterUse.lpcd) / 1000,
+            }
+          : {
+              mode: "range" as const,
+              lpcd: null,
+              source: `${KMK_2_04_03_19_DOC.code}, п. 2.9, табл. 3 (диапазон ${TABLE_3_RANGE.min}–${TABLE_3_RANGE.max} л/чел·сут; категория населённого пункта не задана)`,
+              qMin: (people * TABLE_3_RANGE.min) / 1000,
+              qMax: (people * TABLE_3_RANGE.max) / 1000,
+            }
+        : null;
+
+    /* Фактическое удельное водоотведение проекта, л/(чел·сут). */
+    const projectLpcd =
+      people > 0 && flow > 0 ? (flow * 1000) / people : null;
+
+    /*
+     * Ориентировочные концентрации бытового стока по табл. 25 (п. 6.4)
+     * при удельном водоотведении: из состояния мастера (specificFlow),
+     * иначе по табл. 3, иначе по фактическому расходу на жителя.
+     */
+    const lpcdForTable25 =
+      specificFlowParam > 0
+        ? specificFlowParam
+        : waterUse
+          ? waterUse.lpcd
+          : projectLpcd;
+
+    const domestic =
+      lpcdForTable25 && lpcdForTable25 > 0
+        ? domesticConcentrations(lpcdForTable25)
         : null;
 
     const smallFlow =
@@ -271,11 +358,35 @@ function NormsContent() {
       qMinLps,
       qMaxM3Hour,
       qMinM3Hour,
-      residentialNorm,
-      residentialGasNorm,
+      table3Check,
+      projectLpcd,
+      lpcdForTable25,
+      domestic,
       smallFlow,
     };
-  }, [flow, people]);
+  }, [flow, people, settlementCategory, horizon, specificFlowParam]);
+
+  /* Условия входа в биологическую очистку — п. 6.2, прим. 2, 3. */
+  const bioInlet = useMemo(() => {
+    const bodFull = bod > 0 ? bod / BOD5_TO_BODFULL : null;
+    const nRequired = bodFull !== null ? (bodFull / 100) * BIO_INLET_LIMITS.nPer100Bod : null;
+    const pRequired = bodFull !== null ? (bodFull / 100) * BIO_INLET_LIMITS.pPer100Bod : null;
+    return {
+      bodFull,
+      bodOk:
+        bodFull === null
+          ? null
+          : bodFull <= BIO_INLET_LIMITS.bodFullMaxMgL[0]
+            ? "ok"
+            : bodFull <= BIO_INLET_LIMITS.bodFullMaxMgL[1]
+              ? "limit"
+              : "over",
+      nRequired,
+      pRequired,
+      nOk: nRequired !== null && nitrogen > 0 ? nitrogen >= nRequired : null,
+      pOk: pRequired !== null && phosphorus > 0 ? phosphorus >= pRequired : null,
+    };
+  }, [bod, nitrogen, phosphorus]);
 
   const normativeStatus =
     calculation.smallFlow
@@ -286,9 +397,9 @@ function NormsContent() {
 
   const normativeStatusText =
     calculation.smallFlow
-      ? "Средний расход менее 5 л/с. Таблица 2 КМК 2.04.03-19 в текущем модуле автоматически не применяется."
+      ? `Средний расход менее 5 л/с. ${TABLE_2_NOTES[1]} Таблица 2 ${KMK_2_04_03_19_DOC.code} автоматически не применяется.`
       : calculation.coefficientResult
-        ? "Средний расход попадает в область применения текущей таблицы коэффициентов КМК 2.04.03-19."
+        ? `Средний расход попадает в область применения табл. 2 ${KMK_2_04_03_19_DOC.code} (п. 2.7).`
         : "Не удалось выполнить нормативный расчёт.";
 
   return (
@@ -366,20 +477,25 @@ function NormsContent() {
 
             <div style={normDocument}>
               <div style={documentCode}>
-                КМК 2.04.03-19
+                {KMK_2_04_03_19_DOC.code}
               </div>
 
               <div style={documentTitle}>
-                {KMK_2_04_03_19.title}
+                {KMK_2_04_03_19_DOC.title}
               </div>
 
               <div style={documentText}>
-                {KMK_2_04_03_19.section}
+                {KMK_2_04_03_19_DOC.edition}; взамен {KMK_2_04_03_19_DOC.replaces}.
+                Утверждён: {KMK_2_04_03_19_DOC.approvedBy}; введён в действие
+                с {KMK_2_04_03_19_DOC.effectiveFrom}.
               </div>
 
               <div style={documentSource}>
-                Раздел 2 · Таблица 2 ·
-                расчётные расходы сточных вод
+                п. 2.7, табл. 2 — коэффициенты неравномерности ·
+                п. 2.9, табл. 3 — удельное водоотведение ·
+                п. 6.2 — условия входа в биологию ·
+                п. 6.4, табл. 25 — загрязнения на жителя ·
+                п. 6.10 — эффекты ступеней
               </div>
             </div>
 
@@ -426,7 +542,7 @@ function NormsContent() {
 
         {/* QСР */}
 
-        <Section title="КМК 2.04.03-19 — СРЕДНИЙ РАСХОД">
+        <Section title={`${KMK_2_04_03_19_DOC.code} — СРЕДНИЙ РАСХОД`}>
 
           <div style={grid}>
 
@@ -485,7 +601,7 @@ function NormsContent() {
 
         {/* КОЭФФИЦИЕНТЫ */}
 
-        <Section title="КМК 2.04.03-19 — КОЭФФИЦИЕНТЫ НЕРАВНОМЕРНОСТИ">
+        <Section title={`${KMK_2_04_03_19_DOC.code} — КОЭФФИЦИЕНТЫ НЕРАВНОМЕРНОСТИ (П. 2.7, ТАБЛ. 2)`}>
 
           {calculation.smallFlow ? (
 
@@ -712,126 +828,143 @@ function NormsContent() {
             </div>
 
             <div style={basisText}>
-              Основание: КМК 2.04.03-19,
-              раздел 2, таблица 2.
+              Основание: {KMK_2_04_03_19_DOC.code},
+              п. 2.7, таблица 2.
             </div>
 
           </div>
 
         </Section>
 
-        {/* КМК 2.04.01 */}
+        {/* ТАБЛ. 3 — ПРОВЕРКА ПО ЧИСЛУ ЖИТЕЛЕЙ */}
 
-        <Section title="КМК 2.04.01-98 — ПРОВЕРКА ПО ЧИСЛУ ЛЮДЕЙ">
+        <Section title={`${KMK_2_04_03_19_DOC.code} — ПРОВЕРКА ПО ЧИСЛУ ЖИТЕЛЕЙ (П. 2.9, ТАБЛ. 3)`}>
 
-          {people <= 0 ? (
+          {people <= 0 || !calculation.table3Check ? (
 
             <Status type="info">
-
-              Число людей не задано.
-              Проверка удельной нормы
-              водопотребления/водоотведения
-              по КМК 2.04.01-98 не выполняется.
-
+              Число жителей не задано. Проверка удельного
+              водоотведения по табл. 3 {KMK_2_04_03_19_DOC.code} не
+              выполняется.
             </Status>
 
           ) : (
 
             <>
-
               <div style={grid}>
 
                 <Card
-                  label="ЛЮДИ"
+                  label="ЖИТЕЛИ"
                   value={`${people} чел.`}
                 />
 
                 <Card
-                  label="НОРМА"
-                  value="95 л/чел·сут"
+                  label="НОРМА ТАБЛ. 3"
+                  value={
+                    calculation.table3Check.mode === "exact"
+                      ? `${calculation.table3Check.lpcd} л/чел·сут`
+                      : `${TABLE_3_RANGE.min}–${TABLE_3_RANGE.max} л/чел·сут`
+                  }
                   accent
                 />
 
                 <Card
                   label="Q ПО НОРМЕ"
-                  value={`${fmt(
-                    calculation
-                      .residentialNorm
-                      ?.qAverageM3Day ?? 0,
-                  )} м³/сут`}
+                  value={
+                    calculation.table3Check.mode === "exact"
+                      ? `${fmt(calculation.table3Check.qMin)} м³/сут`
+                      : `${fmt(calculation.table3Check.qMin)}–${fmt(calculation.table3Check.qMax)} м³/сут`
+                  }
                 />
 
                 <Card
-                  label="Q ПО НОРМЕ + ГАЗ"
-                  value={`${fmt(
-                    calculation
-                      .residentialGasNorm
-                      ?.qAverageM3Day ?? 0,
-                  )} м³/сут`}
+                  label="ФАКТ ПРОЕКТА"
+                  value={
+                    calculation.projectLpcd !== null
+                      ? `${fmt(calculation.projectLpcd, 0)} л/чел·сут`
+                      : "—"
+                  }
                 />
 
               </div>
 
               <div style={basisBox}>
-
                 <div style={smallLabel}>
-                  ВАЖНО
+                  НОРМАТИВНОЕ ОБОСНОВАНИЕ
                 </div>
 
                 <div style={basisText}>
-                  Сравнение выполняется
-                  с жилой категорией как
-                  ориентировочной нормативной
-                  проверкой. Для производственных,
-                  административных, медицинских,
-                  гостиничных и других объектов
-                  необходимо выбрать соответствующую
-                  категорию потребителя.
+                  {calculation.table3Check.source}.
+                  {" "}
+                  Табл. 3 применяется при разработке схем канализации
+                  населённых пунктов (п. 1.1); для отдельных жилых и
+                  общественных зданий — п. 2.1 (ШНК 2.04.02-97*) и
+                  п. 2.2 (КМК 2.04.01-98). {TABLE_3_NOTES[1]}{" "}
+                  {TABLE_3_NOTES[2]}
                 </div>
-
               </div>
 
-              {flow > 0 &&
-                calculation.residentialNorm && (
-                  <Status
-                    type={
-                      flow >=
-                      calculation.residentialNorm
-                        .qAverageM3Day
-                        ? "ok"
-                        : "warning"
-                    }
-                  >
-
-                    <strong>
-                      {flow >=
-                      calculation
-                        .residentialNorm
-                        .qAverageM3Day
-                        ? "✓ Расход проекта не ниже ориентировочной нормы"
-                        : "⚠ Расход проекта ниже ориентировочной нормы"}
-                    </strong>
-
-                    <br />
-
-                    Q проекта:
-                    {" "}
-                    {fmt(flow)}
-                    {" м³/сут · "}
-
-                    Q по норме:
-                    {" "}
-                    {fmt(
-                      calculation
-                        .residentialNorm
-                        .qAverageM3Day,
-                    )}
-                    {" м³/сут"}
-
-                  </Status>
-                )}
-
+              {flow > 0 && (
+                <Status
+                  type={
+                    flow >= calculation.table3Check.qMin * 0.8
+                      ? "ok"
+                      : "warning"
+                  }
+                >
+                  <strong>
+                    {flow >= calculation.table3Check.qMin * 0.8
+                      ? "✓ Расход проекта согласуется с табл. 3 (с учётом допуска −20 % по прим. 2)"
+                      : "⚠ Расход проекта ниже удельного водоотведения по табл. 3 более чем на 20 %"}
+                  </strong>
+                  <br />
+                  Q проекта: {fmt(flow)} м³/сут · Q по табл. 3:{" "}
+                  {calculation.table3Check.mode === "exact"
+                    ? fmt(calculation.table3Check.qMin)
+                    : `${fmt(calculation.table3Check.qMin)}–${fmt(calculation.table3Check.qMax)}`}{" "}
+                  м³/сут
+                </Status>
+              )}
             </>
+          )}
+
+        </Section>
+
+        {/* ТАБЛ. 25 — ЗАГРЯЗНЕНИЯ НА ЖИТЕЛЯ */}
+
+        <Section title={`${KMK_2_04_03_19_DOC.code} — ЗАГРЯЗНЕНИЯ НА ОДНОГО ЖИТЕЛЯ (П. 6.4, ТАБЛ. 25)`}>
+
+          <div style={grid}>
+            <Card label="ВЗВЕШЕННЫЕ" value={`${TABLE_25_PER_CAPITA_G_DAY.suspendedSolids} г/сут`} />
+            <Card label="БПКПОЛН" value={`${TABLE_25_PER_CAPITA_G_DAY.bodFull} г/сут`} accent />
+            <Card label="ХПК" value={`${TABLE_25_PER_CAPITA_G_DAY.cod} г/сут`} />
+            <Card label="АЗОТ NH₄" value={`${TABLE_25_PER_CAPITA_G_DAY.ammoniumN} г/сут`} />
+            <Card label="ФОСФАТЫ P₂O₅" value={`${TABLE_25_PER_CAPITA_G_DAY.phosphatesP2O5} г/сут`} />
+            <Card label="ЖИРЫ" value={`${TABLE_25_PER_CAPITA_G_DAY.fats} г/сут`} />
+            <Card label="ПАВ" value={`${TABLE_25_PER_CAPITA_G_DAY.surfactants} г/сут`} />
+          </div>
+
+          {calculation.domestic ? (
+            <div style={basisBox}>
+              <div style={smallLabel}>
+                ОРИЕНТИРОВОЧНЫЕ КОНЦЕНТРАЦИИ БЫТОВОГО СТОКА
+              </div>
+              <div style={basisText}>
+                {calculation.domestic.source}: взвешенные{" "}
+                <strong>{fmt(calculation.domestic.ss, 0)}</strong> · БПКполн{" "}
+                <strong>{fmt(calculation.domestic.bodFull, 0)}</strong> (БПК₅ ≈{" "}
+                {fmt(calculation.domestic.bod5, 0)} при БПК₅/БПКполн = {BOD5_TO_BODFULL},
+                практика) · ХПК <strong>{fmt(calculation.domestic.cod, 0)}</strong> ·
+                N-NH₄ <strong>{fmt(calculation.domestic.nh4N, 1)}</strong> · P{" "}
+                <strong>{fmt(calculation.domestic.pTotal, 1)}</strong> мг/л.
+                {" "}{TABLE_25_NOTES[0]}
+              </div>
+            </div>
+          ) : (
+            <p style={note}>
+              Для пересчёта табл. 25 в концентрации (п. 6.4) требуется
+              удельное водоотведение или число жителей и расход.
+            </p>
           )}
 
         </Section>
@@ -907,14 +1040,85 @@ function NormsContent() {
             без подтверждённой категории сброса,
             точки выпуска и применимого
             нормативного документа.
+            Допустимые концентрации при приёме на
+            биологическую очистку — {BIO_INLET_CONCENTRATIONS_REF}.
 
           </Status>
+
+          <div style={basisBox}>
+            <div style={smallLabel}>
+              УСЛОВИЯ ВХОДА В БИОЛОГИЧЕСКУЮ ОЧИСТКУ — {BIO_INLET_LIMITS.ref}
+            </div>
+
+            <div style={basisText}>
+              pH {BIO_INLET_LIMITS.phMin}–{BIO_INLET_LIMITS.phMax} ·
+              температура {BIO_INLET_LIMITS.tempMinC}–{BIO_INLET_LIMITS.tempMaxC} °C ·
+              БПКполн не выше {BIO_INLET_LIMITS.bodFullMaxMgL[0]}–{BIO_INLET_LIMITS.bodFullMaxMgL[1]} мг/л
+              (в зависимости от состава сооружений) ·
+              биогены: не менее {BIO_INLET_LIMITS.nPer100Bod} мг/л N и{" "}
+              {BIO_INLET_LIMITS.pPer100Bod} мг/л P на каждые 100 мг/л БПКполн ·
+              не допускаются: {BIO_INLET_LIMITS.forbidden}.
+            </div>
+
+            {bioInlet.bodFull !== null && (
+              <div style={tableRange}>
+                БПКполн проекта ≈ <strong>{fmt(bioInlet.bodFull, 0)} мг/л</strong>{" "}
+                (из БПК₅ {fmt(bod, 0)} при БПК₅/БПКполн = {BOD5_TO_BODFULL}, практика){" "}
+                —{" "}
+                {bioInlet.bodOk === "ok"
+                  ? "не выше 250 мг/л ✓"
+                  : bioInlet.bodOk === "limit"
+                    ? "в интервале 250–500 мг/л: допустимо при соответствующем составе сооружений"
+                    : "выше 500 мг/л ⚠ — требуется предварительная очистка или усреднение"}
+                <br />
+                Минимум биогенов на 100 мг/л БПКполн: N ≥{" "}
+                <strong>{fmt(bioInlet.nRequired ?? 0, 1)}</strong> мг/л
+                {bioInlet.nOk === null
+                  ? " (азот не задан)"
+                  : bioInlet.nOk
+                    ? " ✓"
+                    : " ⚠ дефицит азота"}
+                {" · "}P ≥ <strong>{fmt(bioInlet.pRequired ?? 0, 1)}</strong> мг/л
+                {bioInlet.pOk === null
+                  ? " (фосфор не задан)"
+                  : bioInlet.pOk
+                    ? " ✓"
+                    : " ⚠ дефицит фосфора"}
+              </div>
+            )}
+          </div>
+
+          <div style={basisBox}>
+            <div style={smallLabel}>
+              РАСЧЁТНЫЕ ЭФФЕКТЫ СТУПЕНЕЙ ОЧИСТКИ — {STAGE_EFFECTS.mechanical.ref}
+            </div>
+
+            <div style={basisText}>
+              Механическая очистка: взвешенные{" "}
+              {STAGE_EFFECTS.mechanical.ssRemoval[0] * 100}–{STAGE_EFFECTS.mechanical.ssRemoval[1] * 100} %
+              (+{STAGE_EFFECTS.mechanical.withPreaerationBonus[0] * 100}–{STAGE_EFFECTS.mechanical.withPreaerationBonus[1] * 100} %
+              с преаэраторами/биокоагуляторами), БПК {STAGE_EFFECTS.mechanical.bodRemoval * 100} %.
+              <br />
+              Биологическая очистка: взвешенные до {STAGE_EFFECTS.biological.ssOutMgL} мг/л,
+              БПКполн {STAGE_EFFECTS.biological.bodFullOutMgL[0]}–{STAGE_EFFECTS.biological.bodFullOutMgL[1]} мг/л.
+              <br />
+              Доочистка: взвешенные {STAGE_EFFECTS.tertiary.ssOutMgL[0]}–{STAGE_EFFECTS.tertiary.ssOutMgL[1]} мг/л,
+              БПКполн {STAGE_EFFECTS.tertiary.bodFullOutMgL[0]}–{STAGE_EFFECTS.tertiary.bodFullOutMgL[1]} мг/л.
+              {tss > 0 && (
+                <>
+                  <br />
+                  Взвешенные вещества проекта {fmt(tss, 0)} мг/л: перед
+                  биологической очисткой — не более 150 мг/л ({kmkRef("6.59")}).
+                </>
+              )}
+            </div>
+          </div>
 
         </Section>
 
         {/* ТАБЛИЦА 2 */}
 
-        <Section title="ТАБЛИЦА 2 — КМК 2.04.03-19">
+        <Section title={`ТАБЛИЦА 2 — ${KMK_2_04_03_19_DOC.code} (П. 2.7)`}>
 
           <div
             style={{
@@ -1039,7 +1243,7 @@ function NormsContent() {
 
               <p style={paragraph}>
 
-                По таблице 2 КМК 2.04.03-19
+                По таблице 2 {KMK_2_04_03_19_DOC.code} (п. 2.7)
                 приняты коэффициенты:
 
                 {" "}

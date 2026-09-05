@@ -73,7 +73,7 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
       {
         title: "Почему с нами удобно проектировать",
         text: [
-          "Все модели на этом сайте посчитаны, а не срисованы с каталога: гидравлика сепараторов — по Стоксу и EN 1825, биология — по DWA-A 131 и КМК 2.04.03, ёмкости — с проверкой оболочки на смятие. На странице каждой модели — таблица характеристик и габаритный чертёж, которые можно брать в пояснительную записку.",
+          "Все модели на этом сайте посчитаны, а не срисованы с каталога: гидравлика сепараторов — по Стоксу и EN 1825, биология — по ҚМҚ 2.04.03-19 и DWA-A 131, ёмкости — с проверкой оболочки на смятие. На странице каждой модели — таблица характеристик и габаритный чертёж, которые можно брать в пояснительную записку.",
           "Корпуса наматываются на нашем производстве в Ташкенте. Поэтому проектировщик не привязан к чужому каталогу: глубина подводящего коллектора, расположение и диаметр патрубков, высота горловин меняются под объект без «согласования с заводом за границей». Нестандартный размер — это пересчёт конструкции, а не отказ.",
           "По заполненному опросному листу мы готовим коммерческое предложение с габаритным чертежом и массой изделия — его достаточно для спецификации оборудования и раздела ТХ.",
         ],
@@ -113,7 +113,7 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
       },
       {
         q: "ПЕС — песколовки",
-        a: "Задержание частиц гидравлической крупностью от 0,10 мм, осадочная часть — 300 л на 1 л/с расхода.",
+        a: "Задержание частиц крупностью 0,15–0,25 мм (ҚМҚ 2.04.03-19, п. 6.27, табл. 27–28); осадочная часть — 300 л на 1 л/с расхода (практика; п. 6.32 — не более двухсуточного объёма песка).",
       },
       {
         q: "РЕЗ — резервуары",
@@ -125,7 +125,7 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
       },
       {
         q: "БИО — очистные сооружения",
-        a: "Нагрузки по КМК 2.04.03, аэротенк по DWA-A 131: возраст ила 15 суток, кислородный баланс AOR→SOTR, стабилизация осадка.",
+        a: "Нагрузки по ҚМҚ 2.04.03-19 (табл. 25, продлённая аэрация п. 6.175, воздух по ф. (70) п. 6.156, аэробная стабилизация п. 6.373); возраст ила 15 суток и кислородный баланс AOR→SOTR — по DWA-A 131 (в ҚМҚ не нормируются).",
       },
       {
         q: "ЭЛХ — электролизные установки",
@@ -166,7 +166,7 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
       {
         title: "Nega biz bilan loyihalash qulay",
         text: [
-          "Saytdagi barcha modellar hisoblangan: separatorlar gidravlikasi — Stokes va EN 1825 bo‘yicha, biologiya — DWA-A 131 va QMQ 2.04.03 bo‘yicha, idishlar — ezilishga tekshirilgan. Har bir model sahifasida jadval va gabarit chizmasi bor.",
+          "Saytdagi barcha modellar hisoblangan: separatorlar gidravlikasi — Stokes va EN 1825 bo‘yicha, biologiya — QMQ 2.04.03-19 va DWA-A 131 bo‘yicha, idishlar — ezilishga tekshirilgan. Har bir model sahifasida jadval va gabarit chizmasi bor.",
           "Korpuslar Toshkentdagi ishlab chiqarishimizda o‘raladi. Shuning uchun kollektor chuqurligi, patrubkalar joylashuvi va diametri obyektga qarab o‘zgartiriladi. Nostandart o‘lcham — bu rad etish emas, konstruksiyani qayta hisoblash.",
           "To‘ldirilgan so‘rovnoma bo‘yicha gabarit chizmasi va massasi bilan tijorat taklifini tayyorlaymiz — spetsifikatsiya uchun yetarli.",
         ],
@@ -198,10 +198,10 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
     basis: [
       { q: "ЖИР — yog‘ tutgichlar", a: "EN 1825-2 gidravlikasi, Stokes bo‘yicha yog‘ tomchisining ko‘tarilishi, turish vaqti kamida 60 daqiqa." },
       { q: "НЕФ — neft tutgichlar", a: "15 °C da 100 mkm tomchining ko‘tarilishi, lamelli modullar." },
-      { q: "ПЕС — qum tutgichlar", a: "0,10 mm dan yirik zarralarni tutish, cho‘kma qismi — 1 l/s uchun 300 l." },
+      { q: "ПЕС — qum tutgichlar", a: "0,15–0,25 mm zarralarni tutish (QMQ 2.04.03-19, 6.27-band, 27–28-jadvallar); cho‘kma qismi — 1 l/s uchun 300 l (amaliyot)." },
       { q: "РЕЗ — rezervuarlar", a: "Qobiqning grunt bosimiga chidamliligi; 800 mm qadam bilan qattiqlik halqalari." },
       { q: "КНС — nasos stansiyalari", a: "Ish hajmi V = Q·t/4; ikkita nasos — ishchi va zaxira, 150 m³/soatdan — uchta." },
-      { q: "БИО — tozalash inshootlari", a: "QMQ 2.04.03 yuklamalari, DWA-A 131 aerotenki: il yoshi 15 sutka, kislorod balansi." },
+      { q: "БИО — tozalash inshootlari", a: "QMQ 2.04.03-19 yuklamalari (25-jadval, 6.175-band, 6.156-band, 6.373-band); il yoshi 15 sutka va kislorod balansi — DWA-A 131 bo‘yicha (QMQda me’yorlanmagan)." },
       { q: "ЭЛХ — elektroliz", a: "1 kg faol xlor uchun 3,2 kg tuz va 4,5 kVt·soat; ventilyatsiya vodorod bo‘yicha." },
       { q: "ДОЗ — dozalash", a: "Uzatish, g/soat = doza, g/m³ × sarf, m³/soat; ikkita nasos-dozator." },
     ],
@@ -226,7 +226,7 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
       {
         title: "Why designers find us convenient",
         text: [
-          "Every model on this site is calculated, not copied from a catalogue: separator hydraulics per Stokes and EN 1825, biology per DWA-A 131 and local KMK codes, vessels checked for buckling. Each model page carries a specification table and a dimensional drawing.",
+          "Every model on this site is calculated, not copied from a catalogue: separator hydraulics per Stokes and EN 1825, biology per KMK 2.04.03-19 (Uzbekistan) and DWA-A 131, vessels checked for buckling. Each model page carries a specification table and a dimensional drawing.",
           "Shells are filament-wound at our own plant in Tashkent, so inlet depth, nozzle positions and diameters are adapted to the site. A non-standard size means a recalculation, not a refusal.",
           "From a filled questionnaire we prepare a quotation with a dimensional drawing and weight — enough for the equipment specification.",
         ],
@@ -257,10 +257,10 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
     basis: [
       { q: "Grease traps", a: "Hydraulics per EN 1825-2, Stokes rise of the fat droplet, retention at nominal flow at least 60 minutes." },
       { q: "Oil separators", a: "Rise of a 100 µm oil droplet at 15 °C, lamella modules, surface load below rise velocity." },
-      { q: "Grit traps", a: "Capture of particles with 0.10 mm settling size; sludge zone 300 L per 1 L/s." },
+      { q: "Grit traps", a: "Capture of 0.15–0.25 mm particles (KMK 2.04.03-19, cl. 6.27, tables 27–28); sludge zone 300 L per 1 L/s (practice)." },
       { q: "Tanks", a: "Shell checked for buckling under soil and groundwater; stiffening rings at 800 mm pitch." },
       { q: "Pumping stations", a: "Working volume V = Q·t/4 from allowable pump starts; duty + standby pumps, three from 150 m³/h." },
-      { q: "Treatment plants", a: "Loads per local KMK codes, aeration tank per DWA-A 131: sludge age 15 days, oxygen balance AOR→SOTR." },
+      { q: "Treatment plants", a: "Loads per KMK 2.04.03-19 (table 25, extended aeration cl. 6.175, air per eq. (70) cl. 6.156, aerobic stabilisation cl. 6.373); sludge age 15 days and AOR→SOTR balance per DWA-A 131 (not regulated by KMK)." },
       { q: "Electrochlorination", a: "3.2 kg of salt and 4.5 kWh per 1 kg of active chlorine; room ventilation sized for hydrogen." },
       { q: "Dosing stations", a: "Feed, g/h = dose, g/m³ × flow, m³/h; two dosing pumps, one day of solution in the tank." },
     ],
@@ -316,7 +316,7 @@ export const DESIGNERS: Record<Language, DesignerContent> = {
     basis: [
       { q: "隔油器", a: "水力按 EN 1825-2，油滴上浮按斯托克斯定律，额定流量下停留时间不少于 60 分钟。" },
       { q: "除油器", a: "按 15 °C 下 100 µm 油滴上浮速度设计，斜板模块。" },
-      { q: "沉砂器", a: "截留沉速 0.10 mm 以上颗粒，积砂区每 1 L/s 配 300 L。" },
+      { q: "沉砂器", a: "截留 0.15–0.25 mm 颗粒（KMK 2.04.03-19 第 6.27 条，表 27–28）；积砂区每 1 L/s 配 300 L（经验值）。" },
       { q: "储罐", a: "罐壁按土压与地下水校核抗压稳定性，加强环间距 800 mm。" },
       { q: "泵站", a: "有效容积 V = Q·t/4，按水泵允许启动频率；一用一备，150 m³/h 以上三台。" },
       { q: "污水处理", a: "负荷按本地规范，曝气池按 DWA-A 131：泥龄 15 天，氧平衡 AOR→SOTR。" },

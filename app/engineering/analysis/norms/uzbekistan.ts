@@ -20,12 +20,15 @@
 
 export const UZBEKISTAN_NORMS = {
   wastewaterExternal: {
-    code: "КМК 2.04.03-19",
+    code: "ҚМҚ 2.04.03-19",
     title: "Канализация. Наружные сети и сооружения",
     country: "Узбекистан",
+    note: "Вторая редакция, взамен КМК 2.04.03-97; приказ Минстроя РУз № 439 от 27.09.2019, действует с 01.01.2020.",
     sections: {
       flow: "Раздел 2",
-      unevenness: "Таблица 2",
+      unevenness: "п. 2.7, таблица 2",
+      waterUse: "п. 2.9, таблица 3",
+      perCapitaLoads: "п. 6.4, таблица 25",
     },
   },
 
@@ -50,6 +53,8 @@ export const UZBEKISTAN_NORMS = {
  * интерполяция между соседними значениями таблицы.
  * ======================================================= */
 
+import { TABLE_2_UNEVENNESS, unevenness } from "../../../../norms/kmk-2-04-03-19";
+
 export type WastewaterUnevennessRow = {
   averageLps: number;
   kMax: number;
@@ -57,173 +62,31 @@ export type WastewaterUnevennessRow = {
 };
 
 export const KMK_2_04_03_19_TABLE_2: readonly WastewaterUnevennessRow[] =
-  [
-    {
-      averageLps: 5,
-      kMax: 2.5,
-      kMin: 0.38,
-    },
-    {
-      averageLps: 10,
-      kMax: 2.1,
-      kMin: 0.45,
-    },
-    {
-      averageLps: 20,
-      kMax: 1.9,
-      kMin: 0.50,
-    },
-    {
-      averageLps: 50,
-      kMax: 1.7,
-      kMin: 0.55,
-    },
-    {
-      averageLps: 100,
-      kMax: 1.6,
-      kMin: 0.59,
-    },
-    {
-      averageLps: 300,
-      kMax: 1.55,
-      kMin: 0.62,
-    },
-    {
-      averageLps: 500,
-      kMax: 1.50,
-      kMin: 0.66,
-    },
-    {
-      averageLps: 1000,
-      kMax: 1.47,
-      kMin: 0.69,
-    },
-    {
-      averageLps: 5000,
-      kMax: 1.44,
-      kMin: 0.71,
-    },
-  ] as const;
+  TABLE_2_UNEVENNESS;
 
 /* =========================================================
- * ЛИНЕЙНАЯ ИНТЕРПОЛЯЦИЯ
- * ======================================================= */
-
-function interpolate(
-  x: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): number {
-  if (x2 === x1) {
-    return y1;
-  }
-
-  return y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
-}
-
-/* =========================================================
- * ПОЛУЧЕНИЕ КОЭФФИЦИЕНТОВ
+ * ПОЛУЧЕНИЕ КОЭФФИЦИЕНТОВ — обёртка над norms/kmk-2-04-03-19.ts
  * ======================================================= */
 
 export type UnevennessCoefficientResult = {
   kMax: number;
   kMin: number;
   interpolated: boolean;
+  /** средний расход менее 5 л/с — табл. 2 напрямую не применяется (прим. 2) */
+  belowTable: boolean;
   source: string;
 };
 
 export function getKmk2040319UnevennessCoefficients(
   averageLps: number,
 ): UnevennessCoefficientResult {
-  if (!Number.isFinite(averageLps) || averageLps <= 0) {
-    throw new Error(
-      "averageLps должен быть положительным числом.",
-    );
-  }
-
-  const table = KMK_2_04_03_19_TABLE_2;
-
-  /*
-   * Ниже первой точки:
-   * используем первую нормативную строку.
-   */
-  if (averageLps <= table[0].averageLps) {
-    return {
-      kMax: table[0].kMax,
-      kMin: table[0].kMin,
-      interpolated: false,
-      source:
-        "КМК 2.04.03-19, таблица 2",
-    };
-  }
-
-  /*
-   * Выше последней точки:
-   * используем последнюю нормативную строку.
-   *
-   * В дальнейшем можно заменить это поведение
-   * на отдельное правило, если проектная методика
-   * потребует экстраполяции.
-   */
-  const last = table[table.length - 1];
-
-  if (averageLps >= last.averageLps) {
-    return {
-      kMax: last.kMax,
-      kMin: last.kMin,
-      interpolated: false,
-      source:
-        "КМК 2.04.03-19, таблица 2",
-    };
-  }
-
-  /*
-   * Поиск двух соседних нормативных точек.
-   */
-  for (let i = 0; i < table.length - 1; i += 1) {
-    const a = table[i];
-    const b = table[i + 1];
-
-    if (
-      averageLps >= a.averageLps &&
-      averageLps <= b.averageLps
-    ) {
-      return {
-        kMax: interpolate(
-          averageLps,
-          a.averageLps,
-          a.kMax,
-          b.averageLps,
-          b.kMax,
-        ),
-
-        kMin: interpolate(
-          averageLps,
-          a.averageLps,
-          a.kMin,
-          b.averageLps,
-          b.kMin,
-        ),
-
-        interpolated: true,
-
-        source:
-          "КМК 2.04.03-19, таблица 2; промежуточное значение получено интерполяцией",
-      };
-    }
-  }
-
-  /*
-   * Защита от невозможного состояния.
-   */
+  const r = unevenness(averageLps);
   return {
-    kMax: last.kMax,
-    kMin: last.kMin,
-    interpolated: false,
-    source:
-      "КМК 2.04.03-19, таблица 2",
+    kMax: r.kMax,
+    kMin: r.kMin,
+    interpolated: r.interpolated,
+    belowTable: r.belowTable,
+    source: r.source,
   };
 }
 
@@ -304,11 +167,11 @@ export function calculateKmk2040319Flow(
 export const NORMATIVE_SOURCES = [
   {
     id: "kmk-2.04.03-19",
-    code: "КМК 2.04.03-19",
+    code: "ҚМҚ 2.04.03-19",
     title:
       "Канализация. Наружные сети и сооружения",
     scope:
-      "Расчет расходов сточных вод и коэффициентов неравномерности.",
+      "Расчётные расходы и коэффициенты неравномерности (разд. 2), удельное водоотведение (табл. 3), загрязнения на жителя (табл. 25), расчёт сооружений очистки (разд. 6), СЗЗ (табл. 1).",
   },
 
   {

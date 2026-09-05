@@ -16,7 +16,15 @@ import { chainForDischarge, findDischarge } from "../industry/targets";
 import { t, ui } from "../industry/i18n";
 import type { UiStrings } from "../industry/i18n";
 import { useLanguage } from "../../../LanguageContext";
-import { SCALE_LABEL, commonEquipment, equipmentFor, scaleOf, type Ctx, type Item } from "../industry/equipment";
+import { SCALE_LABEL, commonEquipment, equipmentFor, peakHourly, scaleOf, type Ctx, type Item } from "../industry/equipment";
+import {
+  AEROTANK,
+  DISINFECTION,
+  GRIT,
+  KMK_2_04_03_19_DOC,
+  sanitaryZone,
+  type SzzResult,
+} from "../../../../norms/kmk-2-04-03-19";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
 import {
   areaEstimate,
@@ -27,14 +35,15 @@ import {
 } from "../industry/construction";
 import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
-import { buildTemplateNote, type NoteInput } from "./note-template";
+import { buildTemplateNote, kmkClausesFor, kmkDocLine, type NoteInput } from "./note-template";
 import NoteView from "./NoteView";
 
 /* ==================================================================
  * ПРОИЗВОДСТВЕННЫЙ РАСЧЁТ: ЦЕПОЧКА ОЧИСТКИ И ПОДБОР ОБОРУДОВАНИЯ
  *
- * Все числа считаются здесь, детерминированно, по методикам
- * КМК 2.04.03-97 и DWA-A 131. Страница печатается в PDF кнопкой
+ * Все числа считаются здесь, детерминированно, по ҚМҚ 2.04.03-19
+ * (нормативные величины — из norms/kmk-2-04-03-19.ts с номерами
+ * пунктов) и DWA-A 131. Страница печатается в PDF кнопкой
  * браузера (print-стили ниже). DXF и ИИ-записка — отдельные кнопки.
  * ================================================================== */
 
@@ -214,13 +223,16 @@ function ProResultContent() {
     };
 
     const chain = chainForDischarge(industry.chain, discharge, industry.id);
+    const peak = peakHourly({ Q, Qh, a });
 
     for (const key of chain) {
       const s: StageCalc = { key, sizing: [], picks: [], items: [] };
 
       switch (key) {
         case "screen": {
-          s.sizing.push(`Расчётный расход ${fmt(Qh, 1)} м³/ч (${fmt(Qls, 1)} л/с); прозор решётки 1–6 мм по составу отбросов.`);
+          s.sizing.push(
+            `Средний расход рабочего периода ${fmt(Qh, 1)} м³/ч (${fmt(Qls, 1)} л/с); максимальный приток ${fmt(peak.qMax, 1)} м³/ч при K_gen.max = ${peak.kMax.toFixed(2)} (${peak.source}); прозор решётки 1–6 мм по составу отбросов.`
+          );
           break;
         }
         case "avg": {
@@ -241,7 +253,7 @@ function ProResultContent() {
           break;
         }
         case "sand": {
-          s.sizing.push(`Расход ${fmt(Qls, 1)} л/с; задержание частиц от ${a.sandSize} мм.`);
+          s.sizing.push(`Расход ${fmt(Qls, 1)} л/с; задержание частиц от ${a.sandSize} мм (${GRIT.table28.ref}); при Q > ${GRIT.requiredFromM3Day.value} м³/сут — не менее ${GRIT.minUnits.value} отделений (${GRIT.minUnits.ref}).`);
           const p = pickModel("sand-traps", "ns", Qls);
           if (p) s.picks.push(p);
           break;
@@ -285,9 +297,10 @@ function ProResultContent() {
           const V = bodLoad / vLoad;
           const air = bodLoad * a.airPerBod;
           const qEq = bod > 0 ? (Q * bod) / a.domesticBod : Q;
+          const ext = AEROTANK.extendedAeration;
           s.sizing.push(
-            `Нагрузка ${fmt(bodLoad, 1)} кг БПК₅/сут; объёмная нагрузка ${vLoad} кг/м³·сут → объём биоблока ≈ ${fmt(V)} м³.`,
-            `Воздух на аэрацию ≈ ${fmt(air)} м³/сут (${fmt(air / 24, 1)} м³/ч).`,
+            `Нагрузка ${fmt(bodLoad, 1)} кг БПК₅/сут (${fmt(bodLoad / (a.bod5Ratio || 0.68), 1)} кг БПКполн/сут); объёмная нагрузка ${vLoad} кг/м³·сут (продлённая аэрация: ρ = ${ext.rho} мг/(г·ч), доза ила ${ext.doseGL[0]}–${ext.doseGL[1]} г/л, ${ext.ref}) → объём биоблока ≈ ${fmt(V)} м³.`,
+            `Воздух на аэрацию ≈ ${fmt(air)} м³/сут (${fmt(air / 24, 1)} м³/ч) — удельный расход по ф. (70) ${AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")}.`,
             tn > a.denitroTn ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).` : `Азот умеренный — классическая аэрация.`
           );
           const p = pickModel("bio-plants", "qd", qEq);
@@ -305,8 +318,11 @@ function ProResultContent() {
         case "disinfect": {
           const dose = industry.id === "hospital" ? a.chlorDoseHospital : a.chlorDose;
           const gph = (Q * dose) / hours;
-          s.sizing.push(`Доза активного хлора ${dose} г/м³ → ${fmt(gph, 1)} г/ч в рабочем режиме.`);
-          const p = pickModel("chlorinators", "cl", gph);
+          const storeK = a.chlorStorageFactor || DISINFECTION.chlorineDose.storageFactor;
+          s.sizing.push(
+            `Доза активного хлора ${dose} г/м³ (${industry.id === "hospital" ? "санитарные требования для медицинских объектов" : `${DISINFECTION.chlorineDose.afterBio} г/м³ после биологической очистки, ${DISINFECTION.chlorineDose.ref}`}) → ${fmt(gph, 1)} г/ч; хлорное хозяйство на ×${storeK} — ${fmt(gph * storeK, 1)} г/ч (п. 6.230); контакт ${a.contactTime} мин (${DISINFECTION.contactMinutes.ref}).`
+          );
+          const p = pickModel("chlorinators", "cl", gph * storeK);
           if (p) s.picks.push(p);
           break;
         }
@@ -339,9 +355,21 @@ function ProResultContent() {
 
     const civil = civilWorks(volumes, a, scale);
 
+    /* ---------- санитарно-защитная зона, табл. 1 ҚМҚ 2.04.03-19 ----------
+       блочные установки с биологией — аэрационные установки на полное окисление
+       (прим. 6: 50 м при Q ≤ 700 м³/сут); крупнее — сооружения механической и
+       биологической очистки: иловые площадки (аварийные, п. 6.393) есть у
+       модульных и ж/б станций, у блочных их нет (прим. 3 — минус 30 %);
+       без биологии (промстоки, поверхностный сток) — по согласованию, прим. 8 */
+    const szz: SzzResult | null = chainHas("bio")
+      ? scale === "compact"
+        ? sanitaryZone(Q, "full-oxidation", false)
+        : sanitaryZone(Q, "mechbio-sludge-beds", chainHas("sludge"))
+      : null;
+
     /* ---------- площадь ---------- */
     const equipmentArea = Math.max(40, (airH / 1000) * 12 + (dryKg / 100) * 8 + 30);
-    const area = areaEstimate(civil.areaStructures, equipmentArea, (dryKg * 30) / (10 * a.cakeDs), a);
+    const area = areaEstimate(civil.areaStructures, equipmentArea, (dryKg * 30) / (10 * a.cakeDs), a, szz);
 
     /* ---------- трубопроводы ---------- */
     const pipes = pipeSizing({ Qh, air: airH, sludgeM3d: dryKg / (10 * a.sludgeDs), scale }, a, area.site);
@@ -359,7 +387,8 @@ function ProResultContent() {
 
     return {
       Qh, Qls, bodLoad, stages, scale, common,
-      civil, area, pipes, power,
+      civil, area, pipes, power, szz,
+      norms: kmkClausesFor(chain),
       civilList: civilItems(civil, a),
     };
   }, [industry, Q, hours, ph, c, discharge, a]);
@@ -452,6 +481,8 @@ function ProResultContent() {
       },
       notes: industry.notes.map((x) => t(x, language)),
       sources: industry.sources.map((x) => t(x, language)),
+      szz: calc.szz,
+      norms: calc.norms,
     };
   }
 
@@ -758,6 +789,25 @@ function ProResultContent() {
           <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>{calc.area.note}</p>
         </div>
 
+        {/* ================= САНИТАРНО-ЗАЩИТНАЯ ЗОНА ================= */}
+        <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+          <b style={{ fontSize: 16 }}>Санитарно-защитная зона</b>
+          {calc.szz ? (
+            <>
+              <div style={{ margin: "10px 0 6px", fontSize: 13 }}>
+                <b style={{ fontSize: 22 }}>{calc.szz.meters}</b> м — {calc.szz.basis}
+              </div>
+              {calc.szz.notes.map((line, i) => (
+                <p key={i} style={{ fontSize: 12, color: FAINT, margin: "0 0 4px", lineHeight: 1.6 }}>— {line}</p>
+              ))}
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: "#cfdde3", margin: "10px 0 0", lineHeight: 1.6 }}>
+              Для очистных сооружений промпредприятий и поверхностного стока размер зоны устанавливается по согласованию с органами санэпиднадзора ({KMK_2_04_03_19_DOC.code}, табл. 1, прим. 8).
+            </p>
+          )}
+        </div>
+
         {/* ================= ЭЛЕКТРИКА ================= */}
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
           <b style={{ fontSize: 16 }}>{U.powerTitle}</b>
@@ -809,7 +859,7 @@ function ProResultContent() {
           {industry.notes.map((note, i) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 10px" }}>• {t(note, language)}</p>
           ))}
-          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>{U.sourcesWord}: {industry.sources.map((x) => t(x, language)).join("; ")}. {U.methodsWord}: КМК 2.04.03-97, DWA-A 131, EN 1825, EN 858.</p>
+          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>{U.sourcesWord}: {industry.sources.map((x) => t(x, language)).join("; ")}. {U.methodsWord}: {kmkDocLine()}; DWA-A 131, EN 1825, EN 858 (справочно, ҚМҚ не нормируются).</p>
         </div>
 
         {/* ТЕХНИЧЕСКАЯ ЗАПИСКА */}

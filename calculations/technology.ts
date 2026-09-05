@@ -1,3 +1,5 @@
+import { kMaxByDailyFlow, oxygenTransferKgPerNm3, AEROTANK, BOD5_TO_BODFULL } from "../norms/kmk-2-04-03-19";
+
 export type TechnologyCode =
   | "MBBR"
   | "SBR"
@@ -95,13 +97,20 @@ function aerobicOxygen(bodLoad: number, nitrogenLoad: number, removal = 0.9) {
   const nitrification = nitrogenLoad * 4.57;
   return {
     removedBod,
-    oxygen: removedBod * 1.42 + nitrification,
+    // q_O = 1,1 мг O₂/мг снятой БПКполн при очистке до 15–20 мг/л
+    // (ҚМҚ 2.04.03-19 п. 6.156); нитрификация 4,57 кг O₂/кг N — практика.
+    // bodLoad задан по БПК₅ — переводим в БПКполн (БПК₅ ≈ 0,68·БПКполн, практика).
+    oxygen: (removedBod / BOD5_TO_BODFULL) * AEROTANK.air.qO.toBod15_20 + nitrification,
   };
 }
 
+/** кг O₂, фактически передаваемых 1 Нм³ воздуха: знаменатель ф. (70) ҚМҚ 2.04.03-19 п. 6.156
+ *  при мелкопузырчатой аэрации, h_a = 4 м, f_az/f_at = 0,2, городские СВ, 20 °C, C_O = 2 мг/л (≈0,03). */
+const O2_PER_NM3 = oxygenTransferKgPerNm3({ depthM: 4, fRatio: 0.2, tempC: 20 });
+
+/** Расход воздуха, Нм³/ч, по суточной потребности в кислороде. */
 function airFromOxygen(oxygenKgDay: number) {
-  // Preliminary concept value: 0.835 kg O2 transferred per Nm3 of supplied air.
-  return oxygenKgDay / 0.835;
+  return oxygenKgDay / O2_PER_NM3 / 24;
 }
 
 function anaerobicBiogas(removedCodKgDay: number) {
@@ -192,13 +201,18 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
   const hours = Math.max(1, n(input.hoursPerDay) || 24);
   const qAvg = flow / 24;
   const qWorking = flow / hours;
-  const qPeak = qAvg * 1.5;
+  // Максимальный часовой расход — по табл. 2 ҚМҚ 2.04.03-19 (п. 2.7), а не константой.
+  const kGen = kMaxByDailyFlow(flow);
+  const qPeak = qAvg * kGen.kMax;
   const hrt = technologyCalculations[technology].hrt;
   const hydraulicVolume = qWorking * hrt;
   const volumeWithReserve = hydraulicVolume * 1.15;
   const l = loads(input);
   const specialized: Metric[] = [];
-  const assumptions: string[] = [];
+  const assumptions: string[] = [
+    `Максимальный часовой расход: K gen.max = ${kGen.kMax.toFixed(2)} (${kGen.source}).`,
+    `Расход воздуха: передача кислорода ${(O2_PER_NM3 * 1000).toFixed(1)} г O₂/Нм³ по ф. (70) ҚМҚ 2.04.03-19 п. 6.156 (мелкопузырчатая аэрация, h_a = 4 м, K₁ = 1,68, K₂ = 2,52, K₃ = 0,85, 20 °C); удельный расход кислорода 1,1 кг/кг снятой БПК.`,
+  ];
   const values: Record<string, number> = {};
 
   const add = (key: string, label: string, value: number, unit: string) => {

@@ -13,6 +13,18 @@ import {
   calculateAverageDailyFlow,
   getKmkSmallFlowBasis,
 } from "../norms/kmk-2-04-01-98";
+import {
+  KMK_2_04_03_19_DOC,
+  TABLE_3_WATER_USE,
+  TABLE_3_NOTES,
+  TABLE_2_NOTES,
+  DEFAULT_WATER_USE_HORIZON,
+  LOCAL_INDUSTRY_SHARE,
+  specificWaterUse,
+  unevenness,
+  type SettlementCategory,
+  type WaterUseHorizon,
+} from "../../../../norms/kmk-2-04-03-19";
 
 /*
  * =========================================================
@@ -21,47 +33,36 @@ import {
  * ШАГ 02 — РАСЧЁТНЫЕ РАСХОДЫ СТОЧНЫХ ВОД
  *
  * Нормативная база:
- * КМК 2.04.03-19
+ * ҚМҚ 2.04.03-19 (взамен КМК 2.04.03-97): п. 2.9, табл. 3 —
+ * удельное водоотведение; п. 2.7, табл. 2 — коэффициенты
+ * неравномерности; п. 2.3 — местная промышленность 5 %.
  * =========================================================
  */
 
-type PopulationCategory =
-  | "over100-central"
-  | "under100-central"
-  | "under50-no-central"
-  | "under50-central";
+/**
+ * Категории населённых пунктов — по табл. 3 ҚМҚ 2.04.03-19
+ * (единственная копия таблицы — norms/kmk-2-04-03-19.ts).
+ * Значения URL-параметра `category` совместимы со старыми
+ * ключами страницы: under50-no-central / under50-central
+ * (обе — строка 3 / 3.1 табл. 3, различаются только годом).
+ */
+const SETTLEMENT_CATEGORIES: readonly SettlementCategory[] = [
+  "city-over-100k",
+  "city-under-100k",
+  "town-under-50k",
+];
 
-const SPECIFIC_FLOW: Record<
-  PopulationCategory,
-  {
-    label: string;
-    value2020: number | null;
-    value2035: number | null;
+function parseSettlementCategory(
+  raw: string | null,
+): SettlementCategory {
+  if (raw && (SETTLEMENT_CATEGORIES as readonly string[]).includes(raw)) {
+    return raw as SettlementCategory;
   }
-> = {
-  "over100-central": {
-    label: "Город более 100 тыс. жителей, централизованная система",
-    value2020: 230,
-    value2035: 280,
-  },
-  "under100-central": {
-    label: "Город до 100 тыс. жителей, централизованная система",
-    value2020: 200,
-    value2035: 230,
-  },
-  "under50-no-central": {
-    label:
-      "Город / посёлок / районный центр до 50 тыс., без централизованной системы",
-    value2020: 150,
-    value2035: null,
-  },
-  "under50-central": {
-    label:
-      "Город / посёлок / районный центр до 50 тыс., централизованная система",
-    value2020: null,
-    value2035: 170,
-  },
-};
+  // Совместимость со старыми ключами страницы (до перехода на модуль табл. 3).
+  if (raw === "over100-central") return "city-over-100k";
+  if (raw === "under100-central") return "city-under-100k";
+  return "town-under-50k";
+}
 
 function interpolate(
   x: number,
@@ -294,27 +295,29 @@ function FlowContent() {
   const [flow, setFlow] = useState(searchParams.get("flow") || "");
   const [people, setPeople] = useState(searchParams.get("people") || "");
 
-  const [normativeYear, setNormativeYear] = useState<"2020" | "2035">(
-    searchParams.get("year") === "2020" ? "2020" : "2035",
+  const [normativeYear, setNormativeYear] = useState<WaterUseHorizon>(
+    searchParams.get("year") === "2020" ? 2020 : DEFAULT_WATER_USE_HORIZON,
   );
 
   const [populationCategory, setPopulationCategory] =
-    useState<PopulationCategory>("under50-central");
+    useState<SettlementCategory>(
+      parseSettlementCategory(searchParams.get("category")),
+    );
 
-  const [additionalPercent, setAdditionalPercent] = useState("0");
+  const [additionalPercent, setAdditionalPercent] = useState(
+    searchParams.get("additionalPercent") || "0",
+  );
   const [workingHours, setWorkingHours] = useState(
     searchParams.get("hours") || "24",
   );
 
-  const specificFlow = useMemo(() => {
+  /** Удельное водоотведение по п. 2.9, табл. 3 ҚМҚ 2.04.03-19. */
+  const specificWaterUseRow = useMemo(() => {
     if (calculationMode !== "population") return null;
-
-    return (
-      SPECIFIC_FLOW[populationCategory][
-        normativeYear === "2020" ? "value2020" : "value2035"
-      ] ?? null
-    );
+    return specificWaterUse(populationCategory, normativeYear);
   }, [calculationMode, populationCategory, normativeYear]);
+
+  const specificFlow = specificWaterUseRow?.lpcd ?? null;
 
   const calculatedFlow = useMemo(() => {
     let baseDaily = 0;
@@ -342,6 +345,18 @@ function FlowContent() {
     const averageHourly = daily / 24;
 
     const kgen = getKgen(averageLs);
+
+    /*
+     * Пометка прим. 2 к табл. 2 (п. 2.7): при Qср < 5 л/с таблица 2
+     * напрямую не применяется; модуль норматива возвращает первую строку
+     * (K_max = 2,5) как ближайшее нормативное значение с belowTable = true.
+     * В расчёт эта величина не подставляется — Qmax/Qmin остаются пустыми,
+     * а расчётный расход определяется по КМК 2.04.01-98.
+     */
+    const belowTableNote =
+      averageLs > 0 && unevenness(averageLs).belowTable
+        ? unevenness(averageLs).source
+        : null;
 
     const maxLs =
       kgen?.max !== null && kgen?.max !== undefined
@@ -371,6 +386,7 @@ function FlowContent() {
       yearly: daily * 365,
       specificFlow,
       additionalPercent: safeExtra,
+      belowTableNote,
       kStatus: kgen?.status ?? null,
       kLower: kgen?.lower ?? null,
       kUpper: kgen?.upper ?? null,
@@ -430,8 +446,14 @@ function FlowContent() {
       params.delete("kMin");
     }
 
-    params.set("year", normativeYear);
+    params.set("year", String(normativeYear));
     params.set("additionalPercent", String(calculatedFlow.additionalPercent));
+
+    if (calculationMode === "population") {
+      params.set("category", populationCategory);
+    } else {
+      params.delete("category");
+    }
 
     if (people) params.set("people", people);
     else params.delete("people");
@@ -505,9 +527,10 @@ function FlowContent() {
             </h1>
 
             <p>
-              Система использует нормативные данные КМК 2.04.03-19 для
-              расчёта коэффициентов неравномерности и передаёт
-              рассчитанные значения на следующий этап инженерного анализа.
+              Система использует нормативные данные {KMK_2_04_03_19_DOC.code}{" "}
+              (п. 2.9, табл. 3 — удельное водоотведение; п. 2.7, табл. 2 —
+              коэффициенты неравномерности) и передаёт рассчитанные
+              значения на следующий этап инженерного анализа.
             </p>
           </div>
 
@@ -631,20 +654,22 @@ function FlowContent() {
                   className={styles.label}
                   style={{ marginTop: 28 }}
                 >
-                  Нормативный год
+                  Расчётный горизонт (табл. 3 {KMK_2_04_03_19_DOC.code})
                 </label>
 
                 <select
                   id="year"
-                  value={normativeYear}
+                  value={String(normativeYear)}
                   onChange={(event) =>
-                    setNormativeYear(event.target.value as "2020" | "2035")
+                    setNormativeYear(
+                      event.target.value === "2020" ? 2020 : 2035,
+                    )
                   }
                   className={styles.textarea}
                   style={{ minHeight: 70 }}
                 >
-                  <option value="2035">2035</option>
-                  <option value="2020">2020</option>
+                  <option value="2035">2035 г. — расчётный срок (по умолчанию)</option>
+                  <option value="2020">2020 г.</option>
                 </select>
 
                 <label
@@ -652,7 +677,7 @@ function FlowContent() {
                   className={styles.label}
                   style={{ marginTop: 28 }}
                 >
-                  Категория населённого пункта
+                  Категория населённого пункта (табл. 3)
                 </label>
 
                 <select
@@ -660,58 +685,41 @@ function FlowContent() {
                   value={populationCategory}
                   onChange={(event) =>
                     setPopulationCategory(
-                      event.target.value as PopulationCategory,
+                      parseSettlementCategory(event.target.value),
                     )
                   }
                   className={styles.textarea}
                   style={{ minHeight: 90 }}
                 >
-                  <option value="over100-central">
-                    Более 100 тыс. жителей — централизованная система
-                  </option>
-                  <option value="under100-central">
-                    До 100 тыс. — централизованная система
-                  </option>
-                  <option value="under50-no-central">
-                    До 50 тыс. — без централизованной канализации
-                  </option>
-                  <option value="under50-central">
-                    До 50 тыс. — централизованная канализация
-                  </option>
+                  {SETTLEMENT_CATEGORIES.map((id) => {
+                    const row = TABLE_3_WATER_USE[id];
+                    return (
+                      <option key={id} value={id}>
+                        {row.label} — {row.lps[2020]} / {row.lps[2035]} л/чел·сут
+                        (2020 / 2035)
+                      </option>
+                    );
+                  })}
                 </select>
 
-                {specificFlow === null && (
-                  <div
-                    style={{
-                      marginTop: 14,
-                      padding: 16,
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,180,80,.25)",
-                      background: "rgba(255,180,80,.05)",
-                      color: "rgba(255,255,255,.65)",
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    Для выбранной комбинации категории и нормативного года в
-                    таблице 3 КМК нет значения. Выберите соответствующий
-                    нормативный год.
-                  </div>
-                )}
-
-                {specificFlow !== null && (
+                {specificWaterUseRow && (
                   <div
                     style={{
                       marginTop: 14,
                       color: "rgba(255,255,255,.5)",
                       fontSize: 13,
+                      lineHeight: 1.6,
                     }}
                   >
-                    Удельный расход, используемый как исходное значение:{" "}
+                    Удельное среднесуточное водоотведение:{" "}
                     <strong style={{ color: "#22d3ee" }}>
-                      {specificFlow}
+                      {specificWaterUseRow.lpcd}
                     </strong>{" "}
                     л/чел·сут
+                    <br />
+                    <span style={{ color: "rgba(255,255,255,.38)", fontSize: 12 }}>
+                      {specificWaterUseRow.source}
+                    </span>
                   </div>
                 )}
               </>
@@ -733,12 +741,16 @@ function FlowContent() {
               style={{ minHeight: 70 }}
             >
               <option value="0">0% — не добавлять</option>
-              <option value="5">5% — дополнительный расход</option>
+              <option value="5">
+                5% — местная промышленность и неучтённые расходы (п. 2.3)
+              </option>
               <option value="10">
-                10% — при отсутствии эксплуатационных данных
+                10% — неучтённые расходы при отсутствии данных эксплуатации
+                (табл. 3, прим. 5)
               </option>
               <option value="15">
-                15% — при отсутствии эксплуатационных данных
+                15% — неучтённые расходы при отсутствии данных эксплуатации
+                (табл. 3, прим. 5)
               </option>
             </select>
 
@@ -750,8 +762,11 @@ function FlowContent() {
                 lineHeight: 1.6,
               }}
             >
-              Применяется только при наличии соответствующего основания в
-              исходных данных проекта.
+              {LOCAL_INDUSTRY_SHARE.ref}: местная промышленность и неучтённые
+              расходы — {LOCAL_INDUSTRY_SHARE.value * 100} % среднесуточного
+              водоотведения населённого пункта. {TABLE_3_NOTES[4]} Применяется
+              только при наличии соответствующего основания в исходных данных
+              проекта.
             </p>
 
             <label
@@ -787,7 +802,7 @@ function FlowContent() {
                 <div className={styles.sectionLabel}>
                   {calculatedFlow.averageLs < 5
                     ? "РАСЧЁТ МАЛОГО РАСХОДА — КМК 2.04.01-98"
-                    : "РАСЧЁТ ПО КМК 2.04.03-19"}
+                    : `РАСЧЁТ ПО ${KMK_2_04_03_19_DOC.code}`}
                 </div>
 
                 <div
@@ -866,7 +881,7 @@ function FlowContent() {
                         Коэффициенты интерполированы.
                       </strong>{" "}
                       Средний расход находится между табличными значениями
-                      КМК 2.04.03-19.
+                      табл. 2 {KMK_2_04_03_19_DOC.code} (п. 2.7, прим. 3).
                     </>
                   )}
 
@@ -875,7 +890,8 @@ function FlowContent() {
                       <strong style={{ color: "#22d3ee" }}>
                         Табличное значение.
                       </strong>{" "}
-                      Коэффициенты приняты непосредственно из таблицы 2.
+                      Коэффициенты приняты непосредственно из таблицы 2
+                      (п. 2.7 {KMK_2_04_03_19_DOC.code}).
                     </>
                   )}
 
@@ -1052,15 +1068,22 @@ function FlowContent() {
                       Qср менее{" "}
                       {KMK_2_04_03_19.applicability
                         .minimumAverageLpsForCurrentTable}{" "}
-                      л/с. Таблица 2 текущего модуля автоматически
-                      не применяется. Требуется отдельная нормативная
-                      проверка по применимому документу.
+                      л/с. {TABLE_2_NOTES[1]} Таблица 2 автоматически
+                      не применяется; Qmax/Qmin не подставляются.
+                      {calculatedFlow.belowTableNote && (
+                        <>
+                          <br />
+                          <span style={{ color: "rgba(255,255,255,.45)" }}>
+                            Справочно (belowTable): {calculatedFlow.belowTableNote}.
+                          </span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
 
                 {calculationMode === "population" &&
-                  specificFlow !== null && (
+                  specificWaterUseRow && (
                     <div
                       style={{
                         marginTop: 14,
@@ -1069,13 +1092,21 @@ function FlowContent() {
                         lineHeight: 1.7,
                       }}
                     >
-                      Удельный расход {specificFlow} л/чел·сут
-                      в текущем модуле является исходным значением
-                      расчёта по населению. Его нормативное основание
-                      будет подключено отдельным модулем после проверки
-                      применимого документа. Поэтому этот показатель
-                      не маркируется как подтверждённое значение
-                      КМК 2.04.03-19.
+                      <strong style={{ color: "rgba(255,255,255,.6)" }}>
+                        Удельное водоотведение {specificWaterUseRow.lpcd} л/чел·сут
+                        — {specificWaterUseRow.source}.
+                      </strong>{" "}
+                      Табл. 3 применяется при разработке схем канализации
+                      населённых пунктов (п. 1.1); для отдельных жилых и
+                      общественных зданий удельное водоотведение принимается
+                      по п. 2.1 (ШНК 2.04.02-97*) и п. 2.2 (КМК 2.04.01-98).
+                      <br />
+                      {TABLE_3_NOTES.map((n) => (
+                        <span key={n}>
+                          {n}
+                          <br />
+                        </span>
+                      ))}
                     </div>
                   )}
               </div>
@@ -1104,9 +1135,10 @@ function FlowContent() {
 
           <p className={styles.disclaimer}>
             При среднем расходе 5 л/с и более модуль использует таблицу 2
-            КМК 2.04.03-19 и интерполяцию между табличными значениями.
-            При среднем расходе менее 5 л/с применяется методика КМК
-            2.04.01-98; окончательные Qmax/Qmin требуют данных о санитарно-
+            {" "}{KMK_2_04_03_19_DOC.code} (п. 2.7) и интерполяцию между
+            табличными значениями (прим. 3). При среднем расходе менее 5 л/с
+            применяется методика КМК 2.04.01-98 (табл. 2, прим. 2);
+            окончательные Qmax/Qmin требуют данных о санитарно-
             технических приборах и вероятности их действия. Окончательные
             проектные значения определяются на основании полного состава
             исходных данных и инженерной проверки.

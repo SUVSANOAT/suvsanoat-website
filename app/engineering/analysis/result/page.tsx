@@ -3,6 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { CSSProperties } from "react";
+import { kMaxByDailyFlow } from "../../../../norms/kmk-2-04-03-19";
 
 type Unit = {
   title: string;
@@ -94,6 +95,7 @@ const TECH_MODELS: Record<string, TechModel> = {
   },
 };
 
+/** Параметры MBBR не нормируются ҚМҚ 2.04.03-19; приняты по DWA/практике (предварительно). */
 const MBBR_PRELIMINARY = {
   bodRemoval: 0.90,
   volumetricBodLoading: 0.80,
@@ -456,9 +458,21 @@ function ResultContent() {
       ? flow / operatingHours
       : 0;
 
+  /*
+   * Максимальный часовой расход — по общему коэффициенту неравномерности
+   * K_gen.max табл. 2 ҚМҚ 2.04.03-19 (п. 2.7), а не константой 1,5:
+   * для типовых расходов ЛОС (Qср < 20 л/с) таблица даёт 1,9–2,5.
+   * Тот же источник (kMaxByDailyFlow) использует calculations/technology.ts
+   * (страница complete) и equipment/page.tsx — Qmax на всех шагах совпадает.
+   * При Qср < 5 л/с модуль возвращает первую строку (2,5) с пометкой
+   * belowTable — по прим. 2 расчётный расход подлежит проверке по КМК 2.04.01-98.
+   */
+  const kGen =
+    Number.isFinite(flow) && flow > 0 ? kMaxByDailyFlow(flow) : null;
+
   const qPeak =
-    qHour > 0
-      ? qHour * 1.5
+    qHour > 0 && kGen
+      ? qHour * kGen.kMax
       : 0;
 
   const hrtValue = Number(hrt);
@@ -733,6 +747,11 @@ function ResultContent() {
             />
 
             <Metric
+              label="KGEN.MAX"
+              value={kGen ? kGen.kMax.toFixed(2) : "—"}
+            />
+
+            <Metric
               label="ЛЮДЕЙ"
               value={people > 0 ? `${people} чел.` : "—"}
             />
@@ -742,6 +761,21 @@ function ResultContent() {
               value={hours > 0 ? `${hours} ч/сут` : "—"}
             />
           </div>
+
+          {kGen && (
+            <p
+              style={{
+                marginTop: 16,
+                color: "#607b87",
+                fontSize: 12,
+                lineHeight: 1.7,
+              }}
+            >
+              Qmax = Qср × K<sub>gen.max</sub> — {kGen.source}.
+              {kGen.belowTable &&
+                " Значение справочное: при Qср < 5 л/с расчётный расход определяется по КМК 2.04.01-98."}
+            </p>
+          )}
         </section>
 
         {/* НАГРУЗКИ */}
@@ -959,6 +993,11 @@ function ResultContent() {
                 Qср = Qсут / 24. Qраб = Qсут / часы работы.
                 Для MBBR итоговый предварительный объём принимается
                 не меньше гидравлического и объёма по органической нагрузке.
+                HRT по технологиям и параметры MBBR/SBR/MBR (OLR, заполнение,
+                удельная поверхность носителя, flux, цикл) не нормируются
+                ҚМҚ 2.04.03-19; приняты по DWA/практике как предварительные.
+                Аэротенки по ҚМҚ 2.04.03-19 рассчитываются по ф. (51)/(54)
+                п. 6.143–6.144 (не менее 2 ч).
               </span>
             </div>
 

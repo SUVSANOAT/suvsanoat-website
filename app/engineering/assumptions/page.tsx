@@ -8,6 +8,7 @@ import {
   GROUP_LABEL,
   type AssumptionGroup,
 } from "../../../lib/assumptions";
+import { KMK_2_04_03_19_DOC } from "../../../norms/kmk-2-04-03-19";
 
 /* ==================================================================
  * КОЭФФИЦИЕНТЫ РАСЧЁТА
@@ -261,8 +262,10 @@ export default function AssumptionsPage() {
         ))}
 
         <p style={{ fontSize: 11, color: FAINT, lineHeight: 1.6, marginTop: 20 }}>
-          Нормативная база: КМК 2.04.01-98, КМК 2.04.02-97, КМК 2.04.03-97, DWA-A 131, EN 858, EN 1825,
-          Metcalf &amp; Eddy «Wastewater Engineering». Значения, помеченные как практика проектирования,
+          Нормативная база: {KMK_2_04_03_19_DOC.code} «{KMK_2_04_03_19_DOC.title}» ({KMK_2_04_03_19_DOC.approvedBy}; действует с 01.01.2020,
+          взамен {KMK_2_04_03_19_DOC.replaces}); смежные — ШНК 2.04.02-97*, КМК 2.04.01-98, ПКМ РУз № 11 от 03.02.2010.
+          Справочно (в ҚМҚ не нормируются): DWA-A 131, EN 858, EN 1825, Metcalf &amp; Eddy «Wastewater Engineering».
+          У каждого коэффициента указан пункт или таблица ҚМҚ 2.04.03-19; значения, помеченные как практика проектирования,
           нормативом не установлены и приняты SUVSANOAT для предпроектной стадии.
         </p>
       </div>

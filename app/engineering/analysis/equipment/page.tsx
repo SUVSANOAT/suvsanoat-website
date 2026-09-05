@@ -2,6 +2,21 @@
 
 import { Suspense, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  KMK_2_04_03_19_DOC,
+  TABLE_2_NOTES,
+  AEROTANK,
+  BOD5_TO_BODFULL,
+  DISINFECTION,
+  PRIMARY_SETTLING,
+  SLUDGE,
+  PUMP_STATIONS,
+  EQUALIZATION,
+  GRIT,
+  kmkRef,
+  unevenness,
+  oxygenTransferKgPerNm3,
+} from "../../../../norms/kmk-2-04-03-19";
 
 type Equipment = {
   name: string;
@@ -18,68 +33,78 @@ type FlowNonuniformity = {
 };
 
 /**
- * КМК 2.04.03-19, таблица 2:
- * средний расход, л/с -> общий коэффициент неравномерности.
- * Для промежуточных значений применяется линейная интерполяция.
- * При Qср < 5 л/с КМК 2.04.03-19 отсылает к КМК 2.04.01-98,
- * поэтому коэффициент здесь намеренно НЕ выдумывается.
+ * ҚМҚ 2.04.03-19, п. 2.7, таблица 2 — общие коэффициенты неравномерности.
+ * Единственная копия таблицы и интерполяция (прим. 3) — в модуле
+ * norms/kmk-2-04-03-19.ts (unevenness). При Qср < 5 л/с прим. 2 к табл. 2
+ * отсылает к КМК 2.04.01-98, поэтому коэффициент здесь намеренно
+ * НЕ подставляется (модуль возвращает первую строку с пометкой belowTable,
+ * но для подбора оборудования она не используется).
  */
-const FLOW_NONUNIFORMITY_TABLE = [
-  { q: 5, kMax: 2.5, kMin: 0.38 },
-  { q: 10, kMax: 2.1, kMin: 0.45 },
-  { q: 20, kMax: 1.9, kMin: 0.5 },
-  { q: 50, kMax: 1.7, kMin: 0.55 },
-  { q: 100, kMax: 1.6, kMin: 0.59 },
-  { q: 300, kMax: 1.55, kMin: 0.62 },
-  { q: 500, kMax: 1.5, kMin: 0.66 },
-  { q: 1000, kMax: 1.47, kMin: 0.69 },
-  { q: 5000, kMax: 1.44, kMin: 0.71 },
-];
-
-function interpolateFlowCoefficient(
-  qLs: number,
-  key: "kMax" | "kMin"
-): number | null {
-  if (!Number.isFinite(qLs) || qLs < 5) {
-    return null;
-  }
-
-  if (qLs >= 5000) {
-    return 1.44;
-  }
-
-  for (let i = 0; i < FLOW_NONUNIFORMITY_TABLE.length - 1; i += 1) {
-    const a = FLOW_NONUNIFORMITY_TABLE[i];
-    const b = FLOW_NONUNIFORMITY_TABLE[i + 1];
-
-    if (qLs >= a.q && qLs <= b.q) {
-      const t = (qLs - a.q) / (b.q - a.q);
-      return a[key] + (b[key] - a[key]) * t;
-    }
-  }
-
-  return null;
-}
-
 function calculateFlowNonuniformity(qAverageM3h: number): FlowNonuniformity {
   const qLs = qAverageM3h / 3.6;
 
-  if (qLs < 5) {
+  if (!Number.isFinite(qLs) || qLs <= 0) {
+    return {
+      qLs: 0,
+      kMax: null,
+      kMin: null,
+      source: `${KMK_2_04_03_19_DOC.code}, п. 2.7, табл. 2`,
+      status: "requires_kmk_2_04_01",
+    };
+  }
+
+  const u = unevenness(qLs);
+
+  if (u.belowTable) {
     return {
       qLs,
       kMax: null,
       kMin: null,
-      source: "КМК 2.04.03-19, п. 2.5, примечание 2 → требуется расчёт по КМК 2.04.01-98",
+      source: `${KMK_2_04_03_19_DOC.code}, п. 2.7, табл. 2, прим. 2 → ${TABLE_2_NOTES[1]}`,
       status: "requires_kmk_2_04_01",
     };
   }
 
   return {
     qLs,
-    kMax: interpolateFlowCoefficient(qLs, "kMax"),
-    kMin: interpolateFlowCoefficient(qLs, "kMin"),
-    source: "КМК 2.04.03-19, таблица 2; промежуточные значения — линейная интерполяция",
+    kMax: u.kMax,
+    kMin: u.kMin,
+    source: u.source,
     status: "normative",
+  };
+}
+
+/**
+ * Аэрация по ҚМҚ 2.04.03-19, п. 6.156, ф. (70).
+ *
+ * Удельный расход кислорода q_O — на 1 мг снятой БПКполн:
+ *   1,1 (очистка до БПКполн 15–20 мг/л), 0,9 (свыше 20 мг/л),
+ *   1,25 — продлённая аэрация (п. 6.175).
+ * Исходные данные мастера — БПК₅; пересчёт в БПКполн через
+ * BOD5_TO_BODFULL = 0,68 (практика; в ҚМҚ-19 не нормируется).
+ * Передача кислорода воздухом — знаменатель ф. (70)
+ * K₁·K₂·K_T·K₃·(C_a − C_O) при мелкопузырчатой аэрации, h_a = 4 м,
+ * f_az/f_at = 0,2, городские СВ (K₃ = 0,85), 20 °C, C_O = 2 мг/л
+ * (те же условия, что в calculations/technology.ts для страницы complete).
+ */
+const AERATION_DEPTH_M = 4;
+const O2_PER_NM3 = oxygenTransferKgPerNm3({
+  depthM: AERATION_DEPTH_M,
+  fRatio: 0.2,
+  tempC: 20,
+});
+
+function aerationByKmk(bodRemovedKgDay: number, qO = AEROTANK.air.qO.toBod15_20) {
+  const bodFullRemovedKgDay = bodRemovedKgDay / BOD5_TO_BODFULL;
+  const oxygenKgDay = bodFullRemovedKgDay * qO;
+  const airNm3PerHour = oxygenKgDay / O2_PER_NM3 / 24;
+  return {
+    qO,
+    bodFullRemovedKgDay,
+    oxygenKgDay,
+    airNm3PerHour,
+    o2PerNm3: O2_PER_NM3,
+    note: `Кислород: q_O = ${qO} кг O₂/кг снятой БПКполн (${AEROTANK.air.ref}; БПК₅ → БПКполн через ${BOD5_TO_BODFULL}, практика). Воздух: передача ${(O2_PER_NM3 * 1000).toFixed(1)} г O₂/Нм³ по ф. (70) (мелкопузырчатая аэрация, h_a = ${AERATION_DEPTH_M} м, K₃ = 0,85, 20 °C, C_O = 2 мг/л).`,
   };
 }
 
@@ -88,7 +113,7 @@ function calculateFlowNonuniformity(qAverageM3h: number): FlowNonuniformity {
  * Предварительный технологический расчёт IFAS / MBBR.
  *
  * ВАЖНО:
- * КМК 2.04.03-19 не задаёт универсальные проектные константы для IFAS/MBBR
+ * ҚМҚ 2.04.03-19 не задаёт универсальные проектные константы для IFAS/MBBR
  * (fill fraction, SAA носителя, допустимую поверхностную нагрузку и т.п.).
  * Поэтому эти параметры ниже являются ИНЖЕНЕРНЫМИ ДОПУЩЕНИЯМИ для
  * предварительного подбора и должны заменяться данными выбранного носителя,
@@ -153,13 +178,12 @@ function calculateBiofilmProcess(
   const reactorVolume = mediaVolume / mediaFillFraction;
   const reactorHrtHours = (reactorVolume / (qDay / 24));
 
-  // Oxygen: preliminary BOD-only demand. Nitrogen is intentionally not converted
+  // Oxygen: BOD-only demand by ҚМҚ 2.04.03-19 п. 6.156 (q_O = 1,1 per removed
+  // BODfull) and air by formula (70). Nitrogen is intentionally not converted
   // to nitrification oxygen because the input is total N, not verified NH4-N.
-  const oxygenForBod = bodRemoved * 1.42;
-  const oxygenTransferEfficiency = 0.12;
-  const airKgO2PerM3 = 0.232 * 1.225; // O2 mass fraction × air density, approximate
-  const airRequirement =
-    oxygenForBod / (oxygenTransferEfficiency * airKgO2PerM3 * 24);
+  const aeration = aerationByKmk(bodRemoved);
+  const oxygenForBod = aeration.oxygenKgDay;
+  const airRequirement = aeration.airNm3PerHour;
   const airRequirementWithReserve = airRequirement * 1.15;
 
   // Preliminary diffuser count: 8 m³/h nominal air per diffuser.
@@ -171,10 +195,11 @@ function calculateBiofilmProcess(
   const blowerReserve = 1;
 
   const notes = [
-    "КМК 2.04.03-19 используется для гидравлической части; параметры IFAS/MBBR ниже не являются прямыми требованиями КМК.",
-    `Принято предварительное удаление БПК₅ ${(bodRemovalFraction * 100).toFixed(0)}%.`,
-    `Носитель: ${mediaSpecificArea} м²/м³; заполнение ${Math.round(mediaFillFraction * 100)}%; поверхностная нагрузка ${mediaSurfaceLoading} г БПК₅/м²·сут — требуется заменить на паспортные данные выбранного носителя.`,
-    "Потребность в кислороде рассчитана только для удаления БПК₅. Азот в исходных данных не считается NH₄-N, поэтому нитрификационная потребность в O₂ отдельно не добавляется.",
+    "ҚМҚ 2.04.03-19 используется для гидравлической части (п. 2.7, табл. 2) и аэрации (п. 6.156, ф. (70)); параметры IFAS/MBBR ниже не нормируются ҚМҚ 2.04.03-19 и приняты по DWA/практике.",
+    `Принято предварительное удаление БПК₅ ${(bodRemovalFraction * 100).toFixed(0)}% (п. 6.10: биологическая очистка — до 15–25 мг/л БПКполн).`,
+    `Носитель: ${mediaSpecificArea} м²/м³; заполнение ${Math.round(mediaFillFraction * 100)}%; поверхностная нагрузка ${mediaSurfaceLoading} г БПК₅/м²·сут — не нормируется ҚМҚ 2.04.03-19; требуется заменить на паспортные данные выбранного носителя.`,
+    aeration.note,
+    "Потребность в кислороде рассчитана только для удаления БПК. Азот в исходных данных не считается NH₄-N, поэтому нитрификационная потребность в O₂ отдельно не добавляется.",
     `Исходная концентрация азота: ${nitrogenMgL > 0 ? nitrogenMgL.toFixed(1) : "не задана"} мг/л. Для расчёта нитрификации требуется NH₄-N и температура воды.`,
   ];
 
@@ -236,11 +261,11 @@ type SbrCalculation = {
 /**
  * Предварительный технологический расчёт SBR.
  *
- * КМК 2.04.03-19 используется для гидравлической части.
+ * ҚМҚ 2.04.03-19 используется для гидравлической части.
  * Цикл SBR, доля деканта, MLSS/SRT, аэрация и размеры реактора
  * требуют отдельного технологического расчёта и данных по качеству
  * очищенной воды. Поэтому значения ниже являются инженерными
- * допущениями, а не прямыми требованиями КМК.
+ * допущениями, а не прямыми требованиями ҚМҚ 2.04.03-19.
  */
 function calculateSbrProcess(
   qDay: number,
@@ -261,12 +286,18 @@ function calculateSbrProcess(
   const bodRemovalFraction = 0.90;
   const bodRemoved = bodLoad * bodRemovalFraction;
 
-  // Preliminary SBR operating assumptions — NOT KМК requirements.
-  const cyclesPerDay = 4;
-  const decantFraction = 0.33;
+  // Preliminary SBR operating assumptions — не нормируются ҚМҚ 2.04.03-19
+  // (SBR в нормативе отсутствует; секций ≥ 2 — п. 6.150), приняты по практике.
+  // ЕДИНЫЙ ИСТОЧНИК: те же значения, что в calculations/technology.ts
+  // (страница complete): 2 реактора, 3 цикла/сут на реактор, цикл 8 ч
+  // (1 + 4 + 1 + 1 + 1 ч), обменный объём 25 %. Ранее здесь было
+  // 4 цикла / 6 ч / декант 33 % — расхождение устранено в пользу
+  // technology.ts, т.к. его результат печатается в итоговом отчёте.
   const reactorCount = 2;
+  const cyclesPerDay = 3; // циклов в сутки на один реактор
+  const decantFraction = 0.25;
 
-  const batchVolume = qDay / cyclesPerDay;
+  const batchVolume = qDay / reactorCount / cyclesPerDay;
   const workingVolumePerReactor =
     batchVolume / decantFraction;
   const totalWorkingVolume =
@@ -274,9 +305,9 @@ function calculateSbrProcess(
 
   const cycleHours = 24 / cyclesPerDay;
 
-  // Preliminary phase allocation for a 6 h cycle.
+  // Phase allocation for an 8 h cycle (as in calculations/technology.ts).
   const fillHours = 1.0;
-  const reactHours = 2.0;
+  const reactHours = 4.0;
   const settleHours = 1.0;
   const decantHours = 1.0;
   const idleHours =
@@ -288,14 +319,10 @@ function calculateSbrProcess(
   const decanterFlow =
     batchVolume / decantHours;
 
-  // Preliminary BOD-only oxygen demand.
-  const oxygenForBod = bodRemoved * 1.42;
-  const oxygenTransferEfficiency = 0.12;
-  const airKgO2PerM3 = 0.232 * 1.225;
-
-  const airRequirement =
-    oxygenForBod /
-    (oxygenTransferEfficiency * airKgO2PerM3 * 24);
+  // BOD-only oxygen demand by ҚМҚ 2.04.03-19 п. 6.156 (q_O = 1,1) and air by ф. (70).
+  const aeration = aerationByKmk(bodRemoved);
+  const oxygenForBod = aeration.oxygenKgDay;
+  const airRequirement = aeration.airNm3PerHour;
 
   const airRequirementWithReserve =
     airRequirement * 1.15;
@@ -313,11 +340,12 @@ function calculateSbrProcess(
   const blowerReserve = 1;
 
   const notes = [
-    "КМК 2.04.03-19 используется для гидравлической части; параметры SBR ниже являются предварительными технологическими допущениями.",
-    `Принято ${cyclesPerDay} цикла/сутки и ${reactorCount} рабочих SBR-реактора для предварительной компоновки.`,
-    `Доля деканта принята ${(decantFraction * 100).toFixed(0)}% от рабочего объёма одного реактора. Требует проверки по выбранному декантеру и фактическому циклу.`,
+    "ҚМҚ 2.04.03-19 используется для гидравлической части (п. 2.7, табл. 2) и аэрации (п. 6.156, ф. (70)); цикл SBR, доля деканта, MLSS/SRT не нормируются ҚМҚ 2.04.03-19 и приняты по DWA/практике.",
+    `Принято ${cyclesPerDay} цикла/сутки на реактор и ${reactorCount} рабочих SBR-реактора (секций не менее двух — п. 6.150) — единый источник с итоговым отчётом (calculations/technology.ts).`,
+    `Обменный объём принят ${(decantFraction * 100).toFixed(0)}% от рабочего объёма одного реактора. Требует проверки по выбранному декантеру и фактическому циклу.`,
     "Фазы цикла и их длительность являются предварительной схемой и должны быть уточнены по требованиям к нитрификации/денитрификации, температуре, MLSS, SRT и качеству очищенной воды.",
-    "Потребность в кислороде рассчитана только по удалению БПК₅. Нитрификационная потребность не добавляется без подтверждённого NH₄-N и температуры.",
+    aeration.note,
+    "Потребность в кислороде рассчитана только по удалению БПК. Нитрификационная потребность не добавляется без подтверждённого NH₄-N и температуры.",
   ];
 
   return {
@@ -354,7 +382,7 @@ function calculateSbrProcess(
 /**
  * Предварительный технологический расчёт MBR.
  *
- * КМК 2.04.03-19 используется для гидравлической части.
+ * ҚМҚ 2.04.03-19 используется для гидравлической части.
  * Flux, MLSS, HRT, удельный расход воздуха на мембраны,
  * площадь одного мембранного модуля и другие мембранные
  * параметры должны подтверждаться паспортом выбранной мембраны
@@ -457,7 +485,7 @@ function calculateMbrProcess(
   const membraneBlowerReserve = 1;
 
   const notes = [
-    "КМК 2.04.03-19 используется для гидравлической части; мембранные параметры ниже не являются прямыми требованиями КМК.",
+    "ҚМҚ 2.04.03-19 используется для гидравлической части (п. 2.7, табл. 2); flux, MLSS, HRT и воздух на мембраны не нормируются ҚМҚ 2.04.03-19 и приняты по практике/паспорту мембран.",
     `Принят предварительный HRT биореактора ${reactorHrtHours} ч; окончательный объём должен подтверждаться расчётом по БПК₅, NH₄-N/TN, температуре, MLSS, SRT и требуемому качеству очищенной воды.`,
     `Принят flux ${fluxLm2h} л/(м²·ч). Это предварительное инженерное допущение; фактический flux должен быть взят из паспорта выбранной мембраны с учётом температуры, качества стока и режима эксплуатации.`,
     `Площадь одного модуля ${moduleArea} м² является условным расчётным значением. Количество модулей обязательно пересчитать по фактической площади/производительности конкретного мембранного модуля.`,
@@ -584,7 +612,7 @@ function calculateAnbrMbrProcess(
   const biogasEstimate = bodRemovedAnbr * biogasYield;
 
   const notes = [
-    "ANBR removal fraction 60% is a preliminary engineering assumption, not a direct KMK value.",
+    "ANBR removal fraction 60% is a preliminary engineering assumption; anaerobic treatment of wastewater is not regulated by ҚМҚ 2.04.03-19 (practice/DWA).",
     `ANBR HRT ${anbrHrtHours} h is preliminary and must be verified against temperature, biodegradability, alkalinity, sulfate and target effluent quality.`,
     `The MBR receives an estimated BOD load of ${bodLoadToMbr.toFixed(2)} kg/day after the preliminary ANBR removal assumption.`,
     `MBR flux ${mbrFluxLm2h} L/(m²·h) and module area ${moduleArea} m² are placeholders until the selected membrane manufacturer's data are entered.`,
@@ -1332,6 +1360,62 @@ function EquipmentContent() {
     };
   }, [hydraulicCalculation]);
 
+  /*
+   * Требования ҚМҚ 2.04.03-19 к составу сооружений и обработке осадка —
+   * все числа из norms/kmk-2-04-03-19.ts с указанием пункта.
+   */
+  const kmkRequirements = useMemo(() => {
+    const qDay = Number(flow);
+    if (!Number.isFinite(qDay) || qDay <= 0) return null;
+
+    const qAverage = qDay / 24;
+    const qPeak = hydraulicCalculation?.qPeak ?? null;
+    const aerobic = ["AS", "IFAS", "MBBR", "SBR", "MBR", "ANBR_MBR"].includes(technology);
+    const withSecondarySettling = ["AS", "IFAS", "MBBR"].includes(technology);
+
+    // п. 6.230: доза активного хлора после биологической очистки 3 г/м³;
+    // хлорное хозяйство — на 1,5-кратную дозу; п. 6.235 — контакт 30 мин;
+    // п. 6.236 — контактных резервуаров не менее двух.
+    const chlorDose = DISINFECTION.chlorineDose.afterBio;
+    const chlorKgDay = (qDay * chlorDose) / 1000;
+    const chlorStorageKgDay = chlorKgDay * DISINFECTION.chlorineDose.storageFactor;
+    const contactFlow = qPeak ?? qAverage;
+    const contactVolume = (contactFlow * DISINFECTION.contactMinutes.value) / 60;
+
+    // п. 6.148, ф. (67): прирост активного ила P_i = 0,8·C_cdp + K_g·L_en, мг/л;
+    // C_cdp — взвешенные на входе в аэротенк, L_en — БПКполн на входе
+    // (из БПК₅ через 0,68 — практика); для уплотнителей и перекачки ×1,3.
+    const g = AEROTANK.sludgeGrowth;
+    const bodFullIn = bod > 0 ? bod / BOD5_TO_BODFULL : 0;
+    const sludgeGrowthMgL = g.ssFactor * tss + g.bodFactorMunicipal * bodFullIn;
+    const sludgeKgDay = (qDay * sludgeGrowthMgL) / 1000;
+    const sludgeDesignKgDay = sludgeKgDay * g.designFactor;
+
+    // табл. 69 / п. 6.391: уплотнённый активный ил после фильтр-пресса
+    // 80–83 % влажности (17–20 % СВ); центрифуга 83–88 %.
+    const fp = SLUDGE.dewatering.activatedSludgeCake.filterPress;
+    const cf = SLUDGE.dewatering.activatedSludgeCake.centrifuge;
+    const cakeFilterPressT = [sludgeKgDay / 1000 / (1 - fp[1] / 100), sludgeKgDay / 1000 / (1 - fp[0] / 100)];
+    const cakeCentrifugeT = [sludgeKgDay / 1000 / (1 - cf[1] / 100), sludgeKgDay / 1000 / (1 - cf[0] / 100)];
+
+    return {
+      aerobic,
+      withSecondarySettling,
+      chlorDose,
+      chlorKgDay,
+      chlorStorageKgDay,
+      contactVolume,
+      contactVolumeBasis: qPeak !== null ? "по максимальному часовому расходу" : "по среднему часовому расходу (Kmax не определён)",
+      sludgeGrowthMgL,
+      sludgeKgDay,
+      sludgeDesignKgDay,
+      bodFullIn,
+      cakeFilterPressT,
+      cakeCentrifugeT,
+      gritRequired: qDay > GRIT.requiredFromM3Day.value,
+    };
+  }, [flow, bod, tss, technology, hydraulicCalculation]);
+
   const handleBack = () => {
     const params = new URLSearchParams();
 
@@ -1409,6 +1493,25 @@ function EquipmentContent() {
       if (item.name === "Насос очищенной воды" && pumpCalculation) {
         qty = `${pumpCalculation.workingPumps} рабочих + ${pumpCalculation.reservePumps} резервный`;
         note = `Расчётная подача одного насоса ${pumpCalculation.capacityPerPump.toFixed(2)} м³/ч`;
+      }
+
+      // Требования ҚМҚ 2.04.03-19 к числу сооружений и обеззараживанию.
+      if (item.name === "Усреднительная ёмкость") {
+        qty = `${EQUALIZATION.minSections.value} секции`;
+        note = `${item.note}; секций не менее двух, обе рабочие (${EQUALIZATION.minSections.ref})`;
+      }
+
+      if (
+        (item.name === "Вторичный отстойник" || item.name === "Вторичное разделение") &&
+        kmkRequirements?.withSecondarySettling
+      ) {
+        qty = `${PRIMARY_SETTLING.minSecondary.value} шт.`;
+        note = `${item.note}; вторичных отстойников не менее трёх, при минимальном числе объём ×${PRIMARY_SETTLING.minCountVolumeFactor.value[0]}–${PRIMARY_SETTLING.minCountVolumeFactor.value[1]} (${PRIMARY_SETTLING.minSecondary.ref})`;
+      }
+
+      if (item.name === "Обеззараживание" && kmkRequirements) {
+        qty = `${DISINFECTION.contactTanksMin.value} контактных резервуара`;
+        note = `Хлор ${kmkRequirements.chlorDose} г/м³ после биологической очистки → ${kmkRequirements.chlorKgDay.toFixed(2)} кг/сут, хлорное хозяйство на ×${DISINFECTION.chlorineDose.storageFactor} (${DISINFECTION.chlorineDose.ref}); контакт ${DISINFECTION.contactMinutes.value} мин (${DISINFECTION.contactMinutes.ref}), резервуаров не менее двух (${DISINFECTION.contactTanksMin.ref}); УФ допускается (${DISINFECTION.uvAllowed.ref})`;
       }
 
       // =========================================================
@@ -1554,6 +1657,7 @@ function EquipmentContent() {
     anbrMbrCalculation,
     biofilmCalculation,
     sbrCalculation,
+    kmkRequirements,
   ]);
 
   if (!technology) {
@@ -1929,8 +2033,8 @@ function EquipmentContent() {
               составляет {hydraulicCalculation.qAverageLs.toFixed(3)} л/с.
               {hydraulicCalculation.nonuniformityStatus ===
               "normative"
-                ? " Коэффициенты Kmax и Kmin определены интерполяцией между табличными значениями."
-                : " Для расходов менее 5 л/с КМК 2.04.03-19 требует определение расчётных расходов по КМК 2.04.01-98; коэффициенты здесь намеренно не подставляются."}
+                ? " Коэффициенты Kmax и Kmin — по табл. 2 (промежуточные значения — интерполяцией, прим. 3)."
+                : " Для расходов менее 5 л/с ҚМҚ 2.04.03-19 (п. 2.7, табл. 2, прим. 2) требует определение расчётных расходов по КМК 2.04.01-98; коэффициенты здесь намеренно не подставляются."}
               <br />
               <span style={{ color: "#526b76" }}>
                 Объём биологической ступени и резерв 10% остаются
@@ -2104,7 +2208,7 @@ function EquipmentContent() {
                 value={`${sbrCalculation.bodRemoved.toFixed(2)} кг/сут`}
               />
               <CalculationCard
-                label="ЦИКЛОВ / СУТКИ"
+                label="ЦИКЛОВ / СУТ НА РЕАКТОР"
                 value={`${sbrCalculation.cyclesPerDay}`}
               />
               <CalculationCard
@@ -2132,7 +2236,11 @@ function EquipmentContent() {
                 value={`${sbrCalculation.decanterFlow.toFixed(1)} м³/ч`}
               />
               <CalculationCard
-                label="ВОЗДУХ С РЕЗЕРВОМ"
+                label="O₂ (Q_O = 1,1; П. 6.156)"
+                value={`${sbrCalculation.oxygenForBod.toFixed(1)} кг/сут`}
+              />
+              <CalculationCard
+                label="ВОЗДУХ С РЕЗЕРВОМ, Ф. (70)"
                 value={`${sbrCalculation.airRequirementWithReserve.toFixed(1)} м³/ч`}
               />
               <CalculationCard
@@ -2439,7 +2547,8 @@ function EquipmentContent() {
                 ОСНОВАНИЕ И ДОПУЩЕНИЯ:
               </strong>
               <br />
-              КМК 2.04.03-19 применяется для гидравлической части.
+              ҚМҚ 2.04.03-19 применяется для гидравлической части (п. 2.7, табл. 2);
+              мембранные параметры не нормируются ҚМҚ 2.04.03-19 (практика / паспорт мембран).
               Площадь мембран рассчитывается по принятому flux:
               <strong style={{ color: "#9bb2bb" }}> A = Q / J </strong>
               с последующим резервом.
@@ -2552,7 +2661,11 @@ function EquipmentContent() {
                 value={`${Math.round(biofilmCalculation.mediaFillFraction * 100)} %`}
               />
               <CalculationCard
-                label="ТРЕБУЕМЫЙ ВОЗДУХ"
+                label="O₂ (Q_O = 1,1; П. 6.156)"
+                value={`${biofilmCalculation.oxygenForBod.toFixed(1)} кг/сут`}
+              />
+              <CalculationCard
+                label="ТРЕБУЕМЫЙ ВОЗДУХ, Ф. (70)"
                 value={`${biofilmCalculation.airRequirementWithReserve.toFixed(1)} м³/ч`}
               />
               <CalculationCard
@@ -2600,10 +2713,10 @@ function EquipmentContent() {
                 ОСНОВАНИЕ И ДОПУЩЕНИЯ:
               </strong>
               <br />
-              КМК 2.04.03-19 применяется для гидравлической части расчёта. Для
-              IFAS/MBBR универсальные значения заполнения носителем, удельной
-              поверхности и допустимой нагрузки не выдаются КМК как одна
-              универсальная формула; поэтому они отмечены здесь как
+              ҚМҚ 2.04.03-19 применяется для гидравлической части (п. 2.7, табл. 2)
+              и аэрации (п. 6.156, ф. (70)). Заполнение носителем, удельная
+              поверхность и допустимая нагрузка IFAS/MBBR не нормируются
+              ҚМҚ 2.04.03-19 и приняты по DWA/практике как
               предварительные инженерные допущения.
               <br />
               <br />
@@ -2622,11 +2735,144 @@ function EquipmentContent() {
               <br />
               <br />
               <strong style={{ color: "#9bb2bb" }}>
-                Воздух рассчитан только по предварительной потребности на удаление
-                БПК₅; фактическая воздуходувная система должна проверяться по O₂,
-                α/β-факторам, температуре, глубине погружения и характеристикам
-                диффузоров.
+                Воздух рассчитан по ф. (70) п. 6.156 только на удаление
+                БПК (q_O = 1,1 кг O₂/кг снятой БПКполн); фактическая воздуходувная
+                система должна проверяться по K₁ (табл. 44а), K₂ (табл. 45),
+                температуре, глубине погружения и характеристикам диффузоров.
               </strong>
+            </div>
+          </section>
+        )}
+
+        {kmkRequirements && (
+          <section
+            style={{
+              border: "1px solid #18323e",
+              background: "#071a23",
+              padding: 28,
+              marginBottom: 34,
+            }}
+          >
+            <div
+              style={{
+                color: "#829daa",
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: "0.16em",
+                marginBottom: 24,
+              }}
+            >
+              ТРЕБОВАНИЯ {KMK_2_04_03_19_DOC.code} К СОСТАВУ СООРУЖЕНИЙ
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                gap: 14,
+              }}
+            >
+              <CalculationCard
+                label="ХЛОР ПОСЛЕ БИОЛОГИИ, П. 6.230"
+                value={`${kmkRequirements.chlorDose} г/м³ · ${kmkRequirements.chlorKgDay.toFixed(2)} кг/сут`}
+              />
+              <CalculationCard
+                label="ХЛОРНОЕ ХОЗЯЙСТВО ×1,5"
+                value={`${kmkRequirements.chlorStorageKgDay.toFixed(2)} кг/сут`}
+              />
+              <CalculationCard
+                label="КОНТАКТНЫЕ РЕЗЕРВУАРЫ, П. 6.235–6.236"
+                value={`≥ ${DISINFECTION.contactTanksMin.value} шт. · ${kmkRequirements.contactVolume.toFixed(1)} м³`}
+              />
+              {kmkRequirements.withSecondarySettling && (
+                <CalculationCard
+                  label="ВТОРИЧНЫЕ ОТСТОЙНИКИ, П. 6.58"
+                  value={`≥ ${PRIMARY_SETTLING.minSecondary.value} шт. (или V ×${PRIMARY_SETTLING.minCountVolumeFactor.value[0]}–${PRIMARY_SETTLING.minCountVolumeFactor.value[1]})`}
+                />
+              )}
+              {kmkRequirements.aerobic && (
+                <>
+                  <CalculationCard
+                    label="ПРИРОСТ ИЛА, Ф. (67) П. 6.148"
+                    value={`${kmkRequirements.sludgeGrowthMgL.toFixed(0)} мг/л · ${kmkRequirements.sludgeKgDay.toFixed(1)} кг/сут`}
+                  />
+                  <CalculationCard
+                    label="ИЛ НА УПЛОТНИТЕЛИ ×1,3"
+                    value={`${kmkRequirements.sludgeDesignKgDay.toFixed(1)} кг/сут`}
+                  />
+                  <CalculationCard
+                    label="КЕК ФИЛЬТР-ПРЕСС, ТАБЛ. 69"
+                    value={`${kmkRequirements.cakeFilterPressT[0].toFixed(2)}–${kmkRequirements.cakeFilterPressT[1].toFixed(2)} т/сут`}
+                  />
+                  <CalculationCard
+                    label="КЕК ЦЕНТРИФУГА, П. 6.391"
+                    value={`${kmkRequirements.cakeCentrifugeT[0].toFixed(2)}–${kmkRequirements.cakeCentrifugeT[1].toFixed(2)} т/сут`}
+                  />
+                </>
+              )}
+            </div>
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: "16px 18px",
+                border: "1px solid #18323e",
+                background: "#061820",
+                color: "#718b96",
+                fontSize: 12,
+                lineHeight: 1.7,
+              }}
+            >
+              <strong style={{ color: "#00d9ff" }}>ОСНОВАНИЕ:</strong>
+              <br />
+              • {DISINFECTION.chlorineDose.ref}: доза активного хлора после
+              биологической очистки {DISINFECTION.chlorineDose.afterBio} г/м³
+              (после неполной биологической — {DISINFECTION.chlorineDose.afterPartialBio},
+              после механической — {DISINFECTION.chlorineDose.afterMechanical});
+              остаточный хлор не менее {DISINFECTION.chlorineDose.residualMin} г/м³;
+              хлорное хозяйство — на {DISINFECTION.chlorineDose.storageFactor}-кратную дозу.
+              <br />
+              • {DISINFECTION.contactMinutes.ref}: продолжительность контакта{" "}
+              {DISINFECTION.contactMinutes.value} мин; объём контактных резервуаров{" "}
+              {kmkRequirements.contactVolumeBasis}; {DISINFECTION.contactTanksMin.ref}:
+              не менее {DISINFECTION.contactTanksMin.value} резервуаров, барботаж{" "}
+              {DISINFECTION.contactAeration.value} {DISINFECTION.contactAeration.unit}.
+              <br />
+              • {PRIMARY_SETTLING.minSecondary.ref}: первичных отстойников не менее{" "}
+              {PRIMARY_SETTLING.minPrimary.value}, вторичных — не менее{" "}
+              {PRIMARY_SETTLING.minSecondary.value}, все рабочие; при минимальном
+              числе расчётный объём ×{PRIMARY_SETTLING.minCountVolumeFactor.value[0]}–{PRIMARY_SETTLING.minCountVolumeFactor.value[1]}.
+              {" "}{EQUALIZATION.minSections.ref}: секций усреднителя не менее{" "}
+              {EQUALIZATION.minSections.value}. {AEROTANK.minSections.ref}: секций
+              аэротенка не менее {AEROTANK.minSections.value}, рабочая глубина{" "}
+              {AEROTANK.depthM.value[0]}–{AEROTANK.depthM.value[1]} м.
+              {kmkRequirements.gritRequired &&
+                ` ${GRIT.requiredFromM3Day.ref}: при производительности свыше ${GRIT.requiredFromM3Day.value} м³/сут песколовки обязательны, не менее ${GRIT.minUnits.value}.`}
+              <br />
+              • {PUMP_STATIONS.blowerReserve.ref}: воздуходувки —{" "}
+              {PUMP_STATIONS.blowerReserve.rule}; {PUMP_STATIONS.blowerStationCategory.ref}:
+              воздуходувная станция — {PUMP_STATIONS.blowerStationCategory.value} категория надёжности.
+              {kmkRequirements.aerobic && (
+                <>
+                  <br />
+                  • {AEROTANK.sludgeGrowth.ref}: P_i = {AEROTANK.sludgeGrowth.ssFactor}·C_cdp +{" "}
+                  {AEROTANK.sludgeGrowth.bodFactorMunicipal}·L_en ={" "}
+                  {AEROTANK.sludgeGrowth.ssFactor}·{tss.toFixed(0)} + {AEROTANK.sludgeGrowth.bodFactorMunicipal}·
+                  {kmkRequirements.bodFullIn.toFixed(0)} = {kmkRequirements.sludgeGrowthMgL.toFixed(0)} мг/л
+                  (C_cdp — взвешенные на входе в аэротенк; L_en — БПКполн из БПК₅ через{" "}
+                  {BOD5_TO_BODFULL}, практика); для уплотнителей и перекачки ×{AEROTANK.sludgeGrowth.designFactor}.
+                  <br />
+                  • {SLUDGE.dewatering.ref}: кек уплотнённого активного ила — фильтр-пресс{" "}
+                  {SLUDGE.dewatering.activatedSludgeCake.filterPress[0]}–{SLUDGE.dewatering.activatedSludgeCake.filterPress[1]} %
+                  влажности, центрифуга {SLUDGE.dewatering.activatedSludgeCake.centrifuge[0]}–{SLUDGE.dewatering.activatedSludgeCake.centrifuge[1]} %;
+                  флокулянт {SLUDGE.dewatering.flocculantKgPerT[0]}–{SLUDGE.dewatering.flocculantKgPerT[1]} кг/т с.в.
+                  Масса кека — по сухому веществу без запаса ×1,3 (плотность кека
+                  принята 1 т/м³ — практика).
+                </>
+              )}
+              <br />
+              • Условия входа в биологическую очистку — {kmkRef("6.2", "прим. 2, 3")};
+              допустимые концентрации — ПКМ РУз № 11 от 03.02.2010, прил. 1.
             </div>
           </section>
         )}

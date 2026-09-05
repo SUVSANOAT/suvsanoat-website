@@ -2,6 +2,12 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  KMK_2_04_03_19_DOC,
+  BIO_INLET_LIMITS,
+  BOD5_TO_BODFULL,
+  domesticConcentrations,
+} from "../../../../norms/kmk-2-04-03-19";
 
 const BRAND = {
   website: "www.suvsanoat.uz",
@@ -21,6 +27,21 @@ function LoadContent() {
   const people = Number(searchParams.get("people") || 0);
 
   const hours = searchParams.get("hours") || "24";
+
+  /*
+   * Удельное водоотведение с шага 02 (табл. 3 ҚМҚ 2.04.03-19) — для
+   * ориентировочных концентраций бытового стока по табл. 25 (п. 6.4).
+   * Если шаг 02 был по известному расходу — считаем по расходу на жителя.
+   */
+  const specificFlowParam = Number(searchParams.get("specificFlow") || 0);
+  const lpcdForTable25 =
+    specificFlowParam > 0
+      ? specificFlowParam
+      : people > 0 && flow > 0
+        ? (flow * 1000) / people
+        : 0;
+  const domestic =
+    lpcdForTable25 > 0 ? domesticConcentrations(lpcdForTable25) : null;
 
   const [bod, setBod] = useState(searchParams.get("bod") || "");
   const [cod, setCod] = useState(searchParams.get("cod") || "");
@@ -429,13 +450,19 @@ function LoadContent() {
               lineHeight: 1.75,
             }}
           >
-            <strong>КМК 2.04.03-19</strong>{" "}
-            используется для определения
-            расчётных расходов сточных вод и
-            коэффициентов неравномерности.
+            <strong>{KMK_2_04_03_19_DOC.code}</strong>{" "}
+            (взамен КМК 2.04.03-97) используется для определения
+            расчётных расходов сточных вод (п. 2.9, табл. 3) и
+            коэффициентов неравномерности (п. 2.7, табл. 2).
             При среднем расходе менее 5 л/с
             расчётный расход определяется
-            согласно КМК 2.04.01-98.
+            согласно КМК 2.04.01-98 (табл. 2, прим. 2).
+            Условия входа в биологическую очистку — {BIO_INLET_LIMITS.ref}:
+            pH {BIO_INLET_LIMITS.phMin}–{BIO_INLET_LIMITS.phMax},
+            {" "}{BIO_INLET_LIMITS.tempMinC}–{BIO_INLET_LIMITS.tempMaxC} °C,
+            БПКполн не выше {BIO_INLET_LIMITS.bodFullMaxMgL[0]}–{BIO_INLET_LIMITS.bodFullMaxMgL[1]} мг/л,
+            не менее {BIO_INLET_LIMITS.nPer100Bod} мг/л N и {BIO_INLET_LIMITS.pPer100Bod} мг/л P
+            на 100 мг/л БПКполн.
           </div>
 
           <div
@@ -451,8 +478,20 @@ function LoadContent() {
             фосфора на этом шаге являются
             исходными данными пользователя /
             лаборатории. Система не подменяет
-            лабораторные данные вымышленными
-            нормативными значениями.
+            лабораторные данные нормативными
+            значениями.
+            {domestic && (
+              <>
+                {" "}Для ориентира — бытовой сток по табл. 25 (п. 6.4)
+                при {lpcdForTable25.toFixed(0)} л/чел·сут:
+                БПК₅ ≈ {domestic.bod5.toFixed(0)} (БПКполн {domestic.bodFull.toFixed(0)};
+                БПК₅/БПКполн = {BOD5_TO_BODFULL} — практика),
+                ХПК {domestic.cod.toFixed(0)},
+                взвешенные {domestic.ss.toFixed(0)},
+                N-NH₄ {domestic.nh4N.toFixed(1)},
+                P {domestic.pTotal.toFixed(1)} мг/л.
+              </>
+            )}
           </div>
         </section>
 

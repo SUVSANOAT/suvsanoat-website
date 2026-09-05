@@ -1,3 +1,5 @@
+import { kMaxByDailyFlow } from "../norms/kmk-2-04-03-19";
+
 export type UASBCalculationInput = {
   flowM3Day: number;
   hrtHours?: number;
@@ -89,8 +91,8 @@ export function calculateUASB(
 
   const qAverageM3H = flow / 24;
 
-  // Для предварительной оценки принимаем коэффициент пикового расхода 1.5.
-  const qPeakM3H = qAverageM3H * 1.5;
+  // Максимальный часовой расход — по табл. 2 ҚМҚ 2.04.03-19 (п. 2.7).
+  const qPeakM3H = qAverageM3H * kMaxByDailyFlow(flow).kMax;
 
   const bodLoadKgDay = flow * Math.max(0, input.bodMgL) / 1000;
   const codLoadKgDay = flow * Math.max(0, input.codMgL) / 1000;

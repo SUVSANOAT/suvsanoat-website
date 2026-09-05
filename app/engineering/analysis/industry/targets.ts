@@ -9,6 +9,10 @@
  *  - Постановление КМ РУз от 03.02.2010 № 11, приложение 1
  *    «Правила приёма производственных сточных вод … в коммунальные
  *    канализационные сети» — нормативы ПДК при сбросе в горсеть.
+ *    Именно к этому документу отсылает п. 6.2 ҚМҚ 2.04.03-19 за
+ *    допустимыми концентрациями при приёме на биологическую очистку;
+ *    п. 6.59 — взвешенные перед биологией не более 150 мг/л, п. 6.2 —
+ *    pH 6,5–8,5.
  *  - СанПиН РУз № 0318-15 «Гигиенические и противоэпидемические
  *    требования к охране воды водоёмов» — качество воды водного
  *    объекта; конкретные значения на выпуске определяются НДС в
@@ -23,6 +27,12 @@
 
 import type { PollutantKey, StageKey } from "./industries";
 import { L, type Text } from "./i18n";
+import {
+  BIO_INLET_LIMITS,
+  KMK_2_04_03_19_DOC,
+  PRIMARY_SETTLING,
+  STAGE_EFFECTS,
+} from "../../../../norms/kmk-2-04-03-19";
 
 export type DischargeId = "sewer" | "water" | "relief" | "irrigation" | "reuse";
 
@@ -48,13 +58,13 @@ export const DISCHARGES: Discharge[] = [
     id: "sewer",
     name: L("Городская канализация", "Shahar kanalizatsiyasi", "Municipal sewer", "市政污水管网"),
     hint: L("Сброс в коммунальную сеть по договору с водоканалом", "Suv ta’minoti tashkiloti bilan shartnoma bo‘yicha kommunal tarmoqqa chiqarish", "Discharge to the municipal network under a utility contract", "按与自来水公司的合同排入市政管网"),
-    /* ПКМ РУз № 11 от 03.02.2010, приложение 1 */
-    targets: { bod: 15, ss: 150, fats: 1, petro: 1, tn: 1, tp: 2.5 },
-    ph: [6.5, 8.5],
+    /* ПКМ РУз № 11 от 03.02.2010, приложение 1; ВВ 150 мг/л совпадает с п. 6.59 ҚМҚ 2.04.03-19 */
+    targets: { bod: 15, ss: PRIMARY_SETTLING.ssBeforeBioMaxMgL.value, fats: 1, petro: 1, tn: 1, tp: 2.5 },
+    ph: [BIO_INLET_LIMITS.phMin, BIO_INLET_LIMITS.phMax],
     require: [],
     /* городские очистные доводят воду до норматива водоёма сами */
     drop: ["post", "disinfect"],
-    source: "ПКМ РУз № 11 от 03.02.2010, приложение 1 (нормативы приёма в коммунальную канализацию)",
+    source: `ПКМ РУз № 11 от 03.02.2010, приложение 1 (нормативы приёма в коммунальную канализацию) — этот же документ ${KMK_2_04_03_19_DOC.code} (п. 6.2) называет основанием допустимых концентраций при приёме на биологическую очистку; взвешенные перед биологической очисткой не более ${PRIMARY_SETTLING.ssBeforeBioMaxMgL.value} мг/л (${PRIMARY_SETTLING.ssBeforeBioMaxMgL.ref})`,
     note:
       "Азот нормируется как аммонийный, фосфор — как фосфаты. Значения приёма в РУз жёсткие: " +
       "по БПК и жирам они близки к нормативам водоёма, поэтому локальная очистка обязательна почти " +
@@ -72,7 +82,8 @@ export const DISCHARGES: Discharge[] = [
     drop: [],
     source:
       "Ориентир предпроектной стадии по СанПиН РУз № 0318-15; фактические величины — по НДС в разрешении " +
-      "на специальное водопользование, с учётом фона водоёма и кратности разбавления",
+      "на специальное водопользование, с учётом фона водоёма и кратности разбавления. " +
+      `Достижимость: ${KMK_2_04_03_19_DOC.code} п. 6.10 — биологическая очистка до ${STAGE_EFFECTS.biological.bodFullOutMgL[0]}–${STAGE_EFFECTS.biological.bodFullOutMgL[1]} мг/л БПКполн и ${STAGE_EFFECTS.biological.ssOutMgL} мг/л ВВ, доочистка до ${STAGE_EFFECTS.tertiary.bodFullOutMgL[0]}–${STAGE_EFFECTS.tertiary.bodFullOutMgL[1]} мг/л БПКполн и ${STAGE_EFFECTS.tertiary.ssOutMgL[0]}–${STAGE_EFFECTS.tertiary.ssOutMgL[1]} мг/л ВВ`,
     note:
       "Это самый жёсткий сценарий: нужна глубокая биологическая очистка с нитри-денитрификацией, " +
       "доочистка фильтрацией и обеззараживание. Приведённые цифры — ориентировочные: расчёт НДС " +
