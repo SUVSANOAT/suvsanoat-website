@@ -47,6 +47,10 @@ import {
   kMaxByDailyFlow,
   kmkRef,
 } from "../../../../norms/kmk-2-04-03-19";
+import {
+  MBR_AUXILIARY,
+  MBR_FINE_SCREEN,
+} from "../../../../norms/uz-membrane-requirement";
 
 export type Supply = "own" | "supply" | "either";
 export type ItemKind = "structure" | "machine" | "instrument";
@@ -139,6 +143,30 @@ export type Ctx = {
  * гидравлика (п. 2.7, табл. 2) и — для аэробных схем — расход воздуха
  * по ф. (70) п. 6.156.
  * ================================================================== */
+
+/* ==================================================================
+ * МЕМБРАННЫЕ ТЕХНОЛОГИИ
+ *
+ * MBR и AnMBR — биореакторы с мембранным разделением: мембранные
+ * модули стоят в самом реакторе и заменяют вторичный отстойник.
+ * Числа берутся из norms/uz-membrane-requirement.ts (прозор тонкой
+ * решётки, срок службы модулей); всё, чего нет ни в ҚМҚ 2.04.03-19,
+ * ни в модуле требования, помечается как паспортные данные.
+ * ================================================================== */
+
+export const MEMBRANE_TECHNOLOGIES: readonly TechnologyCode[] = ["MBR", "AnMBR"];
+
+export function isMembraneTechnology(code: TechnologyCode | undefined): boolean {
+  return !!code && MEMBRANE_TECHNOLOGIES.includes(code);
+}
+
+/** параметры мембран норматив не задаёт — только паспорт производителя */
+const MEMBRANE_BY_DATASHEET = L(
+  `${KMK_2_04_03_19_DOC.code} мембранные модули не нормирует: поток (flux), площадь модуля, режимы промывки и продувки — по паспорту производителя`,
+  `${KMK_2_04_03_19_DOC.code} membrana modullarini me’yorlamaydi: oqim (flux), modul yuzasi, yuvish va puflash rejimlari — ishlab chiqaruvchi pasporti bo‘yicha`,
+  `${KMK_2_04_03_19_DOC.code} does not cover membrane modules: flux, module area, cleaning and scouring regimes follow the manufacturer's datasheet`,
+  `${KMK_2_04_03_19_DOC.code} 未对膜组件作规定：通量、膜面积、清洗与擦洗方式均按厂家样本确定`
+);
 
 /** анаэробные технологии: воздуходувок и возвратного ила нет, есть газовый тракт */
 export const ANAEROBIC_TECHNOLOGIES: readonly TechnologyCode[] = ["UASB", "ABR", "AnMBR", "ANBR"];
@@ -414,6 +442,8 @@ export function commonEquipment(ctx: Ctx): Item[] {
 export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
   const items: Item[] = [];
   const fine = ["meat", "poultry", "fish", "leather", "textile-dye", "knitwear", "wool"].includes(ctx.industryId);
+  /* мембранная схема: перед модулями нужна тонкая решётка, состав биоблока другой */
+  const membrane = isMembraneTechnology(ctx.tech);
   const peak = peakHourly(ctx);
   const peakText = `${f(peak.qMax, 1)} м³/ч (K_gen.max = ${peak.kMax.toFixed(2)} по ${peak.source}${ctx.a.screenPeak && ctx.a.screenPeak !== 1 ? `; запас ×${ctx.a.screenPeak}` : ""})`;
 
@@ -462,6 +492,37 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
           qty: ctx.scale === "concrete" ? pumpQty(1) : "1",
           supply: "supply",
           note: `Снимает ${TERTIARY_FILTERS.drumScreens.drumSsEffect[0]}–${TERTIARY_FILTERS.drumScreens.drumSsEffect[1]} % взвешенных и часть БПК до биологии (барабанные сетки, ${TERTIARY_FILTERS.drumScreens.ref})`,
+        });
+      }
+
+      /* тонкая решётка перед мембранами: п. 6.16 допускает до 16 мм, для
+         мембранных модулей этого мало — прозор и обоснование берутся из
+         norms/uz-membrane-requirement.ts, грубая решётка по п. 6.16 остаётся
+         выше по потоку и снимает крупные отбросы до тонкой */
+      if (membrane) {
+        items.push({
+          kind: "machine",
+          name: tr(
+            L(
+              `Тонкая решётка (сито) перед мембранным блоком, прозор ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} мм`,
+              `Membrana blokidan oldingi nozik panjara (elak), tirqish ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm`,
+              `Fine screen ahead of the membrane block, ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm openings`,
+              `膜段前细格栅（筛网），缝隙 ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm`
+            ),
+            ctx.lang
+          ),
+          spec: tr(
+            L(
+              `перфорированное или щелевое полотно ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} мм, пропускная способность на максимальный приток ${peakText}; устанавливается после грубой решётки (${MBR_FINE_SCREEN.kmkRef}, прозор не более ${MBR_FINE_SCREEN.kmkGapMm} мм)`,
+              `${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm perforatsiyali yoki tirqishli polotno, maksimal oqimga o‘tkazuvchanlik ${peakText}; qo‘pol panjaradan keyin o‘rnatiladi (${MBR_FINE_SCREEN.kmkRef}, tirqish ${MBR_FINE_SCREEN.kmkGapMm} mm dan oshmaydi)`,
+              `perforated or wedge-wire panel of ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm, sized for the peak inflow ${peakText}; installed downstream of the coarse screen (${MBR_FINE_SCREEN.kmkRef}, openings up to ${MBR_FINE_SCREEN.kmkGapMm} mm)`,
+              `${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm 冲孔或楔形丝筛板，按峰值流量 ${peakText} 选型；设于粗格栅之后（${MBR_FINE_SCREEN.kmkRef}，缝隙不大于 ${MBR_FINE_SCREEN.kmkGapMm} mm）`
+            ),
+            ctx.lang
+          ),
+          qty: "1 + байпас",
+          supply: "supply",
+          note: MBR_FINE_SCREEN.source,
         });
       }
 
@@ -794,7 +855,9 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
            вторичный отстойник (отдельная ступень clarify), а также аэрация,
            воздуходувки и возвратный ил — они выводятся ниже со ссылками на
            ҚМҚ 2.04.03-19 (ф. (70) п. 6.156, п. 5.29, п. 5.34, ф. (56) п. 6.145). */
-        const SKIP = /воздуходувк|аэрац|возвратн|реактор|аэротенк|отстойник|биогаз/i;
+        const SKIP = membrane
+          ? /воздуходувк|аэрац|возвратн|реактор|аэротенк|отстойник|биогаз|мембранн|промывк/i
+          : /воздуходувк|аэрац|возвратн|реактор|аэротенк|отстойник|биогаз/i;
         for (const e of (r?.equipment ?? []).filter((e) => !SKIP.test(e.position))) {
           const structure = /камер|перегородк|ёмкост/i.test(e.position);
           const instrument = /автоматик|контрол|управлен/i.test(e.position);
@@ -805,6 +868,85 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
             qty: e.quantity,
             supply: "supply",
             note: tr(TECH_NOT_NORMED, ctx.lang),
+          });
+        }
+
+        /* --- мембранный блок: модули, CIP и пермеатные насосы ---
+           Всё покупное (раздел B). Площадь мембран и поток берутся из
+           расчёта технологии, срок службы модулей и состав узлов — из
+           norms/uz-membrane-requirement.ts; ҚМҚ 2.04.03-19 этого не нормирует. */
+        if (membrane) {
+          const areaMetric = r?.specialized.find((m) => m.key === "membraneArea");
+          const fluxMetric = r?.specialized.find((m) => m.key === "membraneFlux");
+          const areaText = areaMetric ? `площадь мембран ${f(areaMetric.value)} ${areaMetric.unit}` : "площадь мембран по расчёту технологии";
+          const fluxText = fluxMetric ? `, удельный поток ${f(fluxMetric.value, 1)} ${fluxMetric.unit}` : "";
+          const life = `${MBR_AUXILIARY.membraneLifeYears[0]}–${MBR_AUXILIARY.membraneLifeYears[1]}`;
+
+          items.push({
+            kind: "machine",
+            name: tr(
+              L("Мембранные модули погружного типа", "Botiriladigan turdagi membrana modullari", "Immersed membrane modules", "浸没式膜组件"),
+              ctx.lang
+            ),
+            spec: tr(
+              L(
+                `${areaText}${fluxText}; модули погружены в биореактор и заменяют вторичный отстойник`,
+                `${areaText}${fluxText}; modullar bioreaktorga botirilgan va ikkilamchi tindirgich o‘rnini bosadi`,
+                `${areaText}${fluxText}; the modules are immersed in the bioreactor and replace the secondary clarifier`,
+                `${areaText}${fluxText}；膜组件浸没于生物反应器内，取代二沉池`
+              ),
+              ctx.lang
+            ),
+            qty: r?.equipment.find((e) => /мембранные модули/i.test(e.position))?.quantity ?? "комплект",
+            supply: "supply",
+            note: `${MBR_AUXILIARY.note} Срок службы модулей ${life} лет — паспортные данные производителя. ${tr(MEMBRANE_BY_DATASHEET, ctx.lang)}.`,
+          });
+
+          if (MBR_AUXILIARY.cipRequired) {
+            items.push({
+              kind: "machine",
+              name: tr(
+                L(
+                  "Станция химической промывки мембран (CIP)",
+                  "Membranalarni kimyoviy yuvish stansiyasi (CIP)",
+                  "Membrane cleaning-in-place station (CIP)",
+                  "膜化学清洗（CIP）装置"
+                ),
+                ctx.lang
+              ),
+              spec: tr(
+                L(
+                  "ёмкости раствора гипохлорита и лимонной кислоты, дозирующие насосы, обвязка обратной промывки; периодичность и концентрации — по регламенту производителя мембран",
+                  "gipoxlorit va limon kislotasi eritmasi rezervuarlari, dozalash nasoslari, teskari yuvish quvurlari; davriylik va konsentratsiyalar — membrana ishlab chiqaruvchisi reglamenti bo‘yicha",
+                  "hypochlorite and citric-acid solution tanks, dosing pumps and backwash piping; frequency and concentrations follow the membrane supplier's protocol",
+                  "次氯酸钠与柠檬酸药箱、计量泵及反洗管路；清洗周期与药剂浓度按膜厂家规程确定"
+                ),
+                ctx.lang
+              ),
+              qty: "1 комплект",
+              supply: "supply",
+              note: `${MBR_AUXILIARY.note} ${tr(MEMBRANE_BY_DATASHEET, ctx.lang)}.`,
+            });
+          }
+
+          items.push({
+            kind: "machine",
+            name: tr(
+              L("Насосы пермеата (отвода фильтрата)", "Permeat (filtrat) nasoslari", "Permeate pumps", "产水（透过液）泵"),
+              ctx.lang
+            ),
+            spec: tr(
+              L(
+                `подача по расчётному расходу мембранного блока ${f(ctx.Qh, 1)} м³/ч, работа под вакуумом с реверсом на обратную промывку; регулирование частотным преобразователем`,
+                `membrana bloki hisobiy sarfi bo‘yicha ${f(ctx.Qh, 1)} m³/soat, vakuum ostida teskari yuvishga reversli ishlash; chastota o‘zgartirgich bilan boshqariladi`,
+                `sized for the membrane block flow of ${f(ctx.Qh, 1)} m³/h, suction operation with reversal for backwash; variable-frequency control`,
+                `按膜段计算流量 ${f(ctx.Qh, 1)} m³/h 选型，抽吸运行并可反转反洗；变频调节`
+              ),
+              ctx.lang
+            ),
+            qty: pumpQty(1),
+            supply: "supply",
+            note: `${MBR_AUXILIARY.note} ${tr(MEMBRANE_BY_DATASHEET, ctx.lang)}.`,
           });
         }
       } else if (ctx.scale === "compact") {
@@ -847,14 +989,58 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
           supply: "supply",
           note: tech ? `Расход воздуха получен расчётом технологии ${tech} по ф. (70) п. 6.156` : undefined,
         });
+        const blowerReliability = `Воздуходувная станция — ${PUMP_STATIONS.blowerStationCategory.value} категория надёжности электроснабжения (${PUMP_STATIONS.blowerStationCategory.ref}): перерыв подачи воздуха не допускается`;
         items.push({
           kind: "machine",
-          name: ctx.scale === "concrete" ? "Воздуходувки (турбокомпрессоры)" : "Воздуходувки роторные или винтовые",
+          name: membrane
+            ? tr(
+                L(
+                  "Воздуходувки технологического воздуха (аэрация биореактора)",
+                  "Texnologik havo puflagichlari (bioreaktor aeratsiyasi)",
+                  "Process-air blowers (bioreactor aeration)",
+                  "工艺空气鼓风机（生物池曝气）"
+                ),
+                ctx.lang
+              )
+            : ctx.scale === "concrete"
+            ? "Воздуходувки (турбокомпрессоры)"
+            : "Воздуходувки роторные или винтовые",
           spec: `подача ${f(air)} м³/ч, напор ${ctx.a.blowerPressure} кПа (потери в мелкопузырчатых аэраторах до ${PUMP_STATIONS.diffuserLossKPa.fine} кПа, ${PUMP_STATIONS.diffuserLossKPa.ref}); регулирование частотой по датчику кислорода`,
           qty: blowerQty(ctx.scale === "concrete" ? 2 : 1),
           supply: "supply",
-          note: `Воздуходувная станция — ${PUMP_STATIONS.blowerStationCategory.value} категория надёжности электроснабжения (${PUMP_STATIONS.blowerStationCategory.ref}): перерыв подачи воздуха не допускается`,
+          note: membrane
+            ? `${blowerReliability}. Это только технологический воздух на окисление; воздух на продувку мембран подаётся отдельными воздуходувками (позиция ниже) — это разные подачи, складывать их нельзя`
+            : blowerReliability,
         });
+        /* продувка мембран — отдельная подача воздуха: расход, режим (постоянный
+           или циклический) и напор задаёт производитель модуля; ҚМҚ 2.04.03-19
+           этой величины не нормирует, поэтому числа здесь не приводятся */
+        if (membrane) {
+          items.push({
+            kind: "machine",
+            name: tr(
+              L(
+                "Воздуходувки продувки мембран (мембранный скауринг)",
+                "Membranalarni puflash havo puflagichlari (membrana skauringi)",
+                "Membrane scour blowers",
+                "膜擦洗鼓风机"
+              ),
+              ctx.lang
+            ),
+            spec: tr(
+              L(
+                `отдельная подача воздуха на продувку мембранных модулей: расход, напор и режим (постоянный или циклический) — по паспорту выбранного модуля, ${KMK_2_04_03_19_DOC.code} эту величину не нормирует`,
+                `membrana modullarini puflash uchun alohida havo: sarf, bosim va rejim (doimiy yoki siklik) — tanlangan modul pasporti bo‘yicha, ${KMK_2_04_03_19_DOC.code} bu kattalikni me’yorlamaydi`,
+                `a separate air supply for scouring the membrane modules: flow, pressure and regime (continuous or cyclic) come from the selected module's datasheet; ${KMK_2_04_03_19_DOC.code} does not cover this value`,
+                `膜组件擦洗用独立供气：风量、风压与运行方式（连续或间歇）按所选膜组件样本确定；${KMK_2_04_03_19_DOC.code} 未作规定`
+              ),
+              ctx.lang
+            ),
+            qty: blowerQty(1),
+            supply: "supply",
+            note: `${blowerReliability}. ${tr(MEMBRANE_BY_DATASHEET, ctx.lang)}`,
+          });
+        }
       } else {
         items.push({
           kind: "machine",

@@ -14,6 +14,8 @@ import {
   type PollutantKey,
 } from "./industries";
 import { DISCHARGES, findDischarge } from "./targets";
+import { MEMBRANE_TECHNOLOGIES } from "./equipment";
+import type { TechnologyCode } from "../../../../calculations/technology";
 import { BIO_TECHNOLOGIES, t, ui } from "./i18n";
 import { useLanguage } from "../../../LanguageContext";
 import {
@@ -26,6 +28,18 @@ import {
   type SettlementCategory,
   type WaterUseHorizon,
 } from "../../../../norms/kmk-2-04-03-19";
+import {
+  MEMBRANE_REQUIRED_BY_DEFAULT,
+  REQUIRED_TECHNOLOGY,
+  requirementNote,
+} from "../../../../norms/uz-membrane-requirement";
+
+/**
+ * Технология биоблока по умолчанию: при действующем требовании об
+ * обязательной мембранной очистке это MBR, иначе — прежний автоподбор.
+ * Формулировку требования даёт только norms/uz-membrane-requirement.ts.
+ */
+const DEFAULT_TECH: string = MEMBRANE_REQUIRED_BY_DEFAULT ? REQUIRED_TECHNOLOGY : "auto";
 
 /* ==================================================================
  * ЕДИНЫЙ ШАГ: ИСХОДНЫЕ ДАННЫЕ
@@ -115,7 +129,7 @@ function IndustryContent() {
   const [category, setCategory] = useState<SettlementCategory>("town-under-50k");
   const [year, setYear] = useState<WaterUseHorizon>(DEFAULT_WATER_USE_HORIZON);
   const [additionalPercent, setAdditionalPercent] = useState("0");
-  const [tech, setTech] = useState("auto");
+  const [tech, setTech] = useState<string>(DEFAULT_TECH);
   const [hours, setHours] = useState("16");
   const [values, setValues] = useState<Record<string, string>>({});
   const [ph, setPh] = useState("");
@@ -167,6 +181,18 @@ function IndustryContent() {
   /** ступени отрасли: селектор технологии нужен только при биологии */
   const hasBioStage = industry ? industry.chain.includes("bio") : false;
 
+  /**
+   * Отступление от требования об обязательной мембранной очистке:
+   * инженер выбрал не мембранную технологию вручную. Автоподбор
+   * («auto») отступлением не является — при действующем требовании он
+   * тоже даёт MBR, это разбирается в pro-result.
+   */
+  const mbrWaiver =
+    MEMBRANE_REQUIRED_BY_DEFAULT &&
+    hasBioStage &&
+    tech !== "auto" &&
+    !MEMBRANE_TECHNOLOGIES.includes(tech as TechnologyCode);
+
   /** какие показатели показываем: у «объекта нет в списке» — все */
   const activeKeys = useMemo(
     () =>
@@ -203,8 +229,8 @@ function IndustryContent() {
     /* для жилых и общественных объектов расход удобнее считать по людям */
     if (POPULATION_FIRST.has(id)) setFlowMode("population");
 
-    /* технология подбирается заново, если у новой отрасли нет биологии */
-    if (!item.chain.includes("bio")) setTech("auto");
+    /* технология сбрасывается к значению по умолчанию, если у новой отрасли нет биологии */
+    if (!item.chain.includes("bio")) setTech(DEFAULT_TECH);
   }
 
   function handleContinue(event: FormEvent<HTMLFormElement>) {
@@ -259,6 +285,10 @@ function IndustryContent() {
 
     /* технологию передаём только если она задана вручную */
     if (hasBioStage && tech !== "auto") params.set("tech", tech);
+
+    /* снятие требования об обязательной мембранной очистке — осознанное
+       решение инженера, оно должно быть видно в расчёте и в записке */
+    if (mbrWaiver) params.set("mbrWaiver", "1");
 
     router.push(`/engineering/analysis/pro-result?${params.toString()}`);
   }
@@ -790,8 +820,31 @@ function IndustryContent() {
                     {U.techSection}
                   </div>
                   <p style={{ fontSize: 12, color: FAINT, margin: "0 0 14px", lineHeight: 1.6 }}>
-                    {U.techLead}
+                    {MEMBRANE_REQUIRED_BY_DEFAULT ? U.techLeadMembrane : U.techLead}
                   </p>
+
+                  {/* ТРЕБОВАНИЕ ОБЯЗАТЕЛЬНОЙ МЕМБРАННОЙ ОЧИСТКИ.
+                      Текст ссылки — только из norms/uz-membrane-requirement.ts */}
+                  {MEMBRANE_REQUIRED_BY_DEFAULT && (
+                    <div
+                      style={{
+                        border: "1px solid rgba(62,195,230,0.55)",
+                        background: "rgba(62,195,230,0.10)",
+                        borderRadius: 10,
+                        padding: "14px 16px",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 8 }}>
+                        {U.mbrBannerTitle}
+                      </div>
+                      <p style={{ fontSize: 13, margin: "0 0 8px", lineHeight: 1.6 }}>{U.mbrBannerText}</p>
+                      <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
+                        {U.mbrBannerExplain}
+                      </p>
+                      <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>{U.mbrFineScreen}</p>
+                    </div>
+                  )}
 
                   <div
                     style={{
@@ -815,6 +868,11 @@ function IndustryContent() {
                     >
                       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{U.techAuto}</div>
                       <div style={{ fontSize: 12, color: FAINT, lineHeight: 1.5 }}>{U.techAutoHint}</div>
+                      {MEMBRANE_REQUIRED_BY_DEFAULT && (
+                        <div style={{ fontSize: 11.5, color: ACCENT, lineHeight: 1.5, marginTop: 6 }}>
+                          {U.mbrAutoNote}
+                        </div>
+                      )}
                     </button>
 
                     {BIO_TECHNOLOGIES.map((item) => (
@@ -847,6 +905,24 @@ function IndustryContent() {
                       </button>
                     ))}
                   </div>
+
+                  {/* выбрана не мембранная схема — отступление от требования */}
+                  {mbrWaiver && (
+                    <div
+                      style={{
+                        marginTop: 14,
+                        border: "1px solid rgba(255,183,77,0.45)",
+                        background: "rgba(255,183,77,0.07)",
+                        borderRadius: 10,
+                        padding: "12px 14px",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>
+                        {U.mbrWaiverTitle}
+                      </div>
+                      <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>{requirementNote(false)}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </>

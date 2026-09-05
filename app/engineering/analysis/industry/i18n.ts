@@ -15,6 +15,11 @@ import {
   AEROTANK,
   KMK_2_04_03_19_DOC,
 } from "../../../../norms/kmk-2-04-03-19";
+import {
+  MBR_FINE_SCREEN,
+  REQUIRED_TECHNOLOGY,
+  requirementRef,
+} from "../../../../norms/uz-membrane-requirement";
 
 export type L10n = Record<Language, string>;
 
@@ -170,6 +175,12 @@ export const UI = {
     "By default the technology is selected automatically from the flow, the load and the discharge requirements. It can also be set manually.",
     "默认按流量、负荷和排放要求自动选型，也可手动指定。"
   ),
+  techLeadMembrane: L(
+    "По умолчанию принята мембранная биологическая ступень. Остальные технологии и автоподбор остаются доступны, но выбор не мембранной схемы — отступление от требования, и его придётся обосновать в проекте.",
+    "Standart holatda membranali biologik bosqich qabul qilingan. Boshqa texnologiyalar va avtomatik tanlash ochiq qoladi, lekin membranasiz sxemani tanlash — talabdan chekinish va loyihada asoslanishi kerak.",
+    "A membrane biological stage is preselected. The other technologies and automatic selection remain available, but choosing a non-membrane scheme is a deviation from the requirement and must be justified in the design.",
+    "默认采用膜法生物段。其他工艺与自动选型仍可选择，但选择非膜方案属于偏离该要求，须在设计中论证。"
+  ),
   techAuto: L("Подобрать автоматически", "Avtomatik tanlash", "Select automatically", "自动选型"),
   techAutoHint: L(
     "Решение принимает расчёт по исходным данным.",
@@ -188,6 +199,46 @@ export const UI = {
     `Parametrlar ${KMK_2_04_03_19_DOC.code} tomonidan me’yorlanmagan — DWA va loyihalash amaliyoti bo‘yicha qabul qilingan.`,
     `${KMK_2_04_03_19_DOC.code} does not codify these parameters — they follow DWA and design practice.`,
     `${KMK_2_04_03_19_DOC.code} 未对这些参数作规定 — 按 DWA 与工程实践取值。`
+  ),
+
+  /* --- обязательная мембранная очистка (норм. модуль uz-membrane-requirement.ts) ---
+     Формулировка требования берётся ТОЛЬКО из requirementRef(): реквизиты
+     документа в интерфейсе не пишутся, пока они не подтверждены. */
+  mbrBannerTitle: L(
+    "БИОЛОГИЧЕСКАЯ СТУПЕНЬ — ТОЛЬКО МЕМБРАННАЯ",
+    "BIOLOGIK BOSQICH — FAQAT MEMBRANALI",
+    "THE BIOLOGICAL STAGE MUST BE A MEMBRANE ONE",
+    "生物段必须采用膜工艺"
+  ),
+  mbrBannerText: L(
+    `Биологическая ступень очистных сооружений должна быть мембранной (${REQUIRED_TECHNOLOGY}): ${requirementRef()}. Поэтому вариант «${REQUIRED_TECHNOLOGY}» принят по умолчанию.`,
+    `Tozalash inshootining biologik bosqichi membranali (${REQUIRED_TECHNOLOGY}) bo‘lishi shart: ${requirementRef()}. Shu sababli «${REQUIRED_TECHNOLOGY}» varianti standart sifatida qabul qilingan.`,
+    `The biological stage of the plant must be a membrane one (${REQUIRED_TECHNOLOGY}): ${requirementRef()}. The ${REQUIRED_TECHNOLOGY} option is therefore preselected.`,
+    `污水处理站的生物段必须采用膜工艺（${REQUIRED_TECHNOLOGY}）：${requirementRef()}。因此默认选中 ${REQUIRED_TECHNOLOGY}。`
+  ),
+  mbrBannerExplain: L(
+    "MBR — это сам биореактор, а не ступень доочистки: мембранные модули погружены в аэротенк и заменяют вторичный отстойник. Схема «любая биология, а в конце MBR» физически не собирается — за другой биологией ставится отдельная ультрафильтрация, это другое сооружение.",
+    "MBR — bu qo‘shimcha tozalash bosqichi emas, bioreaktorning o‘zi: membrana modullari aerotenkka botirilgan va ikkilamchi tindirgich o‘rnini bosadi. «Istalgan biologiya, oxirida MBR» sxemasi tuzilmaydi — boshqa biologiyadan keyin alohida ultrafiltratsiya qo‘yiladi, bu boshqa inshoot.",
+    "MBR is the bioreactor itself, not a polishing step: the membrane modules are immersed in the aeration tank and replace the secondary clarifier. A train of «any biology plus an MBR at the end» does not exist — another biology would be followed by a separate ultrafiltration unit, which is a different structure.",
+    "MBR 本身就是生物反应器，而非深度处理段：膜组件浸没于曝气池中并取代二沉池。“任意生物工艺＋末端 MBR”的流程并不成立——其他生物工艺之后接的是独立的超滤装置，属于另一种构筑物。"
+  ),
+  mbrAutoNote: L(
+    `Автоподбор при действующем требовании также даёт ${REQUIRED_TECHNOLOGY}.`,
+    `Talab kuchda bo‘lganda avtomatik tanlash ham ${REQUIRED_TECHNOLOGY} beradi.`,
+    `While the requirement is in force, automatic selection also yields ${REQUIRED_TECHNOLOGY}.`,
+    `在该要求生效期间，自动选型同样给出 ${REQUIRED_TECHNOLOGY}。`
+  ),
+  mbrWaiverTitle: L(
+    "ОТСТУПЛЕНИЕ ОТ ТРЕБОВАНИЯ",
+    "TALABDAN CHEKINISH",
+    "DEVIATION FROM THE REQUIREMENT",
+    "偏离该要求"
+  ),
+  mbrFineScreen: L(
+    `Перед мембранами добавляется тонкая решётка ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} мм: ${MBR_FINE_SCREEN.source}.`,
+    `Membranalardan oldin ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm nozik panjara qo‘shiladi: ${MBR_FINE_SCREEN.source}.`,
+    `A fine screen of ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm is added ahead of the membranes: ${MBR_FINE_SCREEN.source}.`,
+    `膜前增设 ${MBR_FINE_SCREEN.gapMm[0]}–${MBR_FINE_SCREEN.gapMm[1]} mm 细格栅：${MBR_FINE_SCREEN.source}。`
   ),
 
   /* --- результат --- */

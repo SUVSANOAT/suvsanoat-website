@@ -40,6 +40,14 @@ import {
   sanitaryZone,
   type SzzResult,
 } from "../../../../norms/kmk-2-04-03-19";
+import {
+  MBR_REPLACES_SECONDARY_CLARIFIER,
+  MEMBRANE_REQUIRED_BY_DEFAULT,
+  REQUIRED_TECHNOLOGY,
+  membraneWarnings,
+  requirementNote,
+  requirementRef,
+} from "../../../../norms/uz-membrane-requirement";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
 import {
   areaEstimate,
@@ -94,6 +102,50 @@ const TX = {
     "未指定生物段工艺，采用自动选型：容积按 BOD 容积负荷，供气按 6.156 条式(70)，一体化设备按完全氧化（6.175–6.179 条）。"
   ),
   techWarnings: L("Проверьте применимость", "Qo‘llanilishini tekshiring", "Check the applicability", "请复核适用性"),
+  /* --- обязательная мембранная очистка: формулировка только из
+     norms/uz-membrane-requirement.ts, реквизиты документа не пишем --- */
+  techByRequirement: L(
+    "принята по требованию, не выбрана инженером",
+    "talab bo‘yicha qabul qilingan, muhandis tanlamagan",
+    "adopted to satisfy the requirement, not selected by the engineer",
+    "按强制要求采用，非工程师选定"
+  ),
+  membraneTitle: L(
+    "ОБЯЗАТЕЛЬНАЯ МЕМБРАННАЯ ОЧИСТКА",
+    "MAJBURIY MEMBRANALI TOZALASH",
+    "MANDATORY MEMBRANE TREATMENT",
+    "强制膜法处理"
+  ),
+  membraneWaiverTitle: L(
+    "ОТСТУПЛЕНИЕ ОТ ТРЕБОВАНИЯ",
+    "TALABDAN CHEKINISH",
+    "DEVIATION FROM THE REQUIREMENT",
+    "偏离该要求"
+  ),
+  membraneChecks: L(
+    "Проверки стока перед мембранами",
+    "Membranalardan oldin oqovani tekshirish",
+    "Wastewater checks ahead of the membranes",
+    "膜前进水核查"
+  ),
+  clarifyDroppedTitle: L(
+    "Вторичный отстойник исключён из схемы",
+    "Ikkilamchi tindirgich sxemadan chiqarildi",
+    "The secondary clarifier is removed from the train",
+    "流程中已取消二沉池"
+  ),
+  clarifyDroppedMbr: L(
+    "Ступень вторичного отстаивания из цепочки исключена: разделение иловой смеси идёт на мембране внутри биореактора, отдельный вторичный отстойник не нужен и не проектируется.",
+    "Ikkilamchi tindirish bosqichi zanjirdan chiqarildi: loyqa aralashmasini ajratish bioreaktor ichidagi membranada amalga oshadi, alohida ikkilamchi tindirgich kerak emas.",
+    "The secondary clarification stage is dropped: the mixed liquor is separated on the membrane inside the bioreactor, so a separate secondary clarifier is neither required nor designed.",
+    "取消二沉段：泥水分离在生物反应器内的膜上完成，无需单独设置二沉池。"
+  ),
+  clarifyDroppedSbr: L(
+    "Ступень вторичного отстаивания из цепочки исключена: в SBR отстаивание и выпуск идут в том же реакторе по фазам цикла, отдельный вторичный отстойник не нужен.",
+    "Ikkilamchi tindirish bosqichi chiqarildi: SBR da tindirish va chiqarish sikl fazalari bo‘yicha shu reaktorning o‘zida bo‘ladi, alohida tindirgich kerak emas.",
+    "The secondary clarification stage is dropped: in an SBR, settling and decanting take place in the same reactor as cycle phases, so no separate clarifier is needed.",
+    "取消二沉段：SBR 的沉淀与排水在同一反应池内按周期完成，无需单独二沉池。"
+  ),
   techNoAir: L(
     "Аэрация не требуется: процесс анаэробный, воздуходувная станция в составе сооружений не предусмотрена.",
     "Aeratsiya talab qilinmaydi: jarayon anaerob, havo puflagich stansiyasi ko‘zda tutilmagan.",
@@ -220,7 +272,19 @@ function ProResultContent() {
   const hours = Math.min(24, Math.max(1, parseFloat(sp.get("hours") || "16") || 16));
   const ph = parseFloat(sp.get("ph") || "7") || 7;
 
-  const tech = parseTech(sp.get("tech"));
+  /* ---------- технология биоблока и требование мембранной очистки ----------
+     Требование действует по умолчанию (norms/uz-membrane-requirement.ts).
+     Инженер может снять его осознанно — тогда форма передаёт mbrWaiver=1
+     вместе с выбранной не мембранной технологией. Если технология не
+     передана вовсе, а требование действует, принимается MBR — но в
+     интерфейсе это подписано как принятое по требованию, а не выбранное. */
+  const techParam = parseTech(sp.get("tech"));
+  const mbrWaiver = sp.get("mbrWaiver") === "1";
+  /* требование касается только объектов с биологической ступенью */
+  const bioInChain = industry ? industry.chain.includes("bio") : false;
+  const membraneRequired = MEMBRANE_REQUIRED_BY_DEFAULT && !mbrWaiver && bioInChain;
+  const techByRequirement = !techParam && membraneRequired;
+  const tech: TechnologyCode | null = techParam ?? (membraneRequired ? REQUIRED_TECHNOLOGY : null);
 
   const discharge = findDischarge(sp.get("out") || "sewer");
   const TARGET: Partial<Record<PollutantKey, number>> = { ...(discharge?.targets ?? {}) };
@@ -313,7 +377,31 @@ function ProResultContent() {
       );
     }
 
-    const chain = chainForDischarge(industry.chain, discharge, industry.id);
+    /* замечания по пригодности стока для мембран (жиры, нефтепродукты,
+       тонкая решётка) — только при мембранной схеме */
+    const membraneApplies = tech === "MBR" || tech === "AnMBR";
+    const membraneNotes = membraneApplies
+      ? membraneWarnings({ fats, petro, fatsLimit: a.greaseTarget })
+      : [];
+
+    /* ---------- цепочка ступеней ----------
+       chainForDischarge (industry/targets.ts) собирает схему по точке
+       сброса; здесь снимается вторичный отстойник там, где разделение
+       иловой смеси идёт не в нём:
+         MBR/AnMBR — на мембране внутри биореактора (MBR_REPLACES_SECONDARY_CLARIFIER);
+         SBR — в том же реакторе по фазам цикла, и только если технология
+         выбрана инженером явно (при автоподборе SBR не принимается). */
+    let chain = chainForDischarge(industry.chain, discharge, industry.id);
+    let clarifyDropped: "mbr" | "sbr" | null = null;
+    if (chain.includes("clarify")) {
+      if (membraneApplies && MBR_REPLACES_SECONDARY_CLARIFIER) clarifyDropped = "mbr";
+      else if (techParam === "SBR") clarifyDropped = "sbr";
+      if (clarifyDropped) chain = chain.filter((s) => s !== "clarify");
+    }
+    const clarifyDropText = clarifyDropped
+      ? t(clarifyDropped === "mbr" ? TX.clarifyDroppedMbr : TX.clarifyDroppedSbr, language)
+      : null;
+
     const peak = peakHourly({ Q, Qh, a });
 
     for (const key of chain) {
@@ -388,8 +476,16 @@ function ProResultContent() {
           const ext = AEROTANK.extendedAeration;
           if (techResult && tech) {
             const anaerobic = isAnaerobicTechnology(tech);
+            if (techByRequirement) {
+              /* формулировка требования — только из norms/uz-membrane-requirement.ts */
+              s.sizing.push(requirementNote(true));
+            } else if (mbrWaiver) {
+              s.sizing.push(requirementNote(false));
+            }
             s.sizing.push(
-              `Технология принята инженером: ${t(TECHNOLOGY_LABEL[tech], language)}. ${t(TECHNOLOGY_DESCRIPTION[tech], language)}`,
+              techByRequirement
+                ? `Технология принята по требованию: ${t(TECHNOLOGY_LABEL[tech], language)}. ${t(TECHNOLOGY_DESCRIPTION[tech], language)}`
+                : `Технология принята инженером: ${t(TECHNOLOGY_LABEL[tech], language)}. ${t(TECHNOLOGY_DESCRIPTION[tech], language)}`,
               `Нагрузка ${fmt(techResult.loads.bod, 1)} кг БПК₅/сут и ${fmt(techResult.loads.cod, 1)} кг ХПК/сут; ` +
                 `расчётный расход ${fmt(techResult.hydraulic.qWorking, 1)} м³/ч в рабочее время, максимальный часовой ${fmt(techResult.hydraulic.qPeak, 1)} м³/ч.`,
               `Гидравлический объём при HRT ${techResult.hydraulic.hrt} ч — ${fmt(techResult.hydraulic.hydraulicVolume)} м³; принято с запасом +15 % → ${fmt(techResult.hydraulic.volumeWithReserve)} м³.`
@@ -412,7 +508,9 @@ function ProResultContent() {
             }
             s.sizing.push(technologySourceNote(tech, language));
             for (const line of techResult.assumptions) s.sizing.push(line);
-            s.extra = techWarnings.length ? `${t(TX.techWarnings, language)}: ${techWarnings.join(" ")}` : undefined;
+            if (clarifyDropText) s.sizing.push(clarifyDropText);
+            const allWarnings = [...techWarnings, ...membraneNotes];
+            s.extra = allWarnings.length ? `${t(TX.techWarnings, language)}: ${allWarnings.join(" ")}` : undefined;
           } else {
             const vLoad = a.bodVolLoad;
             const V = bodLoad / vLoad;
@@ -510,10 +608,11 @@ function ProResultContent() {
       civil, area, pipes, power, szz,
       norms: kmkClausesFor(chain),
       civilList: civilItems(civil, a),
-      tech, techResult, techWarnings, vBio, air: airH,
+      tech, techResult, techWarnings, membraneNotes, vBio, air: airH,
+      clarifyDropped, clarifyDropText,
       hasBio: chainHas("bio"),
     };
-  }, [industry, Q, hours, ph, c, discharge, a, tech, language]);
+  }, [industry, Q, hours, ph, c, discharge, a, tech, techParam, techByRequirement, mbrWaiver, language]);
 
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
@@ -578,14 +677,23 @@ function ProResultContent() {
         ? {
             code: calc.tech ?? "auto",
             name: calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language),
-            chosenBy: calc.tech ? "engineer" : "auto",
+            chosenBy: techByRequirement ? "requirement" : calc.tech ? "engineer" : "auto",
             description: calc.tech ? t(TECHNOLOGY_DESCRIPTION[calc.tech], language) : t(TX.techAuto, language),
             source: calc.tech ? technologySourceNote(calc.tech, language) : `Автоподбор; ${AEROTANK.extendedAeration.ref} и ф. (70) ${AEROTANK.air.ref}.`,
             volumeM3: calc.vBio,
             airNm3h: calc.air,
             aerobic: !isAnaerobicTechnology(calc.tech ?? undefined),
             assumptions: calc.techResult?.assumptions ?? [],
-            warnings: calc.techWarnings,
+            warnings: [...calc.techWarnings, ...calc.membraneNotes],
+            /* требование обязательной мембранной очистки: формулировка
+               целиком из norms/uz-membrane-requirement.ts, реквизиты
+               документа записке не передаются */
+            membraneRequirement: MEMBRANE_REQUIRED_BY_DEFAULT
+              ? requirementNote(!mbrWaiver)
+              : undefined,
+            membraneRequirementRef: MEMBRANE_REQUIRED_BY_DEFAULT ? requirementRef() : undefined,
+            membraneWaiver: mbrWaiver,
+            clarifierRemoved: calc.clarifyDropText ?? undefined,
           }
         : undefined,
       civil: {
@@ -728,7 +836,12 @@ function ProResultContent() {
           <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
             {t(TX.techTitle, language)}:{" "}
             <b>{calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language)}</b>
-            {calc.tech && <span style={{ color: FAINT }}> — {t(TX.techByEngineer, language)}</span>}.
+            {calc.tech && (
+              <span style={{ color: FAINT }}>
+                {" "}
+                — {techByRequirement ? t(TX.techByRequirement, language) : t(TX.techByEngineer, language)}
+              </span>
+            )}.
           </p>
         )}
         {discharge && (
@@ -782,7 +895,9 @@ function ProResultContent() {
               <>
                 <p style={{ fontSize: 14, margin: "0 0 6px" }}>
                   <b>{t(TECHNOLOGY_LABEL[calc.tech], language)}</b>{" "}
-                  <span style={{ color: FAINT, fontSize: 12 }}>— {t(TX.techByEngineer, language)}</span>
+                  <span style={{ color: FAINT, fontSize: 12 }}>
+                    — {techByRequirement ? t(TX.techByRequirement, language) : t(TX.techByEngineer, language)}
+                  </span>
                 </p>
                 <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
                   {t(TECHNOLOGY_DESCRIPTION[calc.tech], language)}
@@ -803,6 +918,63 @@ function ProResultContent() {
             ) : (
               <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.6 }}>{t(TX.techAuto, language)}</p>
             )}
+
+            {/* требование обязательной мембранной очистки либо отступление от него;
+                формулировка — только requirementNote() из норм. модуля */}
+            {MEMBRANE_REQUIRED_BY_DEFAULT && (
+              <div
+                style={{
+                  marginTop: 14,
+                  border: `1px solid ${mbrWaiver ? "rgba(255,183,77,0.45)" : "rgba(62,195,230,0.5)"}`,
+                  background: mbrWaiver ? "rgba(255,183,77,0.07)" : "rgba(62,195,230,0.08)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    letterSpacing: "0.1em",
+                    color: mbrWaiver ? "#ffb74d" : ACCENT,
+                    marginBottom: 8,
+                  }}
+                >
+                  {mbrWaiver ? t(TX.membraneWaiverTitle, language) : t(TX.membraneTitle, language)}
+                </div>
+                <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>{requirementNote(!mbrWaiver)}</p>
+              </div>
+            )}
+
+            {/* вторичный отстойник снят со схемы — объясняем почему */}
+            {calc.clarifyDropText && (
+              <div style={{ marginTop: 14, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 8 }}>
+                  {t(TX.clarifyDroppedTitle, language)}
+                </div>
+                <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>{calc.clarifyDropText}</p>
+              </div>
+            )}
+
+            {/* проверки стока перед мембранами (membraneWarnings) */}
+            {calc.membraneNotes.length > 0 && (
+              <div
+                style={{
+                  marginTop: 14,
+                  border: "1px solid rgba(255,183,77,0.4)",
+                  background: "rgba(255,183,77,0.06)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                }}
+              >
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>
+                  {t(TX.membraneChecks, language)}
+                </div>
+                {calc.membraneNotes.map((w, i) => (
+                  <p key={i} style={{ fontSize: 12.5, lineHeight: 1.6, margin: "0 0 6px" }}>• {w}</p>
+                ))}
+              </div>
+            )}
+
             {calc.techWarnings.length > 0 && (
               <div style={{ marginTop: 14, border: "1px solid rgba(255,183,77,0.4)", background: "rgba(255,183,77,0.06)", borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>{t(TX.techWarnings, language)}</div>

@@ -326,7 +326,14 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
     const vOrganic = removed / 0.9;
     const volume = Math.max(hydraulicVolume, vOrganic);
     const flux = 15;
-    const membraneArea = (flow * 1000 / 24) / flux;
+    /*
+     * Мембраны подбираются по МАКСИМАЛЬНОМУ часовому расходу (qPeak по
+     * табл. 2 ҚМҚ 2.04.03-19, п. 2.7), а не по среднему: в час пик через
+     * тот же модуль проходит в K_gen.max раз больше воды, и при подборе
+     * по среднему расходу фактический поток превышает паспортный —
+     * это перегрузка мембран и ускоренное загрязнение.
+     */
+    const membraneArea = (qPeak * 1000) / flux;
     const reactors = 2;
     const oxygen = aerobicOxygen(l.bod, l.nitrogen, 0.95).oxygen;
     const air = airFromOxygen(oxygen);
@@ -341,7 +348,10 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
     add("membraneArea", "Площадь мембран", membraneArea, "м²");
     add("oxygen", "O₂", oxygen, "кг O₂/сут");
     add("air", "Воздух", air, "Нм³/ч");
-    assumptions.push("MBR: мембранный поток принят 15 LMH; площадь рассчитана по среднечасовому расходу.");
+    assumptions.push(
+      `MBR: мембранный поток принят 15 LMH (не нормируется ҚМҚ 2.04.03-19, паспортная величина); ` +
+        `площадь рассчитана по максимальному часовому расходу ${round(qPeak)} м³/ч (K gen.max = ${kGen.kMax.toFixed(2)}, п. 2.7, табл. 2).`
+    );
   }
 
   if (technology === "ANBR") {
@@ -407,7 +417,8 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
     const organicVolume = removed / 2.5;
     const volume = Math.max(hydraulicVolume, organicVolume);
     const flux = 12;
-    const membraneArea = (flow * 1000 / 24) / flux;
+    /* площадь — по максимальному часовому расходу, см. пояснение в ветке MBR */
+    const membraneArea = (qPeak * 1000) / flux;
     const reactors = 2;
     const reactorVolume = volumeWithReserve / reactors;
     const gas = anaerobicBiogas(removed);
@@ -421,7 +432,10 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
     add("membraneArea", "Площадь мембран", membraneArea, "м²");
     add("biogas", "Биогаз", gas.biogas, "Нм³/сут");
     add("methane", "Метан", gas.methane, "Нм³/сут");
-    assumptions.push("AnMBR: OLR = 2.5 кг ХПК/(м³·сут), удаление ХПК = 85%, мембранный поток = 12 LMH.");
+    assumptions.push(
+      `AnMBR: OLR = 2.5 кг ХПК/(м³·сут), удаление ХПК = 85%, мембранный поток = 12 LMH ` +
+        `(не нормируется ҚМҚ 2.04.03-19); площадь мембран — по максимальному часовому расходу ${round(qPeak)} м³/ч.`
+    );
   }
 
   if (technology === "IFAS") {
