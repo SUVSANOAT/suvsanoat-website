@@ -277,6 +277,9 @@ const KMK_RAIN = `${KMK_2_04_03_19_DOC.code}, пп. 2.11–2.19 (дождева�
 const T2_FIRST = TABLE_2_UNEVENNESS[0];
 const T2_100 = TABLE_2_UNEVENNESS.find((r) => r.averageLps === 100) ?? TABLE_2_UNEVENNESS[4];
 
+/** id позиции «объекта нет в списке / смешанный сток» */
+export const GENERIC_INDUSTRY_ID = "generic";
+
 export const INDUSTRIES: Industry[] = [
   /* ============================ ПИЩЕВАЯ ============================ */
   {
@@ -749,7 +752,63 @@ export const INDUSTRIES: Industry[] = [
     ],
     sources: [REF],
   },
+
+  /* ====================== ОБЪЕКТ НЕ ИЗ СПРАВОЧНИКА ====================== */
+  /*
+   * Позиция вне групп справочника: в списки групп не попадает,
+   * выбирается отдельной кнопкой на шаге исходных данных.
+   * Отраслевых концентраций у неё нет и быть не может — состав стока
+   * задаёт проектировщик. Единственные нормативные числа здесь —
+   * границы pH на входе в биологическую очистку по п. 6.2.
+   */
+  {
+    id: GENERIC_INDUSTRY_ID,
+    group: "generic",
+    name: L(
+      "Объекта нет в списке / смешанный сток",
+      "Obyekt ro‘yxatda yo‘q / aralash oqova",
+      "Facility not in the list / mixed wastewater",
+      "对象不在列表中 / 混合污水"
+    ),
+    flowHint: L(
+      "расход и состав стока задаются проектировщиком",
+      "sarf va oqova tarkibi loyihachi tomonidan beriladi",
+      "the flow and the composition are defined by the designer",
+      "流量与水质由设计人员确定"
+    ),
+    /* пусто: подставлять нечего — все показатели вводит пользователь */
+    pollutants: {},
+    ph: [BIO_INLET_LIMITS.phMin, BIO_INLET_LIMITS.phMax],
+    chain: ["screen", "sand", "avg", "bio", "clarify", "post", "disinfect", "sludge"],
+    notes: [
+      L(
+        "Состав стока задан пользователем, отраслевой аналог не применялся. Перед рабочим проектированием обязателен анализ усреднённой суточной пробы.",
+        "Oqova tarkibi foydalanuvchi tomonidan berilgan, tarmoq analogi qo‘llanilmadi. Ishchi loyihalashdan oldin o‘rtacha sutkalik namuna tahlili shart.",
+        "The composition is user-defined; no industry analogue was applied. A composite 24-hour sample analysis is mandatory before detailed design.",
+        "水质由用户填写，未套用行业类比值。施工图设计前必须做 24 小时混合样化验。"
+      ),
+      L(
+        `Принята базовая полная схема механической и биологической очистки с доочисткой, обеззараживанием и обработкой осадка. Условия входа в биологическую очистку — ${kmkRef("6.2")}: pH ${BIO_INLET_LIMITS.phMin}–${BIO_INLET_LIMITS.phMax}.`,
+        `Mexanik va biologik tozalashning to‘liq asosiy sxemasi qo‘shimcha tozalash, zararsizlantirish va cho‘kindini qayta ishlash bilan qabul qilindi. Biologik tozalashga kirish shartlari — ${kmkRef("6.2")}: pH ${BIO_INLET_LIMITS.phMin}–${BIO_INLET_LIMITS.phMax}.`,
+        `The full default train of mechanical and biological treatment with polishing, disinfection and sludge handling is assumed. Biological treatment inlet conditions — ${kmkRef("6.2")}: pH ${BIO_INLET_LIMITS.phMin}–${BIO_INLET_LIMITS.phMax}.`,
+        `采用机械＋生物处理并含深度处理、消毒与污泥处理的完整基础流程。生物段进水条件按 ${kmkRef("6.2")}：pH ${BIO_INLET_LIMITS.phMin}–${BIO_INLET_LIMITS.phMax}。`
+      ),
+    ],
+    sources: [
+      L(
+        `состав стока задаётся пользователем; ${KMK_2_04_03_19_DOC.code} отраслевые концентрации не нормирует`,
+        `oqova tarkibi foydalanuvchi tomonidan beriladi; ${KMK_2_04_03_19_DOC.code} tarmoq konsentratsiyalarini me’yorlamaydi`,
+        `the composition is user-defined; ${KMK_2_04_03_19_DOC.code} does not codify industry concentrations`,
+        `水质由用户填写；${KMK_2_04_03_19_DOC.code} 未规定行业浓度值`
+      ),
+    ],
+  },
 ];
+
+/** Позиция «объекта нет в списке»: выбирается отдельно, в группы не входит. */
+export function isGenericIndustry(id: string): boolean {
+  return id === GENERIC_INDUSTRY_ID;
+}
 
 export function findIndustry(id: string): Industry | undefined {
   return INDUSTRIES.find((item) => item.id === id);

@@ -11,6 +11,10 @@
  * ================================================================== */
 
 import type { Language } from "../../../translations";
+import {
+  AEROTANK,
+  KMK_2_04_03_19_DOC,
+} from "../../../../norms/kmk-2-04-03-19";
 
 export type L10n = Record<Language, string>;
 
@@ -94,6 +98,98 @@ export const UI = {
   calculate: L("Рассчитать", "Hisoblash", "Calculate", "开始计算"),
   back: L("Назад", "Orqaga", "Back", "返回"),
 
+  /* --- единый шаг «Исходные данные» --- */
+  stepInput: L("ШАГ 01 / ИСХОДНЫЕ ДАННЫЕ", "01-BOSQICH / DASTLABKI MA’LUMOTLAR", "STEP 01 / INPUT DATA", "第 01 步 / 原始数据"),
+  inputTitle: L("Исходные данные", "Dastlabki ma’lumotlar", "Input data", "原始数据"),
+  inputLead: L(
+    "Один шаг: объект, расход, состав стока, точка сброса и технология. Дальше система сама соберёт технологическую схему, спецификацию оборудования, чертежи DXF и техническую записку.",
+    "Bitta bosqich: obyekt, sarf, oqova tarkibi, chiqindi nuqtasi va texnologiya. Keyin tizim texnologik sxema, uskunalar spetsifikatsiyasi, DXF chizmalar va texnik izohnomani o‘zi shakllantiradi.",
+    "One step: the facility, the flow, the wastewater composition, the discharge point and the technology. The system then builds the process train, the equipment schedule, the DXF drawings and the technical note.",
+    "一步完成：对象、流量、水质、排放去向与工艺。随后系统自动生成工艺流程、设备清单、DXF 图纸与技术说明书。"
+  ),
+
+  /* --- режим задания расхода --- */
+  flowModeTitle: L("КАК ЗАДАЁМ РАСХОД", "SARF QANDAY BERILADI", "HOW THE FLOW IS DEFINED", "流量如何确定"),
+  flowModeKnown: L("Расход известен", "Sarf ma’lum", "The flow is known", "已知流量"),
+  flowModeKnownHint: L(
+    "Ввести среднесуточный расход в м³/сут.",
+    "O‘rtacha sutkalik sarfni m³/kun da kiritish.",
+    "Enter the average daily flow in m³/day.",
+    "直接填写平均日流量，m³/日。"
+  ),
+  flowModePopulation: L("По числу жителей / мест", "Aholi / o‘rin soni bo‘yicha", "By population / number of places", "按人口 / 床位数"),
+  flowModePopulationHint: L(
+    "Расход определяется по удельному водоотведению табл. 3 норматива.",
+    "Sarf me’yorning 3-jadvalidagi solishtirma suv chiqarish bo‘yicha aniqlanadi.",
+    "The flow is derived from the specific water disposal rate of table 3 of the code.",
+    "按规范表 3 的单位排水量推算流量。"
+  ),
+  peopleLabel: L("Число жителей / мест, чел.", "Aholi / o‘rinlar soni, kishi", "Population / number of places, persons", "人数 / 床位数，人"),
+  peoplePlaceholder: L("например: 17500", "masalan: 17500", "for example: 17500", "例如：17500"),
+  settlementCategoryLabel: L("Категория населённого пункта (табл. 3)", "Aholi punkti toifasi (3-jadval)", "Settlement category (table 3)", "居民点类别（表 3）"),
+  horizonLabel: L("Расчётный горизонт (табл. 3)", "Hisobiy ufq (3-jadval)", "Design horizon (table 3)", "设计年限（表 3）"),
+  horizon2035: L("2035 г. — расчётный срок (по умолчанию)", "2035 y. — hisobiy muddat (standart)", "2035 — design horizon (default)", "2035 年 — 设计期（默认）"),
+  horizon2020: L("2020 г.", "2020 y.", "2020", "2020 年"),
+  specificUseLabel: L("Удельное среднесуточное водоотведение", "Solishtirma o‘rtacha sutkalik suv chiqarish", "Specific average daily water disposal", "单位平均日排水量"),
+  unitLpcd: L("л/чел·сут", "l/kishi·kun", "L/person·day", "L/人·日"),
+  addPercentLabel: L("Дополнительный расход, %", "Qo‘shimcha sarf, %", "Additional flow, %", "附加流量，%"),
+  addPercent0: L("0 % — не добавлять", "0 % — qo‘shilmaydi", "0 % — none", "0 % — 不增加"),
+  addPercent5: L("5 % — местная промышленность и неучтённые расходы (п. 2.3)", "5 % — mahalliy sanoat va hisobga olinmagan sarflar (2.3-band)", "5 % — local industry and unaccounted flows (cl. 2.3)", "5 % — 地方工业与未计入水量（第 2.3 条）"),
+  addPercent10: L("10 % — неучтённые расходы (табл. 3, прим. 5)", "10 % — hisobga olinmagan sarflar (3-jadval, 5-izoh)", "10 % — unaccounted flows (table 3, note 5)", "10 % — 未计入水量（表 3 注 5）"),
+  addPercent15: L("15 % — неучтённые расходы (табл. 3, прим. 5)", "15 % — hisobga olinmagan sarflar (3-jadval, 5-izoh)", "15 % — unaccounted flows (table 3, note 5)", "15 % — 未计入水量（表 3 注 5）"),
+  computedFlowLabel: L("Расчётный расход", "Hisobiy sarf", "Design flow", "计算流量"),
+  computedFlowFormula: L(
+    "жители × удельное водоотведение / 1000 × (1 + доп. %)",
+    "aholi × solishtirma suv chiqarish / 1000 × (1 + qo‘shimcha %)",
+    "population × specific disposal / 1000 × (1 + additional %)",
+    "人数 × 单位排水量 / 1000 × (1 + 附加 %)"
+  ),
+  table3NotesTitle: L("Примечания к табл. 3", "3-jadvalga izohlar", "Notes to table 3", "表 3 注释"),
+  errNoPeople: L("Укажите число жителей или мест.", "Aholi yoki o‘rinlar sonini ko‘rsating.", "Enter the population or the number of places.", "请填写人数或床位数。"),
+
+  /* --- объекта нет в списке --- */
+  genericButton: L("Объекта нет в списке / смешанный сток", "Obyekt ro‘yxatda yo‘q / aralash oqova", "Facility not in the list / mixed wastewater", "对象不在列表中 / 混合污水"),
+  genericButtonHint: L(
+    "Все показатели вводятся вручную, схема — базовая полная.",
+    "Barcha ko‘rsatkichlar qo‘lda kiritiladi, sxema — to‘liq asosiy.",
+    "All values are entered manually; the train is the full default one.",
+    "全部指标手动输入，工艺采用完整基础流程。"
+  ),
+  genericManualNote: L(
+    "Отраслевые концентрации не подставляются: состав стока задаёте вы. Технологическая цепочка принята базовой полной — решётка, песколовка, усреднитель, биология, вторичное отстаивание, доочистка, обеззараживание, обработка осадка.",
+    "Tarmoq konsentratsiyalari qo‘yilmaydi: oqova tarkibini siz belgilaysiz. Texnologik zanjir to‘liq asosiy qabul qilindi — panjara, qum tutgich, tenglashtirgich, biologiya, ikkilamchi tindirish, qo‘shimcha tozalash, zararsizlantirish, cho‘kindini qayta ishlash.",
+    "No industry reference concentrations are substituted: you define the wastewater composition. The train is the full default one — screen, grit chamber, equalization, biology, secondary clarification, polishing, disinfection, sludge handling.",
+    "不套用行业参考浓度：水质由您填写。工艺流程采用完整基础方案 — 格栅、沉砂池、调节池、生物处理、二沉、深度处理、消毒、污泥处理。"
+  ),
+
+  /* --- технология биологической очистки --- */
+  techSection: L("ТЕХНОЛОГИЯ БИОЛОГИЧЕСКОЙ ОЧИСТКИ", "BIOLOGIK TOZALASH TEXNOLOGIYASI", "BIOLOGICAL TREATMENT TECHNOLOGY", "生物处理工艺"),
+  techLead: L(
+    "По умолчанию технология подбирается автоматически по расходу, нагрузке и требованиям точки сброса. Можно задать её вручную.",
+    "Standart holatda texnologiya sarf, yuklama va chiqindi nuqtasi talablariga qarab avtomatik tanlanadi. Uni qo‘lda ham belgilash mumkin.",
+    "By default the technology is selected automatically from the flow, the load and the discharge requirements. It can also be set manually.",
+    "默认按流量、负荷和排放要求自动选型，也可手动指定。"
+  ),
+  techAuto: L("Подобрать автоматически", "Avtomatik tanlash", "Select automatically", "自动选型"),
+  techAutoHint: L(
+    "Решение принимает расчёт по исходным данным.",
+    "Qarorni dastlabki ma’lumotlar bo‘yicha hisob qabul qiladi.",
+    "The calculation decides from the input data.",
+    "由计算依据原始数据决定。"
+  ),
+  techNormed: L(
+    `Расчёт нормируется: ${AEROTANK.formula51.ref}; ${AEROTANK.formula54.ref}.`,
+    `Hisob me’yorlanadi: ${AEROTANK.formula51.ref}; ${AEROTANK.formula54.ref}.`,
+    `Design is codified: ${AEROTANK.formula51.ref}; ${AEROTANK.formula54.ref}.`,
+    `计算有规范依据：${AEROTANK.formula51.ref}；${AEROTANK.formula54.ref}。`
+  ),
+  techNotNormed: L(
+    `Параметры ${KMK_2_04_03_19_DOC.code} не нормирует — приняты по DWA и практике проектирования.`,
+    `Parametrlar ${KMK_2_04_03_19_DOC.code} tomonidan me’yorlanmagan — DWA va loyihalash amaliyoti bo‘yicha qabul qilingan.`,
+    `${KMK_2_04_03_19_DOC.code} does not codify these parameters — they follow DWA and design practice.`,
+    `${KMK_2_04_03_19_DOC.code} 未对这些参数作规定 — 按 DWA 与工程实践取值。`
+  ),
+
   /* --- результат --- */
   resultEyebrow: L("ПРЕДВАРИТЕЛЬНОЕ ИНЖЕНЕРНОЕ РЕШЕНИЕ", "DASTLABKI MUHANDISLIK YECHIMI", "PRELIMINARY ENGINEERING SOLUTION", "初步工程方案"),
   objectWord: L("Объект", "Obyekt", "Facility", "对象"),
@@ -169,6 +265,7 @@ export const UI = {
   unitKwhM3: L("кВт·ч/м³", "kVt·soat/m³", "kWh/m³", "kWh/m³"),
   unitKwhKg: L("кВт·ч/кг", "kVt·soat/kg", "kWh/kg", "kWh/kg"),
   unitL: L("л", "l", "L", "L"),
+  unitM3Day: L("м³/сут", "m³/kun", "m³/day", "m³/日"),
 
   /* --- названия ёмкостей в строительной части --- */
   tankAvg: L("Усреднитель", "Tenglashtirgich", "Equalization tank", "调节池"),
@@ -240,6 +337,129 @@ export const UI = {
  * попасть уже не может, а значит не может и уронить сборку ошибкой
  * «Type 'L10n' is not assignable to type 'ReactNode'».
  * ================================================================== */
+
+/* ==================================================================
+ * ТЕХНОЛОГИИ БИОЛОГИЧЕСКОЙ ОЧИСТКИ
+ *
+ * Состав и описания перенесены со страницы подбора технологии
+ * (app/engineering/analysis/technology/page.tsx) и переведены на все
+ * четыре языка сайта. Значение `id` уходит в URL-параметр `tech`.
+ *
+ * Нормируется ҚМҚ 2.04.03-19 только классический аэротенк
+ * (п. 6.143, ф. (51), (52); п. 6.144, ф. (54)). Остальные варианты
+ * нормативом не описаны — параметры по DWA и практике; поле
+ * `normed` управляет подписью в интерфейсе.
+ * ================================================================== */
+
+export type BioTechnology = {
+  /** значение URL-параметра `tech` */
+  id: string;
+  title: L10n;
+  subtitle: L10n;
+  /** когда вариант уместен — короткая подсказка проектировщику */
+  when: L10n;
+  /** параметры нормируются ҚМҚ 2.04.03-19 (только классический аэротенк) */
+  normed: boolean;
+};
+
+export const BIO_TECHNOLOGIES: BioTechnology[] = [
+  {
+    id: "CAS",
+    normed: true,
+    title: L("Классический аэротенк (CAS)", "Klassik aerotenk (CAS)", "Conventional activated sludge (CAS)", "传统活性污泥法（CAS）"),
+    subtitle: L("Активный ил со вторичным отстойником", "Faol loyqa va ikkilamchi tindirgich", "Activated sludge with a secondary clarifier", "活性污泥＋二沉池"),
+    when: L(
+      "Базовый вариант: устойчив, ремонтопригоден, требует площади и вторичного отстойника.",
+      "Asosiy variant: barqaror, ta’mirlash oson, maydon va ikkilamchi tindirgich talab qiladi.",
+      "The default option: robust and maintainable, but needs area and a secondary clarifier.",
+      "基础方案：运行稳定、易维护，但占地大且需二沉池。"
+    ),
+  },
+  {
+    id: "MBBR",
+    normed: false,
+    title: L("MBBR", "MBBR", "MBBR", "MBBR"),
+    subtitle: L("Подвижная биоплёнка", "Harakatlanuvchi bioplyonka", "Moving bed biofilm reactor", "移动床生物膜"),
+    when: L(
+      "Компактнее аэротенка при БПК от 150 мг/л и ограниченной площадке; при очень высоких требованиях к эффлюенту нужна дополнительная ступень разделения.",
+      "BPK 150 mg/l dan yuqori va maydon cheklangan bo‘lsa aerotenkdan ixcham; effluentga talab juda yuqori bo‘lsa qo‘shimcha ajratish bosqichi kerak.",
+      "More compact than an aeration tank at BOD above 150 mg/L and a tight site; a very strict effluent needs an extra separation stage.",
+      "BOD 超过 150 mg/L 且场地紧张时比曝气池更紧凑；出水要求极高时需增加分离段。"
+    ),
+  },
+  {
+    id: "IFAS",
+    normed: false,
+    title: L("IFAS", "IFAS", "IFAS", "IFAS"),
+    subtitle: L("Гибридная биомасса", "Gibrid biomassa", "Integrated fixed-film activated sludge", "泥膜复合工艺"),
+    when: L(
+      "Активный ил плюс прикреплённая биомасса — вариант реконструкции существующего аэротенка без увеличения объёма.",
+      "Faol loyqa va biriktirilgan biomassa — mavjud aerotenkni hajmni oshirmasdan rekonstruksiya qilish varianti.",
+      "Activated sludge plus attached biomass — the retrofit option for an existing aeration tank without enlarging it.",
+      "活性污泥＋附着生物膜 — 不扩容改造既有曝气池的方案。"
+    ),
+  },
+  {
+    id: "SBR",
+    normed: false,
+    title: L("SBR", "SBR", "SBR", "SBR"),
+    subtitle: L("Циклический биореактор", "Siklik bioreaktor", "Sequencing batch reactor", "序批式反应器"),
+    when: L(
+      "Наполнение, аэрация, отстаивание и выпуск в одном резервуаре: вторичный отстойник не нужен, режим гибкий, но требуется автоматика и ёмкость на цикл.",
+      "To‘ldirish, aeratsiya, tindirish va chiqarish bitta rezervuarda: ikkilamchi tindirgich kerak emas, rejim moslashuvchan, lekin avtomatika va sikl uchun hajm zarur.",
+      "Fill, aerate, settle and decant in one tank: no secondary clarifier, a flexible regime, but automation and cycle volume are required.",
+      "进水、曝气、沉淀、排水在同一池内完成：无需二沉池，运行灵活，但需自控与周期容积。"
+    ),
+  },
+  {
+    id: "MBR",
+    normed: false,
+    title: L("MBR", "MBR", "MBR", "MBR"),
+    subtitle: L("Биореактор с мембранным разделением", "Membranali ajratishli bioreaktor", "Membrane bioreactor", "膜生物反应器"),
+    when: L(
+      "Самое высокое качество эффлюента и минимальная площадь; выше расход энергии и требуется регламент промывки мембран.",
+      "Eng yuqori effluent sifati va eng kichik maydon; energiya sarfi yuqori, membranalarni yuvish reglamenti talab qilinadi.",
+      "The highest effluent quality and the smallest footprint; higher energy demand and a membrane cleaning regime are required.",
+      "出水水质最好、占地最小；能耗较高并需膜清洗制度。"
+    ),
+  },
+  {
+    id: "UASB",
+    normed: false,
+    title: L("UASB", "UASB", "UASB", "UASB"),
+    subtitle: L("Анаэробный реактор с восходящим потоком", "Yuqoriga oqimli anaerob reaktor", "Upflow anaerobic sludge blanket", "上流式厌氧污泥床"),
+    when: L(
+      "Для стока с ХПК от 1000 мгО/л как ступень предварительной анаэробной очистки; азот и фосфор не снимает — нужна последующая аэробная ступень.",
+      "KKT 1000 mgO/l dan yuqori oqova uchun dastlabki anaerob bosqich sifatida; azot va fosforni olmaydi — keyin aerob bosqich kerak.",
+      "For wastewater with COD above 1000 mgO/L as a pre-treatment anaerobic stage; it removes neither nitrogen nor phosphorus — an aerobic stage must follow.",
+      "适用于 COD 高于 1000 mgO/L 的废水作厌氧预处理段；不脱氮除磷，其后须设好氧段。"
+    ),
+  },
+  {
+    id: "ABR",
+    normed: false,
+    title: L("ABR", "ABR", "ABR", "ABR"),
+    subtitle: L("Анаэробный перегородочный реактор", "To‘siqli anaerob reaktor", "Anaerobic baffled reactor", "折流式厌氧反应器"),
+    when: L(
+      "Простой многокамерный анаэробный реактор без механики — для высоконагруженного стока и площадок без надёжной эксплуатации; после него обязательна аэробная доочистка.",
+      "Mexanikasiz oddiy ko‘p kamerali anaerob reaktor — yuqori yuklamali oqova va ishonchli ekspluatatsiyasiz obyektlar uchun; keyin aerob qo‘shimcha tozalash shart.",
+      "A simple multi-chamber anaerobic reactor with no moving parts — for high-strength wastewater and sites without reliable operation; aerobic polishing afterwards is mandatory.",
+      "无机械部件的多格厌氧反应器 — 适用于高浓度废水及运维条件有限的场地；其后必须设好氧深度处理。"
+    ),
+  },
+  {
+    id: "AnMBR",
+    normed: false,
+    title: L("AnMBR", "AnMBR", "AnMBR", "AnMBR"),
+    subtitle: L("Анаэробный реактор с мембранами", "Membranali anaerob reaktor", "Anaerobic membrane bioreactor", "厌氧膜生物反应器"),
+    when: L(
+      "ХПК от 800 мгО/л при высоких требованиях к разделению; отдельно проверяются биогаз, температура и экономика эксплуатации.",
+      "KKT 800 mgO/l dan yuqori va ajratishga talab yuqori bo‘lganda; biogaz, harorat va ekspluatatsiya iqtisodi alohida tekshiriladi.",
+      "COD above 800 mgO/L with strict separation requirements; biogas, temperature and operating economics must be verified separately.",
+      "COD 高于 800 mgO/L 且分离要求高时采用；须单独核算沼气、温度与运行经济性。"
+    ),
+  },
+];
 
 export type UiStrings = Record<keyof typeof UI, string>;
 

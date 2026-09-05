@@ -502,6 +502,36 @@ function FlowContent() {
             ← Назад
           </button>
 
+          {/*
+            Прежняя ветка расчёта. Новые расчёты идут через единый маршрут
+            (шаг исходных данных), где расход по числу жителей, отрасль,
+            точка сброса и выбор технологии собраны на одной странице.
+            Страница оставлена рабочей для сохранённых ссылок.
+          */}
+          <div
+            style={{
+              margin: "18px 0 26px",
+              padding: "14px 16px",
+              border: "1px solid rgba(34,211,238,.35)",
+              borderRadius: 10,
+              background: "rgba(34,211,238,.07)",
+              color: "rgba(255,255,255,.72)",
+              fontSize: 13,
+              lineHeight: 1.65,
+            }}
+          >
+            Этот маршрут расчёта заменён единым: исходные данные, точка сброса
+            и выбор технологии теперь на одной странице, а результат
+            дополнен чертежами DXF, санитарно-защитной зоной и технической
+            запиской.{" "}
+            <a
+              href={`/engineering/analysis/industry?object=${encodeURIComponent(objectType)}`}
+              style={{ color: "#22d3ee", fontWeight: 600 }}
+            >
+              Перейти к новому расчёту →
+            </a>
+          </div>
+
           <div className={styles.formHeader}>
             <div className={styles.sectionLabel}>
               ШАГ 02 / РАСЧЁТНЫЕ РАСХОДЫ

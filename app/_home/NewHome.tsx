@@ -795,8 +795,9 @@ export default function NewHome() {
       const query = new URLSearchParams();
       query.set("object", value);
 
+      /* единый маршрут расчёта — шаг исходных данных */
       const go = () =>
-        router.push(`/engineering/analysis/flow?${query.toString()}`);
+        router.push(`/engineering/analysis/industry?${query.toString()}`);
 
       if (calm) {
         go();

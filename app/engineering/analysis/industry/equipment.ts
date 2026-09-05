@@ -28,6 +28,7 @@ import type { StageKey } from "./industries";
 import { DEFAULT_ASSUMPTIONS, type Assumptions } from "../../../../lib/assumptions";
 import { L, t as tr, type L10n } from "./i18n";
 import type { Language } from "../../../translations";
+import type { TechnologyCode, TechnologyResult } from "../../../../calculations/technology";
 import {
   AEROTANK,
   BIO_INLET_LIMITS,
@@ -119,7 +120,189 @@ export type Ctx = {
   a: Assumptions;
   /** язык вывода */
   lang: Language;
+  /** технология биоблока, выбранная инженером; не задана — автоподбор по расходу и нагрузке */
+  tech?: TechnologyCode;
+  /** результат calculations/technology.ts для выбранной технологии */
+  techResult?: TechnologyResult;
 };
+
+/* ==================================================================
+ * ТЕХНОЛОГИЯ БИОЛОГИЧЕСКОГО БЛОКА
+ *
+ * Выбор технологии ҚМҚ 2.04.03-19 не регламентирует. Нормируется
+ * только классический аэротенк (пп. 6.140–6.156, табл. 40–42,
+ * ф. (51)–(57), (70)) и аэрационные установки на полное окисление
+ * (пп. 6.175–6.179). Параметры MBBR, IFAS, SBR, MBR и анаэробных
+ * реакторов (UASB, ABR, AnMBR, ANBR) в ҚМҚ 2.04.03-19 отсутствуют —
+ * они приняты по DWA-A 131 / практике и рассчитываются в
+ * calculations/technology.ts. Из норматива при этом всё равно берутся
+ * гидравлика (п. 2.7, табл. 2) и — для аэробных схем — расход воздуха
+ * по ф. (70) п. 6.156.
+ * ================================================================== */
+
+/** анаэробные технологии: воздуходувок и возвратного ила нет, есть газовый тракт */
+export const ANAEROBIC_TECHNOLOGIES: readonly TechnologyCode[] = ["UASB", "ABR", "AnMBR", "ANBR"];
+
+export function isAnaerobicTechnology(code: TechnologyCode | undefined): boolean {
+  return !!code && ANAEROBIC_TECHNOLOGIES.includes(code);
+}
+
+/** технологии, доступные в форме объединённого маршрута */
+export const TECHNOLOGY_CHOICES: readonly TechnologyCode[] = ["CAS", "MBBR", "IFAS", "SBR", "MBR", "UASB", "ABR", "AnMBR"];
+
+export const TECHNOLOGY_LABEL: Record<TechnologyCode, L10n> = {
+  CAS: L("Аэротенк на активном иле (CAS)", "Faol loyqali aerotenk (CAS)", "Conventional activated sludge (CAS)", "传统活性污泥法（CAS）"),
+  MBBR: L("Реактор с подвижной биоплёнкой (MBBR)", "Harakatlanuvchi bioplyonkali reaktor (MBBR)", "Moving bed biofilm reactor (MBBR)", "移动床生物膜反应器（MBBR）"),
+  IFAS: L("Гибридная схема «ил + биоплёнка» (IFAS)", "Gibrid «loyqa + bioplyonka» sxemasi (IFAS)", "Integrated fixed-film activated sludge (IFAS)", "泥膜复合工艺（IFAS）"),
+  SBR: L("Циклический биореактор (SBR)", "Siklik bioreaktor (SBR)", "Sequencing batch reactor (SBR)", "序批式反应器（SBR）"),
+  MBR: L("Мембранный биореактор (MBR)", "Membranali bioreaktor (MBR)", "Membrane bioreactor (MBR)", "膜生物反应器（MBR）"),
+  UASB: L("Анаэробный реактор восходящего потока (UASB)", "Yuqoriga oqimli anaerob reaktor (UASB)", "Upflow anaerobic sludge blanket (UASB)", "升流式厌氧污泥床（UASB）"),
+  ABR: L("Анаэробный перегородочный реактор (ABR)", "Anaerob to‘siqli reaktor (ABR)", "Anaerobic baffled reactor (ABR)", "厌氧折流板反应器（ABR）"),
+  AnMBR: L("Анаэробный мембранный биореактор (AnMBR)", "Anaerob membranali bioreaktor (AnMBR)", "Anaerobic membrane bioreactor (AnMBR)", "厌氧膜生物反应器（AnMBR）"),
+  ANBR: L("Анаэробный биореактор с прикреплённой биомассой (ANBR)", "Biriktirilgan biomassali anaerob bioreaktor (ANBR)", "Anaerobic attached-growth bioreactor (ANBR)", "厌氧固定生物膜反应器（ANBR）"),
+  OTHER: L("Индивидуальная технологическая схема", "Individual texnologik sxema", "Custom process scheme", "定制工艺方案"),
+};
+
+/** краткие описания — из ветки «Начать анализ» (analysis/technology) */
+export const TECHNOLOGY_DESCRIPTION: Record<TechnologyCode, L10n> = {
+  CAS: L(
+    "Классическая биологическая очистка активным илом с последующим разделением ила во вторичном отстойнике.",
+    "Faol loyqa bilan klassik biologik tozalash va keyin ikkilamchi tindirgichda loyqani ajratish.",
+    "Conventional biological treatment with activated sludge and secondary clarification.",
+    "以活性污泥进行生物处理，随后在二沉池中泥水分离。"
+  ),
+  MBBR: L(
+    "Биореактор с подвижной загрузкой, на которой развивается прикреплённая биомасса.",
+    "Harakatlanuvchi yuklama ustida biriktirilgan biomassa rivojlanadigan bioreaktor.",
+    "Biofilm reactor with free-moving carriers holding the attached biomass.",
+    "采用悬浮填料附着生物膜的生物反应器。"
+  ),
+  IFAS: L(
+    "Комбинация активного ила и прикреплённой биомассы для повышения эффективности биологической очистки.",
+    "Biologik tozalash samaradorligini oshirish uchun faol loyqa va biriktirilgan biomassa kombinatsiyasi.",
+    "Activated sludge combined with attached biomass to raise biological capacity.",
+    "活性污泥与附着生物膜组合以提高生物处理能力。"
+  ),
+  SBR: L(
+    "Последовательный биологический реактор с циклическим режимом наполнения, аэрации, отстаивания и выпуска.",
+    "To‘ldirish, aeratsiya, tindirish va chiqarish siklidan iborat ketma-ket bioreaktor.",
+    "Sequencing batch reactor cycling through fill, react, settle and decant.",
+    "按进水、曝气、沉淀、排水循环运行的序批式反应器。"
+  ),
+  MBR: L(
+    "Мембранный биореактор, объединяющий биологическую очистку и мембранное разделение.",
+    "Biologik tozalash va membranali ajratishni birlashtirgan bioreaktor.",
+    "Membrane bioreactor combining biological treatment and membrane separation.",
+    "将生物处理与膜分离结合的膜生物反应器。"
+  ),
+  UASB: L(
+    "Анаэробный реактор с восходящим потоком и гранулированной биомассой.",
+    "Yuqoriga oqimli va granulalangan biomassali anaerob reaktor.",
+    "Anaerobic reactor with upflow regime and granular biomass.",
+    "升流式颗粒污泥厌氧反应器。"
+  ),
+  ABR: L(
+    "Последовательный анаэробный реактор с несколькими перегородочными камерами.",
+    "Bir necha to‘siqli kameralardan iborat ketma-ket anaerob reaktor.",
+    "Anaerobic reactor with several baffled compartments in series.",
+    "由多个折流室串联组成的厌氧反应器。"
+  ),
+  AnMBR: L(
+    "Анаэробная биологическая очистка с последующим мембранным разделением.",
+    "Anaerob biologik tozalash va keyin membranali ajratish.",
+    "Anaerobic biological treatment followed by membrane separation.",
+    "厌氧生物处理后接膜分离。"
+  ),
+  ANBR: L(
+    "Анаэробный биореактор с прикреплённой биомассой для органически нагруженных сточных вод.",
+    "Organik yuklamasi yuqori oqova uchun biriktirilgan biomassali anaerob bioreaktor.",
+    "Anaerobic attached-growth reactor for organically loaded wastewater.",
+    "适用于高有机负荷废水的厌氧固定膜反应器。"
+  ),
+  OTHER: L(
+    "Схема, не входящая в типовой перечень; требуется отдельная расчётная модель.",
+    "Tipik ro‘yxatga kirmagan sxema; alohida hisob modeli talab qilinadi.",
+    "Scheme outside the standard list; a dedicated calculation model is required.",
+    "不属于标准清单的方案，需要单独的计算模型。"
+  ),
+};
+
+const TECH_NOT_NORMED = L(
+  `параметры не нормируются ${KMK_2_04_03_19_DOC.code}; принято по DWA-A 131 / практике проектирования`,
+  `parametrlar ${KMK_2_04_03_19_DOC.code} bilan me’yorlanmagan; DWA-A 131 / loyihalash amaliyoti bo‘yicha qabul qilingan`,
+  `parameters are not covered by ${KMK_2_04_03_19_DOC.code}; taken from DWA-A 131 / design practice`,
+  `参数未被 ${KMK_2_04_03_19_DOC.code} 规定；按 DWA-A 131／工程实践取值`
+);
+
+/** короткая подпись источника параметров технологии — идёт в шапку результата и в ведомость */
+export function technologySourceNote(code: TechnologyCode, lang: Language): string {
+  if (code === "CAS") {
+    return (
+      `Аэротенк нормируется ${KMK_2_04_03_19_DOC.code}: время аэрации — ф. (51) ${kmkRef("6.143")} и ф. (54) ${kmkRef("6.144")}, ` +
+      `доза ила — табл. 40, кинетические константы — табл. 41, иловый индекс — табл. 42; ` +
+      `число секций — ${AEROTANK.minSections.ref}; расход воздуха — ф. (70) ${AEROTANK.air.ref}.`
+    );
+  }
+  const base = `${tr(TECHNOLOGY_LABEL[code], lang)}: ${tr(TECH_NOT_NORMED, lang)}.`;
+  const fromKmk = isAnaerobicTechnology(code)
+    ? `Из ${KMK_2_04_03_19_DOC.code} взята только гидравлическая часть (п. 2.7, табл. 2).`
+    : `Из ${KMK_2_04_03_19_DOC.code} взяты гидравлическая часть (п. 2.7, табл. 2) и расход воздуха по ф. (70) п. 6.156.`;
+  return `${base} ${fromKmk}`;
+}
+
+/**
+ * Предупреждения по применимости выбранной технологии к составу стока.
+ * Условия — из ветки «Начать анализ» (analysis/technology/page.tsx,
+ * функция calculateRecommendation); расчёт не блокируется.
+ */
+export function technologyWarnings(ctx: Ctx): string[] {
+  const code = ctx.tech;
+  if (!code || code === "OTHER") return [];
+  const out: string[] = [];
+  const highOrganic = ctx.bod >= 300 || ctx.cod >= 800;
+
+  if (isAnaerobicTechnology(code)) {
+    if (!highOrganic) {
+      out.push(
+        `Органическая нагрузка невысокая (БПК₅ ${f(ctx.bod)} мг/л, ХПК ${f(ctx.cod)} мг/л): анаэробные варианты рассматриваются при БПК ≥ 300 или ХПК ≥ 800 мг/л. ` +
+          `Ниже этих значений ${code} обычно проигрывает аэробной схеме.`
+      );
+    }
+    if (code === "AnMBR" && ctx.cod < 800) {
+      out.push("AnMBR оправдан при ХПК от 800 мг/л; при меньшей нагрузке выход биогаза не окупает мембранный блок.");
+    }
+    if (ctx.tn > 0) {
+      out.push("Для глубокого удаления азота одной анаэробной ступени недостаточно — потребуется аэробная нитри-денитрификация после реактора.");
+    }
+    out.push(
+      "Анаэробную технологию нельзя выбирать только по БПК/ХПК: проверьте биоразлагаемость, температуру, щёлочность, сульфаты, образование биогаза и последующую ступень доочистки."
+    );
+  }
+
+  if (code === "MBR" || code === "AnMBR") {
+    out.push("Отдельно учитываются мембранный поток, загрязнение мембран, режимы промывки (CIP) и эксплуатационные расходы; flux и площадь модуля — по паспорту выбранной мембраны.");
+    if (ctx.fats > ctx.a.greaseTarget) {
+      out.push(
+        `Жиры ${f(ctx.fats)} мг/л выше ${ctx.a.greaseTarget} мг/л, допустимых перед биологией: мембраны быстро зарастают. ` +
+          `Жироудаление до мембранного блока обязательно (EN 1825; в ${KMK_2_04_03_19_DOC.code} жироуловители не нормируются).`
+      );
+    }
+  }
+
+  if (code === "MBBR" || code === "IFAS") {
+    out.push("Заполнение носителями, удельную поверхность и поверхностную нагрузку загрузки требуется заменить паспортными данными выбранного носителя.");
+  }
+
+  if (code === "SBR") {
+    out.push("Цикл, обменный объём, MLSS и SRT приняты предварительно; окончательный подбор ведётся по фактической неравномерности притока и характеристикам декантера.");
+  }
+
+  if (ctx.bod <= 0 || ctx.cod <= 0) {
+    out.push("Для проверки выбора технологии нужны и БПК, и ХПК исходного стока.");
+  }
+
+  return out;
+}
 
 const f = (v: number, d = 0) => v.toLocaleString("ru-RU", { maximumFractionDigits: d });
 
@@ -571,13 +754,60 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
       const air = ctx.air ?? 0;
       const deNitro = ctx.tn > ctx.a.denitroTn;
       const ext = AEROTANK.extendedAeration;
-      /* блочные установки работают в режиме полного окисления (п. 6.175); крупные — как обычные аэротенки (п. 6.156) */
-      const qO = ctx.scale === "compact" ? ext.qO : AEROTANK.air.qO.toBod15_20;
+      /* технология, выбранная инженером; null — автоподбор по расходу и нагрузке */
+      const tech = ctx.tech && ctx.tech !== "OTHER" ? ctx.tech : null;
+      const anaerobic = isAnaerobicTechnology(tech ?? undefined);
+      /* автоподбор в блочном исполнении — полное окисление (п. 6.175);
+         во всех остальных случаях (в том числе при явно выбранной технологии)
+         удельный расход кислорода — по ф. (70) п. 6.156, как в calculations/technology.ts */
+      const qO = !tech && ctx.scale === "compact" ? ext.qO : AEROTANK.air.qO.toBod15_20;
+      const qORef = !tech && ctx.scale === "compact" ? ext.ref : AEROTANK.air.ref;
       const bod5Ratio = ctx.a.bod5Ratio || 0.68;
       const bodFullLoad = ctx.bodLoad / bod5Ratio;
       const o2Kg = bodFullLoad * qO;
+      const techNote = tech ? technologySourceNote(tech, ctx.lang) : "";
 
-      if (ctx.scale === "compact") {
+      if (tech) {
+        /* --- технология задана инженером: состав по calculations/technology.ts --- */
+        const r = ctx.techResult;
+        const metrics = (r?.specialized ?? [])
+          .filter((m) => m.key !== "air" && m.key !== "airPerReactor" && m.key !== "oxygen")
+          .map((m) => `${m.label} ${f(m.value, 2)} ${m.unit}`)
+          .join("; ");
+        items.push({
+          kind: "structure",
+          name: tr(TECHNOLOGY_LABEL[tech], ctx.lang),
+          spec:
+            `рабочий объём ${f(V)} м³` +
+            (r ? ` (гидравлический ${f(r.hydraulic.hydraulicVolume)} м³ при HRT ${r.hydraulic.hrt} ч и запасе +15 %)` : "") +
+            (deNitro && !anaerobic ? `; аноксидная зона ${f((V * ctx.a.denitroShare) / 100)} м³ (${ctx.a.denitroShare} %)` : "") +
+            (metrics ? `; ${metrics}` : "") +
+            `; ${tr(SCALE_LABEL[ctx.scale], ctx.lang)}`,
+          qty: anaerobic
+            ? `по расчёту технологии (число секций ${KMK_2_04_03_19_DOC.code} для анаэробных реакторов не нормирует)`
+            : `не менее ${AEROTANK.minSections.value} секций (${AEROTANK.minSections.ref}; рабочая глубина ${AEROTANK.depthM.value[0]}–${AEROTANK.depthM.value[1]} м)`,
+          supply: ctx.scale === "concrete" ? "supply" : "own",
+          note: `Технология принята инженером. ${techNote}`,
+        });
+
+        /* позиции самой технологии. Исключены: сам реактор (выведен выше),
+           вторичный отстойник (отдельная ступень clarify), а также аэрация,
+           воздуходувки и возвратный ил — они выводятся ниже со ссылками на
+           ҚМҚ 2.04.03-19 (ф. (70) п. 6.156, п. 5.29, п. 5.34, ф. (56) п. 6.145). */
+        const SKIP = /воздуходувк|аэрац|возвратн|реактор|аэротенк|отстойник|биогаз/i;
+        for (const e of (r?.equipment ?? []).filter((e) => !SKIP.test(e.position))) {
+          const structure = /камер|перегородк|ёмкост/i.test(e.position);
+          const instrument = /автоматик|контрол|управлен/i.test(e.position);
+          items.push({
+            kind: instrument ? "instrument" : structure ? "structure" : "machine",
+            name: e.position,
+            spec: `${e.parameter} (${e.status.toLowerCase()})`,
+            qty: e.quantity,
+            supply: "supply",
+            note: tr(TECH_NOT_NORMED, ctx.lang),
+          });
+        }
+      } else if (ctx.scale === "compact") {
         items.push({
           kind: "structure",
           name: "Блочная установка биологической очистки на полное окисление (MBBR/SBR)",
@@ -608,22 +838,54 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
         });
       }
 
-      items.push({
-        kind: "machine",
-        name: "Аэрационная система мелкопузырчатая",
-        spec: `мембранные диспергаторы (дисковые или трубчатые), потребность воздуха ${f(air)} м³/ч; кислород ${f(o2Kg)} кг O₂/сут при q_O = ${qO} мг O₂/мг снятой БПКполн (${ctx.scale === "compact" ? ext.ref : AEROTANK.air.ref}); расход воздуха — ф. (70) п. 6.156`,
-        qty: "комплект по площади дна",
-        supply: "supply",
-      });
-      items.push({
-        kind: "machine",
-        name: ctx.scale === "concrete" ? "Воздуходувки (турбокомпрессоры)" : "Воздуходувки роторные или винтовые",
-        spec: `подача ${f(air)} м³/ч, напор ${ctx.a.blowerPressure} кПа (потери в мелкопузырчатых аэраторах до ${PUMP_STATIONS.diffuserLossKPa.fine} кПа, ${PUMP_STATIONS.diffuserLossKPa.ref}); регулирование частотой по датчику кислорода`,
-        qty: blowerQty(ctx.scale === "concrete" ? 2 : 1),
-        supply: "supply",
-        note: `Воздуходувная станция — ${PUMP_STATIONS.blowerStationCategory.value} категория надёжности электроснабжения (${PUMP_STATIONS.blowerStationCategory.ref}): перерыв подачи воздуха не допускается`,
-      });
-      if (deNitro) {
+      if (!anaerobic) {
+        items.push({
+          kind: "machine",
+          name: "Аэрационная система мелкопузырчатая",
+          spec: `мембранные диспергаторы (дисковые или трубчатые), потребность воздуха ${f(air)} м³/ч; кислород ${f(o2Kg)} кг O₂/сут при q_O = ${qO} мг O₂/мг снятой БПКполн (${qORef}); расход воздуха — ф. (70) п. 6.156`,
+          qty: "комплект по площади дна",
+          supply: "supply",
+          note: tech ? `Расход воздуха получен расчётом технологии ${tech} по ф. (70) п. 6.156` : undefined,
+        });
+        items.push({
+          kind: "machine",
+          name: ctx.scale === "concrete" ? "Воздуходувки (турбокомпрессоры)" : "Воздуходувки роторные или винтовые",
+          spec: `подача ${f(air)} м³/ч, напор ${ctx.a.blowerPressure} кПа (потери в мелкопузырчатых аэраторах до ${PUMP_STATIONS.diffuserLossKPa.fine} кПа, ${PUMP_STATIONS.diffuserLossKPa.ref}); регулирование частотой по датчику кислорода`,
+          qty: blowerQty(ctx.scale === "concrete" ? 2 : 1),
+          supply: "supply",
+          note: `Воздуходувная станция — ${PUMP_STATIONS.blowerStationCategory.value} категория надёжности электроснабжения (${PUMP_STATIONS.blowerStationCategory.ref}): перерыв подачи воздуха не допускается`,
+        });
+      } else {
+        items.push({
+          kind: "machine",
+          name: "Система сбора и отвода биогаза",
+          spec:
+            `газосборные колпаки реактора, гидрозатвор, конденсатоотводчик, счётчик газа` +
+            (ctx.techResult?.specialized.find((m) => m.key === "biogas")
+              ? `; расчётный выход ${f(ctx.techResult.specialized.find((m) => m.key === "biogas")!.value, 1)} Нм³/сут`
+              : ""),
+          qty: "комплект",
+          supply: "supply",
+          note: `Аэрация не требуется — процесс анаэробный, воздуходувной станции нет. Анаэробные реакторы ${KMK_2_04_03_19_DOC.code} не нормирует; газовый тракт выполняется по правилам промышленной безопасности для горючих газов`,
+        });
+        items.push({
+          kind: "machine",
+          name: "Факел (свеча рассеивания) с огнепреградителем",
+          spec: "аварийное сжигание биогаза при отсутствии потребителя; продувка азотом при пуске",
+          qty: "1",
+          supply: "supply",
+          note: tr(TECH_NOT_NORMED, ctx.lang),
+        });
+        items.push({
+          kind: "machine",
+          name: "Насосы рециркуляции и подачи в реактор",
+          spec: "поддержание восходящей скорости и перемешивания слоя биомассы; регулирование частотным преобразователем",
+          qty: pumpQty(1),
+          supply: "supply",
+          note: `Возвратного активного ила в анаэробной схеме нет — биомасса удерживается в реакторе (гранулы, перегородки или мембрана)`,
+        });
+      }
+      if (deNitro && !anaerobic) {
         items.push({
           kind: "machine",
           name: "Мешалки аноксидной зоны и насосы рециркуляции нитратной смеси",
@@ -632,21 +894,27 @@ export function equipmentFor(stage: StageKey, ctx: Ctx): Item[] {
           supply: "supply",
         });
       }
-      items.push({
-        kind: "machine",
-        name: "Насосы возвратного активного ила",
-        spec: `рециркуляция ила ${ctx.a.sludgeReturn} % — ${f((ctx.Qh * ctx.a.sludgeReturn) / 100, 1)} м³/ч (R = a/(1000/J − a), ${AEROTANK.recirculation.ref}; не менее ${AEROTANK.recirculation.minGravity * 100} % при самотёчном удалении ила)`,
-        qty: pumpQty(1),
-        supply: "supply",
-      });
+      if (!anaerobic) {
+        items.push({
+          kind: "machine",
+          name: "Насосы возвратного активного ила",
+          spec:
+            `рециркуляция ила ${ctx.a.sludgeReturn} % — ${f((ctx.Qh * ctx.a.sludgeReturn) / 100, 1)} м³/ч (R = a/(1000/J − a), ${AEROTANK.recirculation.ref}; не менее ${AEROTANK.recirculation.minGravity * 100} % при самотёчном удалении ила)` +
+            (tech === "SBR" || tech === "MBR" ? "; в схеме без вторичного отстойника — внутренняя рециркуляция иловой смеси на тот же расход" : ""),
+          qty: pumpQty(1),
+          supply: "supply",
+        });
+      }
       items.push({
         kind: "instrument",
         name: "Контроль процесса",
-        spec: "датчики растворённого кислорода, дозы ила (MLSS), температуры" + (deNitro ? ", нитратов и ОВП" : ""),
+        spec: anaerobic
+          ? "датчики pH, ОВП, температуры, уровня; контроль щёлочности и ЛЖК, анализ состава биогаза (CH₄, H₂S), газоанализатор в помещении"
+          : "датчики растворённого кислорода, дозы ила (MLSS), температуры" + (deNitro ? ", нитратов и ОВП" : ""),
         qty: "комплект",
         supply: "supply",
       });
-      if (ctx.bod > 0 && ctx.tn > 0 && ctx.bod / Math.max(ctx.tn, 1) < ctx.a.bodTnRatio) {
+      if (!anaerobic && ctx.bod > 0 && ctx.tn > 0 && ctx.bod / Math.max(ctx.tn, 1) < ctx.a.bodTnRatio) {
         items.push({
           kind: "machine",
           name: "Станция дозирования органического субстрата",

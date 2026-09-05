@@ -46,3 +46,6 @@ next-env.d.ts
 /oprosnye-listy/
 
 /tender-leads/
+
+# выгрузки и патчи от Claude — не часть сайта
+/Claude outputs/

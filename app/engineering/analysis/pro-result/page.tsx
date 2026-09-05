@@ -13,10 +13,25 @@ import {
   type StageKey,
 } from "../industry/industries";
 import { chainForDischarge, findDischarge } from "../industry/targets";
-import { t, ui } from "../industry/i18n";
-import type { UiStrings } from "../industry/i18n";
+import { L, t, ui } from "../industry/i18n";
+import type { L10n, UiStrings } from "../industry/i18n";
 import { useLanguage } from "../../../LanguageContext";
-import { SCALE_LABEL, commonEquipment, equipmentFor, peakHourly, scaleOf, type Ctx, type Item } from "../industry/equipment";
+import {
+  SCALE_LABEL,
+  TECHNOLOGY_CHOICES,
+  TECHNOLOGY_DESCRIPTION,
+  TECHNOLOGY_LABEL,
+  commonEquipment,
+  equipmentFor,
+  isAnaerobicTechnology,
+  peakHourly,
+  scaleOf,
+  technologySourceNote,
+  technologyWarnings,
+  type Ctx,
+  type Item,
+} from "../industry/equipment";
+import { calculateTechnology, type TechnologyCode } from "../../../../calculations/technology";
 import {
   AEROTANK,
   DISINFECTION,
@@ -54,6 +69,38 @@ const ACCENT = "#3ec3e6";
 const FAINT = "#8fa6b1";
 
 const KEY_ORDER: PollutantKey[] = ["cod", "bod", "ss", "fats", "petro", "tn", "tp", "surf"];
+
+/* ------------------------------------------------------------------
+ * ТЕХНОЛОГИЯ БИОБЛОКА ИЗ URL (?tech=CAS|MBBR|IFAS|SBR|MBR|UASB|ABR|AnMBR)
+ * Отсутствует или auto — автоподбор по расходу и нагрузке, как раньше.
+ * ------------------------------------------------------------------ */
+
+function parseTech(raw: string | null): TechnologyCode | null {
+  const v = (raw || "").trim().toLowerCase();
+  if (!v || v === "auto") return null;
+  return TECHNOLOGY_CHOICES.find((code) => code.toLowerCase() === v) ?? null;
+}
+
+/* локальные строки страницы: i18n.ts правится параллельно, поэтому новые
+   ключи держим здесь, тем же приёмом, что SCALE_LABEL в equipment.ts */
+const TX = {
+  techTitle: L("Технология биологической очистки", "Biologik tozalash texnologiyasi", "Biological treatment technology", "生物处理工艺"),
+  techByEngineer: L("выбрана инженером", "muhandis tanlagan", "selected by the engineer", "由工程师选定"),
+  techByAuto: L("автоподбор по расходу и нагрузке", "sarf va yuklama bo‘yicha avtotanlov", "auto-selected by flow and load", "按流量与负荷自动选取"),
+  techAuto: L(
+    "Технология биоблока не задана — принят автоподбор: объём по объёмной нагрузке БПК, воздух по ф. (70) п. 6.156, в блочном исполнении — полное окисление (пп. 6.175–6.179).",
+    "Bioblok texnologiyasi berilmagan — avtotanlov qabul qilindi: hajm BPK bo‘yicha hajmiy yuklamadan, havo (70)-formula 6.156-band bo‘yicha, blokli bajarilishda — to‘liq oksidlanish (6.175–6.179-bandlar).",
+    "No bio-block technology was set, so automatic selection applies: volume from the volumetric BOD load, air by formula (70) cl. 6.156, and full oxidation (cl. 6.175–6.179) for packaged units.",
+    "未指定生物段工艺，采用自动选型：容积按 BOD 容积负荷，供气按 6.156 条式(70)，一体化设备按完全氧化（6.175–6.179 条）。"
+  ),
+  techWarnings: L("Проверьте применимость", "Qo‘llanilishini tekshiring", "Check the applicability", "请复核适用性"),
+  techNoAir: L(
+    "Аэрация не требуется: процесс анаэробный, воздуходувная станция в составе сооружений не предусмотрена.",
+    "Aeratsiya talab qilinmaydi: jarayon anaerob, havo puflagich stansiyasi ko‘zda tutilmagan.",
+    "No aeration required: the process is anaerobic and no blower station is included.",
+    "无需曝气：厌氧工艺，不设鼓风机房。"
+  ),
+} satisfies Record<string, L10n>;
 
 /* целевые показатели берутся из точки сброса (industry/targets.ts);
    значения из ТУ/НДС, введённые проектировщиком, имеют приоритет */
@@ -173,6 +220,8 @@ function ProResultContent() {
   const hours = Math.min(24, Math.max(1, parseFloat(sp.get("hours") || "16") || 16));
   const ph = parseFloat(sp.get("ph") || "7") || 7;
 
+  const tech = parseTech(sp.get("tech"));
+
   const discharge = findDischarge(sp.get("out") || "sewer");
   const TARGET: Partial<Record<PollutantKey, number>> = { ...(discharge?.targets ?? {}) };
   const customTu = sp.get("tu") === "1";
@@ -203,14 +252,45 @@ function ProResultContent() {
     const fats = c.fats ?? 0;
     const petro = c.petro ?? 0;
     const tn = c.tn ?? 0;
+    const tp = c.tp ?? 0;
 
     const bodLoad = (Q * bod) / 1000;           // кг БПК/сут
     const stages: StageCalc[] = [];
 
+    /* ---------- технология биоблока ----------
+       Если инженер выбрал технологию, объём и воздух берутся из
+       calculations/technology.ts — того же модуля, что считал ветку
+       «Начать анализ». Иначе остаётся прежний автоподбор. */
+    const techResult = tech
+      ? calculateTechnology({
+          technology: tech,
+          flowM3Day: Q,
+          hoursPerDay: hours,
+          bodMgL: bod,
+          codMgL: cod,
+          tssMgL: ss,
+          nitrogenMgL: tn,
+          phosphorusMgL: tp,
+        })
+      : null;
+    const techAir = techResult?.specialized.find((m) => m.key === "air") ?? null;
+    const techVolumeMetric = techResult?.specialized.find((m) => m.key === "volume") ?? null;
+
     /* величины, нужные библиотеке оборудования */
     const vAvg = (Q * (hours >= 20 ? a.avgHoursLong : a.avgHoursShort)) / 24;
-    const vBio = bodLoad / a.bodVolLoad;
-    const airH = (bodLoad * a.airPerBod) / 24;
+    /*
+     * Объём биоблока должен удовлетворять обоим условиям сразу: времени
+     * пребывания (гидравлика) и органической нагрузке. Метрика "volume"
+     * в calculations/technology.ts уже сама берёт максимум из гидравлического
+     * объёма, объёма по органике и объёма по загрузке; сравниваем её с
+     * гидравлическим объёмом с запасом и принимаем больший — занижать
+     * определяющий объём нельзя.
+     */
+    const vBio = techResult
+      ? Math.max(techResult.hydraulic.volumeWithReserve, techVolumeMetric?.value ?? 0)
+      : bodLoad / a.bodVolLoad;
+    /* воздух, Нм³/ч: у анаэробных технологий метрики air нет — аэрация не нужна */
+    const airH = techResult ? (techAir?.value ?? 0) : (bodLoad * a.airPerBod) / 24;
     const dryKg = (Q * ss * a.sludgeFromSs) / 1000 + bodLoad * a.sludgeFromBod;
     const scale = scaleOf(Q, a);
 
@@ -220,7 +300,18 @@ function ProResultContent() {
       dischargeId: discharge?.id ?? "sewer",
       bod, cod, ss, fats, petro, tn, bodLoad,
       vAvg, vBio, air: airH, dryKg, a, lang: language,
+      tech: tech ?? undefined,
+      techResult: techResult ?? undefined,
     };
+
+    const techWarnings = technologyWarnings(ctx);
+    if (techResult && techVolumeMetric && techVolumeMetric.value > techResult.hydraulic.volumeWithReserve) {
+      techWarnings.unshift(
+        `Объём биоблока определён органической нагрузкой: ${fmt(techVolumeMetric.value)} м³ ` +
+          `против ${fmt(techResult.hydraulic.volumeWithReserve)} м³ по времени пребывания с запасом. ` +
+          `В расчёт принят больший — ${fmt(vBio)} м³.`
+      );
+    }
 
     const chain = chainForDischarge(industry.chain, discharge, industry.id);
     const peak = peakHourly({ Q, Qh, a });
@@ -293,16 +384,45 @@ function ProResultContent() {
           break;
         }
         case "bio": {
-          const vLoad = a.bodVolLoad;
-          const V = bodLoad / vLoad;
-          const air = bodLoad * a.airPerBod;
           const qEq = bod > 0 ? (Q * bod) / a.domesticBod : Q;
           const ext = AEROTANK.extendedAeration;
-          s.sizing.push(
-            `Нагрузка ${fmt(bodLoad, 1)} кг БПК₅/сут (${fmt(bodLoad / (a.bod5Ratio || 0.68), 1)} кг БПКполн/сут); объёмная нагрузка ${vLoad} кг/м³·сут (продлённая аэрация: ρ = ${ext.rho} мг/(г·ч), доза ила ${ext.doseGL[0]}–${ext.doseGL[1]} г/л, ${ext.ref}) → объём биоблока ≈ ${fmt(V)} м³.`,
-            `Воздух на аэрацию ≈ ${fmt(air)} м³/сут (${fmt(air / 24, 1)} м³/ч) — удельный расход по ф. (70) ${AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")}.`,
-            tn > a.denitroTn ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).` : `Азот умеренный — классическая аэрация.`
-          );
+          if (techResult && tech) {
+            const anaerobic = isAnaerobicTechnology(tech);
+            s.sizing.push(
+              `Технология принята инженером: ${t(TECHNOLOGY_LABEL[tech], language)}. ${t(TECHNOLOGY_DESCRIPTION[tech], language)}`,
+              `Нагрузка ${fmt(techResult.loads.bod, 1)} кг БПК₅/сут и ${fmt(techResult.loads.cod, 1)} кг ХПК/сут; ` +
+                `расчётный расход ${fmt(techResult.hydraulic.qWorking, 1)} м³/ч в рабочее время, максимальный часовой ${fmt(techResult.hydraulic.qPeak, 1)} м³/ч.`,
+              `Гидравлический объём при HRT ${techResult.hydraulic.hrt} ч — ${fmt(techResult.hydraulic.hydraulicVolume)} м³; принято с запасом +15 % → ${fmt(techResult.hydraulic.volumeWithReserve)} м³.`
+            );
+            const rest = techResult.specialized.filter((m) => m.key !== "air" && m.key !== "airPerReactor");
+            if (rest.length) {
+              s.sizing.push(`Расчёт технологии: ${rest.map((m) => `${m.label} ${fmt(m.value, 2)} ${m.unit}`).join("; ")}.`);
+            }
+            s.sizing.push(
+              anaerobic
+                ? t(TX.techNoAir, language)
+                : `Воздух на аэрацию ≈ ${fmt(airH, 1)} Нм³/ч (${fmt(airH * 24)} Нм³/сут) — по ф. (70) ${AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")}.`
+            );
+            if (!anaerobic) {
+              s.sizing.push(
+                tn > a.denitroTn
+                  ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).`
+                  : `Азот умеренный — классическая аэрация.`
+              );
+            }
+            s.sizing.push(technologySourceNote(tech, language));
+            for (const line of techResult.assumptions) s.sizing.push(line);
+            s.extra = techWarnings.length ? `${t(TX.techWarnings, language)}: ${techWarnings.join(" ")}` : undefined;
+          } else {
+            const vLoad = a.bodVolLoad;
+            const V = bodLoad / vLoad;
+            const air = bodLoad * a.airPerBod;
+            s.sizing.push(
+              `Нагрузка ${fmt(bodLoad, 1)} кг БПК₅/сут (${fmt(bodLoad / (a.bod5Ratio || 0.68), 1)} кг БПКполн/сут); объёмная нагрузка ${vLoad} кг/м³·сут (продлённая аэрация: ρ = ${ext.rho} мг/(г·ч), доза ила ${ext.doseGL[0]}–${ext.doseGL[1]} г/л, ${ext.ref}) → объём биоблока ≈ ${fmt(V)} м³.`,
+              `Воздух на аэрацию ≈ ${fmt(air)} м³/сут (${fmt(air / 24, 1)} м³/ч) — удельный расход по ф. (70) ${AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")}.`,
+              tn > a.denitroTn ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).` : `Азот умеренный — классическая аэрация.`
+            );
+          }
           const p = pickModel("bio-plants", "qd", qEq);
           if (p) s.picks.push({ ...p, note: `эквивалент ${fmt(qEq)} м³/сут по хозбытовому стоку` });
           break;
@@ -390,8 +510,10 @@ function ProResultContent() {
       civil, area, pipes, power, szz,
       norms: kmkClausesFor(chain),
       civilList: civilItems(civil, a),
+      tech, techResult, techWarnings, vBio, air: airH,
+      hasBio: chainHas("bio"),
     };
-  }, [industry, Q, hours, ph, c, discharge, a]);
+  }, [industry, Q, hours, ph, c, discharge, a, tech, language]);
 
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
@@ -452,6 +574,20 @@ function ProResultContent() {
       })),
       common: calc.common.map((it) => ({ name: it.name, spec: it.spec, qty: it.qty, supply: it.supply, note: it.note })),
       scale: t(SCALE_LABEL[calc.scale], language),
+      tech: calc.hasBio
+        ? {
+            code: calc.tech ?? "auto",
+            name: calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language),
+            chosenBy: calc.tech ? "engineer" : "auto",
+            description: calc.tech ? t(TECHNOLOGY_DESCRIPTION[calc.tech], language) : t(TX.techAuto, language),
+            source: calc.tech ? technologySourceNote(calc.tech, language) : `Автоподбор; ${AEROTANK.extendedAeration.ref} и ф. (70) ${AEROTANK.air.ref}.`,
+            volumeM3: calc.vBio,
+            airNm3h: calc.air,
+            aerobic: !isAnaerobicTechnology(calc.tech ?? undefined),
+            assumptions: calc.techResult?.assumptions ?? [],
+            warnings: calc.techWarnings,
+          }
+        : undefined,
       civil: {
         basins: calc.civil.basins.map((b) => ({ name: b.name, volume: b.volume, L: b.L, B: b.B, H: b.Hfull })),
         concrete: calc.civil.concrete,
@@ -588,6 +724,13 @@ function ProResultContent() {
         <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
           {U.scaleLine}: <b>{t(SCALE_LABEL[calc.scale], language)}</b>.
         </p>
+        {calc.hasBio && (
+          <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
+            {t(TX.techTitle, language)}:{" "}
+            <b>{calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language)}</b>
+            {calc.tech && <span style={{ color: FAINT }}> — {t(TX.techByEngineer, language)}</span>}.
+          </p>
+        )}
         {discharge && (
           <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
             {U.dischargeTo}: <b>{t(discharge.name, language)}</b>. {U.targetsFrom} — {customTu ? U.byYourTu : t(discharge.source, language)}.
@@ -628,6 +771,46 @@ function ProResultContent() {
                 <b>{t(spec.label, language)}</b> ({spec.range[0]}–{spec.range[1]} {t(spec.unit, language)}): {t(spec.note, language)}
               </p>
             ))}
+          </div>
+        )}
+
+        {/* ТЕХНОЛОГИЯ БИОБЛОКА */}
+        {calc.hasBio && (
+          <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, marginBottom: 24 }}>
+            <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>{t(TX.techTitle, language)}</div>
+            {calc.tech ? (
+              <>
+                <p style={{ fontSize: 14, margin: "0 0 6px" }}>
+                  <b>{t(TECHNOLOGY_LABEL[calc.tech], language)}</b>{" "}
+                  <span style={{ color: FAINT, fontSize: 12 }}>— {t(TX.techByEngineer, language)}</span>
+                </p>
+                <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
+                  {t(TECHNOLOGY_DESCRIPTION[calc.tech], language)}
+                </p>
+                <p style={{ fontSize: 13, margin: "0 0 8px", lineHeight: 1.6 }}>
+                  Объём биоблока <b>{fmt(calc.vBio)}</b> м³ и{" "}
+                  {isAnaerobicTechnology(calc.tech) ? (
+                    <>{t(TX.techNoAir, language).toLowerCase()}</>
+                  ) : (
+                    <>расход воздуха <b>{fmt(calc.air, 1)}</b> Нм³/ч</>
+                  )}{" "}
+                  приняты по расчёту выбранной технологии; на эти величины опираются спецификация, объёмы строительных работ, трубопроводы, площадь и электрика.
+                </p>
+                <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>
+                  {technologySourceNote(calc.tech, language)}
+                </p>
+              </>
+            ) : (
+              <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.6 }}>{t(TX.techAuto, language)}</p>
+            )}
+            {calc.techWarnings.length > 0 && (
+              <div style={{ marginTop: 14, border: "1px solid rgba(255,183,77,0.4)", background: "rgba(255,183,77,0.06)", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>{t(TX.techWarnings, language)}</div>
+                {calc.techWarnings.map((w, i) => (
+                  <p key={i} style={{ fontSize: 12.5, lineHeight: 1.6, margin: "0 0 6px" }}>• {w}</p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

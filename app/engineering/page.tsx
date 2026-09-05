@@ -23,8 +23,6 @@ type EngineeringText = {
   label: string;
   placeholder: string;
   analyzeButton: string;
-  heroIndustryButton: string;
-  industryButton: string;
   industryHint: string;
   formHint: string;
   disclaimer: string;
@@ -36,7 +34,7 @@ const T: Record<Language, EngineeringText> = {
     titleLine1: "Инженерное решение",
     titleLine2: "для очистки сточных вод",
     lead: "Вы даёте исходные данные об объекте. Мы помогаем определить производительность, технологическую схему и состав оборудования ещё до начала полноценного проектирования.",
-    startButton: "Начать анализ",
+    startButton: "Начать расчёт",
     noteRight: "Предварительное инженерное решение",
     nodes: [
       { title: "Исходные данные", sub: "объект / расход / нагрузка" },
@@ -65,12 +63,9 @@ const T: Record<Language, EngineeringText> = {
     label: "Что вы проектируете?",
     placeholder:
       "Например: гостиница на 300 человек, расход сточных вод около 50 м³/сутки...",
-    analyzeButton: "Проанализировать",
-    heroIndustryButton: "Расчёт по отрасли",
-    industryButton:
-      "Производственный объект — выбрать отрасль",
+    analyzeButton: "Перейти к исходным данным",
     industryHint:
-      "Для заводов и производств: 27 отраслей со справочником загрязнений, расчёт ступеней очистки, подбор оборудования, чертежи DXF и техническая записка.",
+      "Один расчёт для любого объекта: справочник отраслей и хозбытовые нормы по ҚМҚ 2.04.03-19, точка сброса и целевые показатели, выбор технологии, расчёт ступеней, спецификация оборудования, чертежи DXF и техническая записка.",
     formHint: "Результат будет предварительным",
     disclaimer:
       "Предварительный результат не является рабочим проектом. Окончательные технологические решения принимаются после проверки исходных данных инженером.",
@@ -81,7 +76,7 @@ const T: Record<Language, EngineeringText> = {
     titleLine1: "Oqava suvlarni tozalash uchun",
     titleLine2: "muhandislik yechimi",
     lead: "Siz obyekt bo‘yicha dastlabki ma’lumotlarni berasiz. Biz to‘liq loyihalash boshlanmasidan oldin unumdorlik, texnologik sxema va uskunalar tarkibini aniqlashga yordam beramiz.",
-    startButton: "Tahlilni boshlash",
+    startButton: "Hisobni boshlash",
     noteRight: "Dastlabki muhandislik yechimi",
     nodes: [
       { title: "Dastlabki ma’lumotlar", sub: "obyekt / sarf / yuklama" },
@@ -110,12 +105,9 @@ const T: Record<Language, EngineeringText> = {
     label: "Siz nimani loyihalayapsiz?",
     placeholder:
       "Masalan: 300 kishilik mehmonxona, oqava suv sarfi taxminan 50 m³/sutka...",
-    analyzeButton: "Tahlil qilish",
-    heroIndustryButton: "Tarmoq bo‘yicha hisob",
-    industryButton:
-      "Ishlab chiqarish obyekti — tarmoqni tanlash",
+    analyzeButton: "Dastlabki ma’lumotlarga o‘tish",
     industryHint:
-      "Zavod va ishlab chiqarish uchun: 27 tarmoq ifloslanishlar ma’lumotnomasi bilan, tozalash bosqichlari hisobi, uskuna tanlovi, DXF chizmalar va texnik yozuv.",
+      "Har qanday obyekt uchun yagona hisob: tarmoqlar ma’lumotnomasi va ҚМҚ 2.04.03-19 bo‘yicha maishiy me’yorlar, chiqarish nuqtasi va maqsadli ko‘rsatkichlar, texnologiya tanlovi, bosqichlar hisobi, uskunalar spetsifikatsiyasi, DXF chizmalar va texnik yozuv.",
     formHint: "Natija dastlabki bo‘ladi",
     disclaimer:
       "Dastlabki natija ishchi loyiha hisoblanmaydi. Yakuniy texnologik yechimlar dastlabki ma’lumotlar muhandis tomonidan tekshirilgandan so‘ng qabul qilinadi.",
@@ -126,7 +118,7 @@ const T: Record<Language, EngineeringText> = {
     titleLine1: "An engineering solution",
     titleLine2: "for wastewater treatment",
     lead: "You provide the input data for your site. We help determine the capacity, the process flow diagram and the equipment list before full design work begins.",
-    startButton: "Start analysis",
+    startButton: "Start calculation",
     noteRight: "Preliminary engineering solution",
     nodes: [
       { title: "Input data", sub: "site / flow / load" },
@@ -155,12 +147,9 @@ const T: Record<Language, EngineeringText> = {
     label: "What are you designing?",
     placeholder:
       "For example: a hotel for 300 people, wastewater flow about 50 m³/day...",
-    analyzeButton: "Analyse",
-    heroIndustryButton: "Calculate by industry",
-    industryButton:
-      "Industrial site — choose the industry",
+    analyzeButton: "Go to input data",
     industryHint:
-      "For plants and factories: 27 industries with a pollutant reference, treatment-stage sizing, equipment selection, DXF drawings and a technical note.",
+      "One calculation for any site: an industry reference and domestic norms to ҚМҚ 2.04.03-19, discharge point and target values, technology selection, stage sizing, equipment schedule, DXF drawings and a technical note.",
     formHint: "The result will be preliminary",
     disclaimer:
       "A preliminary result is not a working design. Final process decisions are made after an engineer has verified the input data.",
@@ -171,7 +160,7 @@ const T: Record<Language, EngineeringText> = {
     titleLine1: "污水处理的",
     titleLine2: "工程解决方案",
     lead: "您提供项目的原始数据。我们在正式设计开始之前，帮助确定处理能力、工艺流程和设备配置。",
-    startButton: "开始分析",
+    startButton: "开始计算",
     noteRight: "初步工程方案",
     nodes: [
       { title: "原始数据", sub: "项目 / 流量 / 负荷" },
@@ -199,12 +188,9 @@ const T: Record<Language, EngineeringText> = {
       "您不需要掌握专业术语。用自己的话描述项目即可 — 工程系统会帮助整理原始数据。",
     label: "您正在设计什么？",
     placeholder: "例如：可容纳 300 人的酒店，污水流量约 50 m³/天……",
-    analyzeButton: "进行分析",
-    heroIndustryButton: "按行业计算",
-    industryButton:
-      "工业项目 — 选择行业",
+    analyzeButton: "进入原始数据",
     industryHint:
-      "面向工厂：27 个行业的污染物手册、处理段计算、设备选型、DXF 图纸与技术说明书。",
+      "任何项目统一计算：行业手册与 ҚМҚ 2.04.03-19 生活污水定额、排放点与目标指标、工艺选择、处理段计算、设备清单、DXF 图纸与技术说明书。",
     formHint: "结果为初步方案",
     disclaimer:
       "初步结果不构成施工图设计。最终工艺方案需在工程师核实原始数据后确定。",
@@ -247,30 +233,22 @@ export default function EngineeringPage() {
     }, 100);
   };
 
+  /*
+   * Единый маршрут расчёта. Прежние две ветки («анализ» с ручным вводом и
+   * «расчёт по отрасли») объединены: шаг исходных данных сам спрашивает,
+   * откуда брать состав стока — из справочника отрасли, по числу жителей
+   * (табл. 3 ҚМҚ 2.04.03-19) или из лабораторного анализа, — и позволяет
+   * задать технологию биологической очистки либо подобрать её автоматически.
+   */
   const handleAnalyze = () => {
     if (!project.trim()) {
       alert(t.emptyAlert);
       return;
     }
 
-    /*
-     * Пока сохраняем введённое описание и
-     * переходим на страницу выбора параметров.
-     */
     const query = new URLSearchParams();
 
     query.set("object", project.trim());
-
-    router.push(`/engineering/analysis/flow?${query.toString()}`);
-  };
-
-  /* производственная ветка: выбор отрасли и справочник загрязнений */
-  const handleIndustry = () => {
-    const query = new URLSearchParams();
-
-    if (project.trim()) {
-      query.set("object", project.trim());
-    }
 
     router.push(`/engineering/analysis/industry?${query.toString()}`);
   };
@@ -320,15 +298,6 @@ export default function EngineeringPage() {
                 className={styles.primaryButton}
               >
                 {t.startButton}
-                <span className={styles.arrow}>→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleIndustry}
-                className={styles.secondaryButton}
-              >
-                {t.heroIndustryButton}
                 <span className={styles.arrow}>→</span>
               </button>
 
@@ -443,15 +412,6 @@ export default function EngineeringPage() {
                   className={styles.primaryButton}
                 >
                   {t.analyzeButton}
-                  <span>→</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleIndustry}
-                  className={styles.secondaryButton}
-                >
-                  {t.industryButton}
                   <span>→</span>
                 </button>
 
