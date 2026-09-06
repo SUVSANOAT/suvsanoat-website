@@ -26,6 +26,7 @@ import {
 } from "../../../../calculations/network";
 import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
 import {
+  dwgInfo,
   nodesFromPolyline,
   parseDxfSurvey,
   type ParsedDxf,
@@ -110,6 +111,26 @@ function NetworkPageContent() {
   async function onFile(file: File) {
     setFileError("");
     setFileName(file.name);
+    const lower = file.name.toLowerCase();
+
+    /* DWG распознаём по заголовку, а не по расширению: файл могли
+       переименовать. Читать его нечем, но сказать, что именно
+       приложили и как сохранить DXF, обязаны. */
+    if (lower.endsWith(".dwg") || lower.endsWith(".dxf")) {
+      const head = new Uint8Array(await file.slice(0, 8).arrayBuffer().catch(() => new ArrayBuffer(0)));
+      const info = dwgInfo(head);
+      if (info.isDwg) {
+        setDxf(null);
+        setProblems([]);
+        setFileError(
+          `Это DWG (${info.version}, метка ${info.signature}). DWG — закрытый двоичный формат Autodesk, прочитать его напрямую нельзя. ` +
+            "В AutoCAD: «Файл → Сохранить как → Файлы DXF (*.dxf)», версия «AutoCAD 2013 DXF» или «AutoCAD R12 DXF», тип — ASCII. " +
+            "В NanoCAD и ZWCAD путь тот же. Сохранение занимает несколько секунд, чертёж не меняется.",
+        );
+        return;
+      }
+    }
+
     const raw = await file.text().catch(() => "");
     if (!raw) {
       setFileError("Файл не прочитался. KMZ и DWG — не текстовые: KMZ распакуйте и приложите doc.kml, а съёмку сохраните из CAD как «DXF (ASCII)».");
@@ -290,12 +311,16 @@ function NetworkPageContent() {
           ) : (
             <>
               <p style={hint}>
-                Приложите DXF топографической съёмки. Программа возьмёт из него точки с высотами
+                Приложите файл топографической съёмки. Программа возьмёт из него точки с высотами
                 (POINT, подписи отметок текстом, горизонтали) и снимет отметку земли в каждом
                 колодце по ближайшим точкам. Трасса берётся из полилинии — выберите её ниже.
-                Двоичный DXF и DWG не читаются: сохраните из CAD как «DXF (ASCII)».
+                <br />
+                <b style={{ color: "#b7cbd3" }}>Формат: DXF (ASCII).</b> DWG приложить можно — программа
+                его опознает и назовёт версию, но прочитать не сможет: это закрытый двоичный формат
+                Autodesk. Из AutoCAD, NanoCAD или ZWCAD сохраните «Файл → Сохранить как → DXF», это
+                несколько секунд и чертёж не меняется.
               </p>
-              <FilePick accept=".dxf" label="Выбрать файл DXF" name={fileName} onPick={onFile} />
+              <FilePick accept=".dxf,.dwg" label="Выбрать файл съёмки" name={fileName} onPick={onFile} />
 
               {dxf && (
                 <div style={{ marginTop: 16 }}>

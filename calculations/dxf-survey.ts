@@ -41,6 +41,37 @@ export type ParsedDxf = {
   problems: string[];
 };
 
+/* ------------------------------------------------------------------
+ * DWG: РАСПОЗНАЁМ ВЕРСИЮ, НО НЕ ЧИТАЕМ
+ *
+ * DWG — закрытый двоичный формат Autodesk. Без сторонней библиотеки
+ * его не разобрать, поэтому здесь честно определяется только версия по
+ * первым шести байтам заголовка, чтобы сказать человеку, что именно он
+ * приложил и что с этим делать. Молча отказываться нельзя: файл
+ * выглядит рабочим, и пользователь будет думать, что виноват он.
+ * ------------------------------------------------------------------ */
+const DWG_VERSIONS: Record<string, string> = {
+  AC1009: "AutoCAD R12",
+  AC1012: "AutoCAD R13",
+  AC1014: "AutoCAD R14",
+  AC1015: "AutoCAD 2000–2002",
+  AC1018: "AutoCAD 2004–2006",
+  AC1021: "AutoCAD 2007–2009",
+  AC1024: "AutoCAD 2010–2012",
+  AC1027: "AutoCAD 2013–2017",
+  AC1032: "AutoCAD 2018 и новее",
+};
+
+export type DwgInfo = { isDwg: boolean; signature: string; version: string };
+
+/** Определение DWG и его версии по заголовку файла. */
+export function dwgInfo(head: Uint8Array): DwgInfo {
+  let sig = "";
+  for (let i = 0; i < Math.min(6, head.length); i += 1) sig += String.fromCharCode(head[i]);
+  const isDwg = /^AC10\d\d$/.test(sig);
+  return { isDwg, signature: sig, version: DWG_VERSIONS[sig] ?? (isDwg ? "версия не опознана" : "") };
+}
+
 /** пары «код — значение» из ASCII DXF */
 function pairs(text: string): { code: number; value: string }[] {
   const lines = text.split(/\r?\n/);
