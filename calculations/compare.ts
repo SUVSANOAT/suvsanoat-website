@@ -38,9 +38,20 @@ import {
  *  анаэробные (UASB, ABR, ANBR) нельзя: у них другая задача, другое
  *  качество на выходе и после них всё равно нужна аэробная доочистка,
  *  поэтому «сравнение» с ними было бы подтасовкой. */
-export const COMPARABLE: readonly TechnologyCode[] = ["CAS", "SBR", "MBBR", "IFAS", "MBR"] as const;
+/* Аннотацию `readonly TechnologyCode[]` ставить нельзя: тогда
+   (typeof COMPARABLE)[number] раскрывается во ВЕСЬ союз кодов
+   технологий, и Record<CompareCode, …> начинает требовать UASB, ABR и
+   прочие, которых в сравнении нет. Список объявлен `as const`, а
+   принадлежность к TechnologyCode проверяется отдельной строкой ниже —
+   она ничего не делает во время работы, но не даст опечатке пройти
+   сборку. */
+export const COMPARABLE = ["CAS", "SBR", "MBBR", "IFAS", "MBR"] as const;
 
 export type CompareCode = (typeof COMPARABLE)[number];
+
+/** проверка на этапе компиляции: все коды сравнения существуют в расчёте */
+const _codesExist: readonly TechnologyCode[] = COMPARABLE;
+void _codesExist;
 
 export const COMPARE_NAMES: Record<CompareCode, string> = {
   CAS: "Классический аэротенк",

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
@@ -17,16 +16,8 @@ type EngineeringText = {
   noteRight: string;
   trustLabel: string;
   cards: { title: string; text: string }[];
-  stepLabel: string;
-  formTitle: string;
-  formText: string;
-  label: string;
-  placeholder: string;
-  analyzeButton: string;
   industryHint: string;
-  formHint: string;
   disclaimer: string;
-  emptyAlert: string;
 };
 
 const T: Record<Language, EngineeringText> = {
@@ -51,20 +42,10 @@ const T: Record<Language, EngineeringText> = {
         text: "Показываем, почему выбран конкретный вариант технологии, производительности и оборудования.",
       },
     ],
-    stepLabel: "ШАГ 01 / ИСХОДНЫЕ ДАННЫЕ",
-    formTitle: "Расскажите о вашем объекте",
-    formText:
-      "Не обязательно знать специальные термины. Опишите объект своими словами — инженерная система поможет структурировать исходные данные.",
-    label: "Что вы проектируете?",
-    placeholder:
-      "Например: гостиница на 300 человек, расход сточных вод около 50 м³/сутки...",
-    analyzeButton: "Перейти к исходным данным",
     industryHint:
       "Один расчёт для любого объекта: справочник отраслей и хозбытовые нормы по ҚМҚ 2.04.03-19, точка сброса и целевые показатели, выбор технологии, расчёт ступеней, спецификация оборудования, чертежи DXF и техническая записка.",
-    formHint: "Результат будет предварительным",
     disclaimer:
       "Предварительный результат не является рабочим проектом. Окончательные технологические решения принимаются после проверки исходных данных инженером.",
-    emptyAlert: "Пожалуйста, опишите ваш объект.",
   },
 
   uz: {
@@ -88,20 +69,10 @@ const T: Record<Language, EngineeringText> = {
         text: "Aynan shu texnologiya, unumdorlik va uskunalar varianti nima uchun tanlanganini ko‘rsatamiz.",
       },
     ],
-    stepLabel: "01-BOSQICH / DASTLABKI MA’LUMOTLAR",
-    formTitle: "Obyektingiz haqida ma’lumot bering",
-    formText:
-      "Maxsus atamalarni bilish shart emas. Obyektni o‘z so‘zlaringiz bilan tasvirlang — muhandislik tizimi dastlabki ma’lumotlarni tuzishga yordam beradi.",
-    label: "Siz nimani loyihalayapsiz?",
-    placeholder:
-      "Masalan: 300 kishilik mehmonxona, oqava suv sarfi taxminan 50 m³/sutka...",
-    analyzeButton: "Dastlabki ma’lumotlarga o‘tish",
     industryHint:
       "Har qanday obyekt uchun yagona hisob: tarmoqlar ma’lumotnomasi va ҚМҚ 2.04.03-19 bo‘yicha maishiy me’yorlar, chiqarish nuqtasi va maqsadli ko‘rsatkichlar, texnologiya tanlovi, bosqichlar hisobi, uskunalar spetsifikatsiyasi, DXF chizmalar va texnik yozuv.",
-    formHint: "Natija dastlabki bo‘ladi",
     disclaimer:
       "Dastlabki natija ishchi loyiha hisoblanmaydi. Yakuniy texnologik yechimlar dastlabki ma’lumotlar muhandis tomonidan tekshirilgandan so‘ng qabul qilinadi.",
-    emptyAlert: "Iltimos, obyektingizni tasvirlab bering.",
   },
 
   en: {
@@ -125,20 +96,10 @@ const T: Record<Language, EngineeringText> = {
         text: "We show why this particular technology, capacity and equipment option was selected.",
       },
     ],
-    stepLabel: "STEP 01 / INPUT DATA",
-    formTitle: "Tell us about your site",
-    formText:
-      "You do not need to know the technical terms. Describe the site in your own words — the engineering system will help structure the input data.",
-    label: "What are you designing?",
-    placeholder:
-      "For example: a hotel for 300 people, wastewater flow about 50 m³/day...",
-    analyzeButton: "Go to input data",
     industryHint:
       "One calculation for any site: an industry reference and domestic norms to ҚМҚ 2.04.03-19, discharge point and target values, technology selection, stage sizing, equipment schedule, DXF drawings and a technical note.",
-    formHint: "The result will be preliminary",
     disclaimer:
       "A preliminary result is not a working design. Final process decisions are made after an engineer has verified the input data.",
-    emptyAlert: "Please describe your site.",
   },
 
   zh: {
@@ -162,19 +123,10 @@ const T: Record<Language, EngineeringText> = {
         text: "我们说明为什么选择这一特定的工艺、处理能力和设备方案。",
       },
     ],
-    stepLabel: "第 01 步 / 原始数据",
-    formTitle: "请介绍您的项目",
-    formText:
-      "您不需要掌握专业术语。用自己的话描述项目即可 — 工程系统会帮助整理原始数据。",
-    label: "您正在设计什么？",
-    placeholder: "例如：可容纳 300 人的酒店，污水流量约 50 m³/天……",
-    analyzeButton: "进入原始数据",
     industryHint:
       "任何项目统一计算：行业手册与 ҚМҚ 2.04.03-19 生活污水定额、排放点与目标指标、工艺选择、处理段计算、设备清单、DXF 图纸与技术说明书。",
-    formHint: "结果为初步方案",
     disclaimer:
       "初步结果不构成施工图设计。最终工艺方案需在工程师核实原始数据后确定。",
-    emptyAlert: "请描述您的项目。",
   },
 };
 
@@ -183,41 +135,11 @@ export default function EngineeringPage() {
   const { language } = useLanguage();
   const t = T[language];
 
-  const [started, setStarted] = useState(false);
-  const [project, setProject] = useState("");
-
-  const formRef = useRef<HTMLElement | null>(null);
-
-  const handleStart = () => {
-    setStarted(true);
-
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 100);
-  };
-
-  /*
-   * Единый маршрут расчёта. Прежние две ветки («анализ» с ручным вводом и
-   * «расчёт по отрасли») объединены: шаг исходных данных сам спрашивает,
-   * откуда брать состав стока — из справочника отрасли, по числу жителей
-   * (табл. 3 ҚМҚ 2.04.03-19) или из лабораторного анализа, — и позволяет
-   * задать технологию биологической очистки либо подобрать её автоматически.
-   */
-  const handleAnalyze = () => {
-    if (!project.trim()) {
-      alert(t.emptyAlert);
-      return;
-    }
-
-    const query = new URLSearchParams();
-
-    query.set("object", project.trim());
-
-    router.push(`/engineering/analysis/industry?${query.toString()}`);
-  };
+  /* Свободного описания объекта на этой странице больше нет.
+     Оно требовало от человека пересказать словами то, что мастер
+     расчёта всё равно спрашивает по пунктам: расход, состав стока,
+     точку сброса. Лишний шаг между «Начать расчёт» и первым полем
+     ничего не добавлял, поэтому кнопка ведёт прямо в мастер. */
 
   return (
     <main className={styles.page}>
@@ -258,10 +180,18 @@ export default function EngineeringPage() {
 
           <p className={styles.lead}>{t.lead}</p>
 
+          {/* Главная кнопка ведёт прямо в мастер расчёта.
+              Раньше она разворачивала форму описания объекта внизу
+              страницы и прокручивала к ней — но первый экран теперь
+              закреплённая сцена из восьми этапов, и «прокрутка вниз»
+              означает не переход к форме, а пролистывание всей
+              анимации. Кто нажал «Начать расчёт», хочет считать, а не
+              смотреть. Форма описания словами осталась — ссылкой
+              ниже, для тех, у кого нет цифр, а есть только объект. */}
           <div className={styles.actions}>
             <button
               type="button"
-              onClick={handleStart}
+              onClick={() => router.push("/engineering/analysis/industry")}
               className={styles.primaryButton}
             >
               {t.startButton}
@@ -270,6 +200,7 @@ export default function EngineeringPage() {
 
             <AccountBar variant="hero" buttonClass={styles.ghostButton} />
           </div>
+
 
           <AccountNote className={styles.note} />
 
@@ -301,54 +232,17 @@ export default function EngineeringPage() {
         </div>
       </section>
 
-      {/* FORM / STEP 01 */}
-      {started && (
-        <section ref={formRef} className={styles.formSection}>
-          <div className={styles.containerSmall}>
-            <div className={styles.formHeader}>
-              <div className={styles.sectionLabel}>{t.stepLabel}</div>
+      {/* ЧТО ДАЛЬШЕ — пояснение маршрута и оговорка о статусе результата */}
+      <section className={styles.trustSection}>
+        <div className={styles.containerSmall}>
+          <p className={styles.formHint} style={{ display: "block" }}>
+            {t.industryHint}
+          </p>
 
-              <h2>{t.formTitle}</h2>
+          <p className={styles.disclaimer}>{t.disclaimer}</p>
+        </div>
+      </section>
 
-              <p>{t.formText}</p>
-            </div>
-
-            <div className={styles.formCard}>
-              <label htmlFor="project" className={styles.label}>
-                {t.label}
-              </label>
-
-              <textarea
-                id="project"
-                rows={6}
-                value={project}
-                onChange={(event) => setProject(event.target.value)}
-                placeholder={t.placeholder}
-                className={styles.textarea}
-              />
-
-              <div className={styles.formFooter}>
-                <button
-                  type="button"
-                  onClick={handleAnalyze}
-                  className={styles.primaryButton}
-                >
-                  {t.analyzeButton}
-                  <span>→</span>
-                </button>
-
-                <span className={styles.formHint}>{t.formHint}</span>
-              </div>
-            </div>
-
-            <p className={styles.formHint} style={{ marginTop: 14, display: "block" }}>
-              {t.industryHint}
-            </p>
-
-            <p className={styles.disclaimer}>{t.disclaimer}</p>
-          </div>
-        </section>
-      )}
     </main>
   );
 }
