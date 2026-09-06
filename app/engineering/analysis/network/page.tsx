@@ -1,0 +1,339 @@
+"use client";
+
+/* ==================================================================
+ * ГИДРАВЛИЧЕСКИЙ РАСЧЁТ САМОТЁЧНОЙ СЕТИ — СТРАНИЦА ПРОЕКТИРОВЩИКА
+ *
+ * Проектировщик кладёт трассу: вставляет таблицу узлов из Excel или
+ * прикладывает KML из Google Earth. Программа считает участки по
+ * ҚМҚ 2.04.03-19 и показывает ведомость сразу на экране; ведомость в
+ * Excel собирается на сервере тем же кодом.
+ *
+ * Расчёт идёт в браузере, чтобы правка отметки пересчитывала таблицу
+ * мгновенно, — но файл, который уйдёт в экспертизу, собирается на
+ * сервере и считается там заново. Числа в документе не должны зависеть
+ * от того, что происходило на странице.
+ * ================================================================== */
+
+import { CSSProperties, useMemo, useRef, useState } from "react";
+import {
+  calculateNetwork,
+  type ElevSource,
+  type NetworkInput,
+  type NetworkLink,
+  type NetworkNode,
+} from "../../../../calculations/network";
+import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
+
+const SAMPLE = `Колодец;Отметка земли;Жители;Течёт в
+К-1;100.0;300;К-2
+К-2;98.2;300;К-3
+К-3;96.4;300;К-4
+К-4;94.6;300;К-5
+К-5;92.8;300;К-6
+К-6;91.0;300;К-7
+К-7;89.2;0;`;
+
+type Mode = "table" | "kml";
+
+export default function NetworkPage() {
+  const [mode, setMode] = useState<Mode>("table");
+  const [text, setText] = useState("");
+  const [nodes, setNodes] = useState<NetworkNode[]>([]);
+  const [links, setLinks] = useState<NetworkLink[]>([]);
+  const [problems, setProblems] = useState<string[]>([]);
+  const [elevSource, setElevSource] = useState<ElevSource>("survey");
+  const [category, setCategory] = useState<NetworkInput["category"]>("town-under-50k");
+  const [startDepth, setStartDepth] = useState("1.5");
+  const [busy, setBusy] = useState(false);
+  const [fileError, setFileError] = useState("");
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const outfallId = nodes.length ? nodes[nodes.length - 1].id : "";
+
+  const input: NetworkInput | null = useMemo(() => {
+    if (nodes.length < 2 || !links.length) return null;
+    return {
+      nodes,
+      links,
+      outfallId,
+      category,
+      elevSource,
+      startDepthM: Number(startDepth.replace(",", ".")) || undefined,
+    };
+  }, [nodes, links, outfallId, category, elevSource, startDepth]);
+
+  const result = useMemo(() => (input ? calculateNetwork(input) : null), [input]);
+
+  function loadText(raw: string, kind: Mode) {
+    const parsed = kind === "kml" ? parseKml(raw) : parseNodeTable(raw);
+    setNodes(parsed.nodes);
+    setLinks(parsed.links);
+    setProblems(parsed.problems);
+    if (kind === "kml") setElevSource(parsed.elevFromFile ? "google" : "assumed");
+  }
+
+  async function onFile(file: File) {
+    setFileError("");
+    const raw = await file.text().catch(() => "");
+    if (!raw) {
+      setFileError("Файл не прочитался. KMZ — это архив: распакуйте его и приложите doc.kml.");
+      return;
+    }
+    setText(raw.slice(0, 200000));
+    loadText(raw, file.name.toLowerCase().endsWith(".kml") ? "kml" : "table");
+    setMode(file.name.toLowerCase().endsWith(".kml") ? "kml" : "table");
+  }
+
+  async function downloadXlsx() {
+    if (!input) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const res = await fetch("/api/network-xlsx", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Не удалось собрать ведомость.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "SUVSANOAT_vedomost_seti.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setFileError("Сервер не ответил. Проверьте соединение и попробуйте ещё раз.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main style={page}>
+      <div style={container}>
+        <div style={eyebrow}>НАРУЖНЫЕ СЕТИ</div>
+        <h1 style={title}>
+          Гидравлический расчёт
+          <br />
+          самотёчной канализации
+        </h1>
+        <p style={lead}>
+          Положите трассу — таблицу колодцев из Excel или путь из Google Earth. Программа посчитает
+          расходы по участкам, подберёт диаметры и уклоны, выведет отметки лотков и глубины по
+          ҚМҚ 2.04.03-19 и соберёт ведомость расчёта.
+        </p>
+
+        {/* ВВОД */}
+        <section style={card}>
+          <div style={tabs}>
+            <button type="button" onClick={() => setMode("table")} style={mode === "table" ? tabOn : tab}>
+              Таблица колодцев
+            </button>
+            <button type="button" onClick={() => setMode("kml")} style={mode === "kml" ? tabOn : tab}>
+              KML из Google Earth
+            </button>
+          </div>
+
+          {mode === "table" ? (
+            <>
+              <p style={hint}>
+                Вставьте таблицу прямо из Excel. Нужны столбцы «Колодец» и «Отметка земли»;
+                «Жители», «Сосредоточенный расход», «X», «Y» и «Течёт в» — по желанию. Если столбца
+                «Течёт в» нет, участки строятся по порядку строк, сверху вниз по трассе.
+              </p>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onBlur={() => text.trim() && loadText(text, "table")}
+                placeholder={SAMPLE}
+                rows={10}
+                style={textarea}
+              />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button type="button" style={ghost} onClick={() => { setText(SAMPLE); loadText(SAMPLE, "table"); }}>
+                  Подставить пример
+                </button>
+                <button type="button" style={ghost} onClick={() => text.trim() && loadText(text, "table")}>
+                  Прочитать таблицу
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={hint}>
+                В Google Earth проведите трассу инструментом «Путь», сохраните как KML и приложите
+                файл. Из него читаются координаты и, если путь сохранён с привязкой к рельефу,
+                высоты. KMZ — это архив: распакуйте и приложите doc.kml.
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".kml,.csv,.txt"
+                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+                style={{ color: "#b7cbd3", fontSize: 14 }}
+              />
+            </>
+          )}
+
+          {problems.length > 0 && (
+            <ul style={problemList}>
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          )}
+
+          {nodes.length > 0 && (
+            <p style={{ ...hint, color: "#9fd6b4" }}>
+              Прочитано: {nodes.length} колодцев, {links.length} участков
+              {traceLength(nodes) > 0 ? `, длина трассы ${traceLength(nodes)} м` : ""}. Конечная точка —{" "}
+              {outfallId}.
+            </p>
+          )}
+        </section>
+
+        {/* ПАРАМЕТРЫ */}
+        <section style={card}>
+          <div style={sectionTitle}>ПАРАМЕТРЫ РАСЧЁТА</div>
+          <div style={grid}>
+            <label style={field}>
+              <span style={fieldLabel}>Категория населённого пункта (табл. 3)</span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as NetworkInput["category"])}
+                style={inputStyle}
+              >
+                <option value="town-under-50k">города и посёлки до 50 тыс. чел.</option>
+                <option value="city-under-100k">города до 100 тыс. чел.</option>
+                <option value="city-over-100k">города свыше 100 тыс. чел.</option>
+              </select>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Источник отметок</span>
+              <select value={elevSource} onChange={(e) => setElevSource(e.target.value as ElevSource)} style={inputStyle}>
+                <option value="survey">топографическая съёмка</option>
+                <option value="google">рельеф Google Earth</option>
+                <option value="assumed">приняты условно</option>
+              </select>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Начальная глубина лотка, м</span>
+              <input value={startDepth} onChange={(e) => setStartDepth(e.target.value)} inputMode="decimal" style={inputStyle} />
+            </label>
+          </div>
+        </section>
+
+        {/* РЕЗУЛЬТАТ */}
+        {result && (
+          <>
+            {result.warnings.map((w) => (
+              <div key={w} style={warnBox}>
+                {w}
+              </div>
+            ))}
+
+            <section style={card}>
+              <div style={sectionTitle}>ВЕДОМОСТЬ ГИДРАВЛИЧЕСКОГО РАСЧЁТА</div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={table}>
+                  <thead>
+                    <tr>
+                      {["Участок", "L, м", "Q расч, л/с", "K", "DN, мм", "i", "v, м/с", "H/D", "Лоток н, м", "Лоток к, м", "Глубина к, м", "Перепад, м"].map((h) => (
+                        <th key={h} style={th}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.segments.map((s) => (
+                      <tr key={`${s.from}-${s.to}`}>
+                        <td style={tdLeft}>
+                          {s.from} — {s.to}
+                          {s.warnings.length > 0 && <div style={segWarn}>{s.warnings.join(" ")}</div>}
+                        </td>
+                        <td style={td}>{s.lengthM}</td>
+                        <td style={td}>{s.qCalcLps}</td>
+                        <td style={td}>{s.kMax}</td>
+                        <td style={td}>{s.dnMm}</td>
+                        <td style={td}>{s.slope.toFixed(4)}</td>
+                        <td style={{ ...td, color: s.velocity < s.vMinRequired ? "#ffcf8a" : "#e7eef1" }}>
+                          {s.velocity.toFixed(2)}
+                        </td>
+                        <td style={td}>{s.fill.toFixed(2)}</td>
+                        <td style={td}>{s.invertStart.toFixed(2)}</td>
+                        <td style={td}>{s.invertEnd.toFixed(2)}</td>
+                        <td style={{ ...td, color: s.depthEnd > 6 ? "#ffcf8a" : "#e7eef1" }}>{s.depthEnd.toFixed(2)}</td>
+                        <td style={td}>{s.dropM > 0 ? s.dropM.toFixed(2) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={totalsRow}>
+                <span>
+                  Расход в конечной точке: <b>{result.totalCalcLps} л/с</b> ({result.totalM3Day} м³/сут)
+                </span>
+                <span>
+                  Наибольшая глубина: <b>{result.maxDepthM} м</b> в {result.maxDepthAt}
+                </span>
+              </div>
+
+              <button type="button" style={primary} onClick={downloadXlsx} disabled={busy}>
+                {busy ? "Собираю ведомость…" : "Скачать ведомость в Excel"}
+              </button>
+              {fileError && <span style={{ color: "#ff9d8a", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
+            </section>
+
+            <section style={card}>
+              <div style={sectionTitle}>ЧТО ПРИНЯТО И НА КАКОМ ОСНОВАНИИ</div>
+              <ul style={notes}>
+                {result.assumptions.map((a) => (
+                  <li key={a} style={{ marginBottom: 8 }}>
+                    {a}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
+
+/* ---------------------------- стили ---------------------------- */
+
+const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
+const container: CSSProperties = { width: "min(1250px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
+const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
+const title: CSSProperties = { fontSize: "clamp(30px, 5vw, 52px)", lineHeight: 1.1, margin: "18px 0 0" };
+const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "#8ca4ad", fontSize: 17, lineHeight: 1.7 };
+const card: CSSProperties = { background: "#081b24", border: "1px solid #1c3742", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
+const hint: CSSProperties = { color: "#8ca4ad", fontSize: 13.5, lineHeight: 1.7, marginTop: 0 };
+const tabs: CSSProperties = { display: "flex", gap: 8, marginBottom: 16 };
+const tab: CSSProperties = { background: "transparent", border: "1px solid #1c3742", color: "#8ca4ad", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" };
+const tabOn: CSSProperties = { ...tab, borderColor: "#2a5b68", color: "#5fb6c9", background: "#06151d" };
+const textarea: CSSProperties = { width: "100%", background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" };
+const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 };
+const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
+const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12 };
+const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
+const table: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
+const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
+const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 130 };
+const segWarn: CSSProperties = { color: "#ffcf8a", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
+const totalsRow: CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", color: "#b7cbd3", fontSize: 14, margin: "18px 0" };
+const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
+const problemList: CSSProperties = { marginTop: 14, paddingLeft: 18, color: "#ffcf8a", fontSize: 13, lineHeight: 1.6 };
+const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
