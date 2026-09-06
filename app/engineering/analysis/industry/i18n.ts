@@ -70,6 +70,10 @@ export const UI = {
     "每个行业均预置了典型污染物与工艺流程。有化验数据可直接填写；没有则采用规范与行业手册的参考值。"
   ),
   backToInput: L("Назад к исходным данным", "Boshlang‘ich ma’lumotlarga qaytish", "Back to input data", "返回原始数据"),
+  btnNoteDocx: L("Записка в Word", "Izohnoma Word’da", "Design note in Word", "Word 说明书"),
+  btnNoteDocxBusy: L("Собираю документ…", "Hujjat tayyorlanmoqda…", "Assembling the document…", "正在生成文件…"),
+  btnSpecXlsx: L("Спецификация и объёмы в Excel", "Spetsifikatsiya va hajmlar Excel’da", "Schedule and quantities in Excel", "Excel 清单与工程量"),
+  btnSpecXlsxBusy: L("Собираю книгу…", "Kitob tayyorlanmoqda…", "Building the workbook…", "正在生成工作簿…"),
   tzSection: L("ТЕХНИЧЕСКОЕ ЗАДАНИЕ ИЛИ ТЕХНИЧЕСКИЕ УСЛОВИЯ", "TEXNIK TOPSHIRIQ YOKI TEXNIK SHARTLAR", "DESIGN BRIEF OR UTILITY CONDITIONS", "设计任务书或接管技术条件"),
   tzLead: L(
     "Приложите ТЗ заказчика, технические условия водоканала или протокол анализа — PDF, скан или фотографию. Что найдётся в документе, подставится в анкету; спросим только недостающее. К каждому значению будет показана цитата из документа, чтобы вы могли его проверить.",
@@ -124,6 +128,49 @@ export const UI = {
   flowPerDay: L("Расход, м³/сут", "Sarf, m³/kun", "Flow, m³/day", "流量，m³/日"),
   workHours: L("Работа объекта, часов/сут", "Obyekt ish vaqti, soat/kun", "Operating time, hours/day", "运行时间，小时/日"),
   industryHint: L("Подсказка по отрасли", "Tarmoq bo‘yicha maslahat", "Typical for this industry", "该行业参考值"),
+
+  /* --- расчётная температура сточной воды ---
+     Две разные величины: среднегодовая определяет ОБЪЁМ биологии
+     (ф. (51)/(54) даны для 15 °C, поправка 15/T_w — п. 6.143 прим.),
+     летняя определяет ВОЗДУХ (K_T по ф. (71) п. 6.156 и растворимость
+     кислорода по табл. 44). Подписи разведены, чтобы проектировщик не
+     ввёл одно и то же число в оба поля. */
+  tempSection: L(
+    "РАСЧЁТНАЯ ТЕМПЕРАТУРА СТОЧНОЙ ВОДЫ",
+    "OQOVA SUVNING HISOBIY HARORATI",
+    "DESIGN WASTEWATER TEMPERATURE",
+    "废水计算温度"
+  ),
+  tempAnnual: L(
+    "Среднегодовая, °C",
+    "O‘rtacha yillik, °C",
+    "Annual average, °C",
+    "年平均，°C"
+  ),
+  tempSummer: L(
+    "Среднемесячная летняя, °C",
+    "Yozgi o‘rtacha oylik, °C",
+    "Summer monthly average, °C",
+    "夏季月平均，°C"
+  ),
+  tempHint: L(
+    "Среднегодовая температура задаёт объём биологии: время аэрации по ҚМҚ 2.04.03-19 п. 6.143 (прим.) дано для 15 °C, при более холодном стоке оно умножается на 15/T_w — при 12 °C объём растёт на четверть, при 10 °C — в полтора раза. Летняя температура задаёт расход воздуха (п. 6.156, ф. (71), растворимость кислорода — табл. 44). Без фактического замера температуры зимой сооружение, посчитанное «по лету», рискует не выйти на нитрификацию. Биология работает при 6–30 °C (п. 6.2).",
+    "O‘rtacha yillik harorat biologiya hajmini belgilaydi: ҚМҚ 2.04.03-19 6.143-band (izoh) bo‘yicha aeratsiya vaqti 15 °C uchun berilgan, sovuqroq oqovada u 15/T_w ga ko‘paytiriladi — 12 °C da hajm chorakka, 10 °C da bir yarim baravar ortadi. Yozgi harorat havo sarfini belgilaydi (6.156-band, (71)-formula; kislorod eruvchanligi — 44-jadval). Qishki haroratni o‘lchamasdan «yozga qarab» hisoblangan inshoot nitrifikatsiyaga chiqmasligi mumkin. Biologiya 6–30 °C da ishlaydi (6.2-band).",
+    "The annual average temperature governs the biological volume: the aeration time in ҚМҚ 2.04.03-19 cl. 6.143 (note) is given for 15 °C and is multiplied by 15/T_w for colder wastewater — at 12 °C the volume grows by a quarter, at 10 °C by half again. The summer temperature governs the air demand (cl. 6.156, formula (71); oxygen solubility — table 44). Without an actual winter measurement, a plant sized “for summer” may fail to nitrify in winter. Biology works between 6 and 30 °C (cl. 6.2).",
+    "年平均温度决定生物段容积：ҚМҚ 2.04.03-19 第 6.143 条（注）的曝气时间按 15 °C 给出，水温更低时乘以 15/T_w —— 12 °C 时容积增加四分之一，10 °C 时增加一半。夏季温度决定供气量（第 6.156 条、式(71)；溶解氧按表 44）。若无冬季实测温度，按“夏季”计算的构筑物冬季可能无法硝化。生物处理适用于 6–30 °C（第 6.2 条）。"
+  ),
+  tempRegime: L(
+    "Расчётный температурный режим",
+    "Hisobiy harorat rejimi",
+    "Design temperature regime",
+    "计算温度工况"
+  ),
+  tempWinterTitle: L(
+    "ОБЪЁМ БИОЛОГИИ ОПРЕДЕЛЯЕТ ЗИМНИЙ РЕЖИМ",
+    "BIOLOGIYA HAJMINI QISHKI REJIM BELGILAYDI",
+    "THE WINTER REGIME GOVERNS THE BIOLOGICAL VOLUME",
+    "生物段容积由冬季工况控制"
+  ),
   dischargeSection: L("КУДА УХОДИТ ОЧИЩЕННАЯ ВОДА", "TOZALANGAN SUV QAYERGA BORADI", "WHERE THE TREATED WATER GOES", "出水去向"),
   dischargeLead: L(
     "Точка сброса определяет глубину очистки — от неё зависит, нужны ли доочистка и обеззараживание, и какие целевые показатели закладываются в расчёт.",
@@ -661,6 +708,35 @@ export const BIO_TECHNOLOGIES: BioTechnology[] = [
     ),
   },
 ];
+
+/* ==================================================================
+ * ТЕМПЕРАТУРА: СТРОКИ С ЧИСЛАМИ
+ *
+ * В UI лежат только неизменные подписи; строки, в которые
+ * подставляются числа, собираются отдельно — порядок слов в узбекском
+ * и китайском другой, и склейкой из кусков его не получить. Числа
+ * приходят уже отформатированными по локали.
+ * ================================================================== */
+
+/** строка «расчётный температурный режим» в карточке технологии */
+export function tempRegimeLine(annual: string, summer: string, factor: string): L10n {
+  return L(
+    `среднегодовая ${annual} °C, летняя ${summer} °C, поправка 15/T_w = ${factor}`,
+    `o‘rtacha yillik ${annual} °C, yozgi ${summer} °C, tuzatish 15/T_w = ${factor}`,
+    `annual average ${annual} °C, summer ${summer} °C, correction 15/T_w = ${factor}`,
+    `年平均 ${annual} °C，夏季 ${summer} °C，修正系数 15/T_w = ${factor}`
+  );
+}
+
+/** предупреждение: объём биологии определён зимой, а не летом */
+export function tempWinterWarning(annual: string, factor: string): L10n {
+  return L(
+    `Объём биологической ступени определяет зимний режим: при расчётной среднегодовой температуре ${annual} °C он увеличен в ${factor} раза против базовых 15 °C (${KMK_2_04_03_19_DOC.code} п. 6.143, прим.). Если фактических замеров температуры стока зимой нет, это допущение — его нужно подтвердить замерами до рабочего проектирования.`,
+    `Biologik bosqich hajmini qishki rejim belgilaydi: hisobiy o‘rtacha yillik harorat ${annual} °C bo‘lganda u asosiy 15 °C ga nisbatan ${factor} baravar oshirilgan (${KMK_2_04_03_19_DOC.code} 6.143-band, izoh). Qishda oqova harorati o‘lchanmagan bo‘lsa, bu — taxmin, ishchi loyihalashdan oldin o‘lchov bilan tasdiqlanishi kerak.`,
+    `The winter regime governs the biological volume: at a design annual average temperature of ${annual} °C it is increased ${factor} times against the base 15 °C (${KMK_2_04_03_19_DOC.code} cl. 6.143, note). Without actual winter measurements of the wastewater temperature this remains an assumption and must be confirmed by measurement before detailed design.`,
+    `生物段容积由冬季工况控制：计算年平均水温 ${annual} °C 时，容积较基准 15 °C 增大 ${factor} 倍（${KMK_2_04_03_19_DOC.code} 第 6.143 条注）。若无冬季废水温度实测数据，该取值仅为假定，须在施工图设计前经实测确认。`
+  );
+}
 
 export type UiStrings = Record<keyof typeof UI, string>;
 

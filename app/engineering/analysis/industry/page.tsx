@@ -16,6 +16,7 @@ import {
 import { DISCHARGES, findDischarge } from "./targets";
 import { filledCount, hasAnything, type Extracted, type FieldSource, type TzExtract } from "./tz-extract";
 import { MEMBRANE_TECHNOLOGIES } from "./equipment";
+import { DEFAULT_ASSUMPTIONS } from "../../../../lib/assumptions";
 import type { TechnologyCode } from "../../../../calculations/technology";
 import { BIO_TECHNOLOGIES, L, t, ui } from "./i18n";
 import type { L10n, UiStrings } from "./i18n";
@@ -266,6 +267,13 @@ function IndustryContent() {
   const [additionalPercent, setAdditionalPercent] = useState("0");
   const [tech, setTech] = useState<string>(DEFAULT_TECH);
   const [hours, setHours] = useState("16");
+  /* Расчётная температура сточной воды. Два разных числа: среднегодовая
+     определяет объём биологии (поправка 15/T_w, п. 6.143 прим.), летняя —
+     расход воздуха (K_T ф. (71) п. 6.156, растворимость O₂ табл. 44).
+     Значения по умолчанию — из справочника коэффициентов, чтобы цифра
+     стояла в одном месте и была подписана главным инженером. */
+  const [tAnnual, setTAnnual] = useState(String(DEFAULT_ASSUMPTIONS.waterTempAnnual));
+  const [tSummer, setTSummer] = useState(String(DEFAULT_ASSUMPTIONS.waterTempSummer));
   const [values, setValues] = useState<Record<string, string>>({});
   const [ph, setPh] = useState("");
   const [discharge, setDischarge] = useState<string>("sewer");
@@ -625,6 +633,10 @@ function IndustryContent() {
     params.set("lab", hasLab ? "1" : "0");
     params.set("flow", String(q));
     params.set("hours", hours);
+    /* температура уходит в расчёт двумя отдельными параметрами: годовая
+       определяет объём биологии, летняя — воздух; смешивать их нельзя */
+    params.set("tAnnual", tAnnual);
+    params.set("tSummer", tSummer);
     for (const key of KEY_ORDER) {
       if (values[key] !== undefined) params.set(key, values[key]);
     }
@@ -1196,6 +1208,39 @@ function IndustryContent() {
                     )}
                   </p>
                 )}
+
+                {/* РАСЧЁТНАЯ ТЕМПЕРАТУРА СТОЧНОЙ ВОДЫ
+                    Стоит рядом с расходом: это второе исходное число, от
+                    которого зависит габарит сооружения. Годовая — объём
+                    биологии, летняя — воздух; поля разведены намеренно. */}
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${LINE}` }}>
+                  <div style={{ fontSize: 12, letterSpacing: "0.08em", color: FAINT, marginBottom: 10 }}>
+                    {U.tempSection}
+                  </div>
+                  <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+                    <label style={{ fontSize: 13, color: FAINT }}>
+                      {U.tempAnnual}
+                      <input
+                        value={tAnnual}
+                        onChange={(event) => setTAnnual(event.target.value)}
+                        inputMode="decimal"
+                        style={{ ...inputStyle, width: 140 }}
+                      />
+                    </label>
+                    <label style={{ fontSize: 13, color: FAINT }}>
+                      {U.tempSummer}
+                      <input
+                        value={tSummer}
+                        onChange={(event) => setTSummer(event.target.value)}
+                        inputMode="decimal"
+                        style={{ ...inputStyle, width: 140 }}
+                      />
+                    </label>
+                  </div>
+                  <p style={{ fontSize: 11, color: "#6f8792", margin: "10px 0 0", lineHeight: 1.6, maxWidth: 820 }}>
+                    {U.tempHint}
+                  </p>
+                </div>
               </div>
 
               {/* КУДА СБРАСЫВАЕМ */}

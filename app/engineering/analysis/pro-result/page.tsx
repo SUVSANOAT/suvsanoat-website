@@ -13,7 +13,7 @@ import {
   type StageKey,
 } from "../industry/industries";
 import { chainForDischarge, findDischarge } from "../industry/targets";
-import { L, t, ui } from "../industry/i18n";
+import { L, t, tempRegimeLine, tempWinterWarning, ui } from "../industry/i18n";
 import type { L10n, UiStrings } from "../industry/i18n";
 import type { Language } from "../../../translations";
 import { useLanguage } from "../../../LanguageContext";
@@ -177,6 +177,20 @@ const TX = {
     "(ma’lumot uchun, ҚМҚ me’yorlamaydi)",
     "(for reference; not codified by ҚМҚ)",
     "（供参考，ҚМҚ 未作规定）"
+  ),
+
+  /* --- отказы при скачивании документов --- */
+  fileFailed: L(
+    "Не удалось собрать документ. Попробуйте ещё раз.",
+    "Hujjatni tayyorlab bo‘lmadi. Qayta urinib ko‘ring.",
+    "The document could not be assembled. Please try again.",
+    "文件生成失败，请重试。"
+  ),
+  fileNoServer: L(
+    "Нет связи с сервером.",
+    "Server bilan aloqa yo‘q.",
+    "No connection to the server.",
+    "无法连接服务器。"
   ),
 
   /* --- записка собрана по шаблону, а не ИИ --- */
@@ -670,6 +684,15 @@ function ProResultContent() {
   const hours = Math.min(24, Math.max(1, parseFloat(sp.get("hours") || "16") || 16));
   const ph = parseFloat(sp.get("ph") || "7") || 7;
 
+  /* Расчётная температура сточной воды из анкеты. Два разных числа:
+     среднегодовая задаёт объём биологии (время аэрации по ф. (51)/(54)
+     дано для 15 °C, поправка 15/T_w — п. 6.143 прим.), летняя задаёт
+     воздух (K_T ф. (71) п. 6.156, растворимость O₂ табл. 44). Не
+     переданы — calculateTechnology принимает 15 и 20 °C, то есть
+     поведение прежних ссылок не меняется. */
+  const tAnnualC = numParam(sp.get("tAnnual"));
+  const tSummerC = numParam(sp.get("tSummer"));
+
   /* ---------- технология биоблока и требование мембранной очистки ----------
      Требование действует по умолчанию (norms/uz-membrane-requirement.ts).
      Инженер может снять его осознанно — тогда форма передаёт mbrWaiver=1
@@ -733,6 +756,8 @@ function ProResultContent() {
           tssMgL: ss,
           nitrogenMgL: tn,
           phosphorusMgL: tp,
+          waterTempAnnualC: tAnnualC,
+          waterTempSummerC: tSummerC,
         })
       : null;
     const techAir = techResult?.specialized.find((m) => m.key === "air") ?? null;
@@ -1108,7 +1133,7 @@ function ProResultContent() {
       clarifyDropped, clarifyDropText,
       hasBio: chainHas("bio"),
     };
-  }, [industry, Q, hours, ph, c, discharge, a, tech, techParam, techByRequirement, mbrWaiver, language]);
+  }, [industry, Q, hours, ph, c, discharge, a, tech, techParam, techByRequirement, mbrWaiver, language, tAnnualC, tSummerC]);
 
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
@@ -1184,6 +1209,9 @@ function ProResultContent() {
   }, [drawingInput, a, housingDistM]);
 
   const [zipBusy, setZipBusy] = useState(false);
+  const [docBusy, setDocBusy] = useState(false);
+  const [xlsBusy, setXlsBusy] = useState(false);
+  const [fileError, setFileError] = useState("");
   const [zipError, setZipError] = useState("");
   const [invoice, setInvoice] = useState<InvoiceView | null>(null);
 
@@ -1249,6 +1277,83 @@ function ProResultContent() {
     if (m.cl) parts.push(`${m.cl} ${u("г/ч", "g/soat", "g/h", "g/h")} Cl`);
     parts.push(`DN${m.dn}`);
     return parts.join(", ");
+  }
+
+  /**
+   * Скачивание бинарного файла с серверного маршрута. Записка в Word и
+   * книга Excel собираются на сервере (как и комплект чертежей), потому
+   * что там лежит ключ ИИ и там же проверяется вход. Клиенту остаётся
+   * получить поток и отдать его браузеру.
+   */
+  async function downloadBinary(
+    url: string,
+    body: unknown,
+    fallbackName: string,
+    setBusy: (v: boolean) => void,
+  ) {
+    setBusy(true);
+    setFileError("");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) {
+        router.push(`/engineering/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
+      const type = res.headers.get("content-type") ?? "";
+      /* документ приходит потоком; JSON в ответе означает отказ */
+      if (res.ok && !type.includes("application/json")) {
+        const blob = await res.blob();
+        const href = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = href;
+        link.download = filenameFrom(res.headers.get("content-disposition")) || fallbackName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(href), 2000);
+        return;
+      }
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      setFileError(data?.error || t(TX.fileFailed, language));
+    } catch {
+      setFileError(t(TX.fileNoServer, language));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Пояснительная записка в Word: те же данные, что и у записки на
+   *  странице, плюс температурный режим и точка сброса — их тип
+   *  NoteInput не содержит, а в документе они нужны. */
+  async function downloadNoteDocx() {
+    const input = noteInput();
+    if (!input || docBusy) return;
+    await downloadBinary(
+      "/api/note-docx",
+      {
+        ...input,
+        lang: language,
+        temperature: calc?.techResult?.temperature,
+        discharge: t(discharge?.name, language) || undefined,
+      },
+      `SUVSANOAT_zapiska_${Math.round(Q)}m3.docx`,
+      setDocBusy,
+    );
+  }
+
+  /** Спецификация A/B и ведомость объёмов работ книгой Excel. */
+  async function downloadSpecXlsx() {
+    if (!drawingInput || xlsBusy) return;
+    await downloadBinary(
+      "/api/spec-xlsx",
+      { input: drawingInput, opts: { housingDistM } },
+      `SUVSANOAT_specifikaciya_${Math.round(Q)}m3.xlsx`,
+      setXlsBusy,
+    );
   }
 
   function noteInput(): NoteInput | null {
@@ -1535,9 +1640,24 @@ function ProResultContent() {
                   )}
                   {t(TX.bioFiguresTail, language)}
                 </p>
-                <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 12, color: FAINT, margin: "0 0 8px", lineHeight: 1.6 }}>
                   {technologySourceNote(calc.tech, language)}
                 </p>
+                {/* температурный режим расчёта: из него следует и объём
+                    биологии (годовая), и расход воздуха (летняя) */}
+                {calc.techResult && (
+                  <p style={{ fontSize: 12.5, color: "#cfdde3", margin: 0, lineHeight: 1.6 }}>
+                    {U.tempRegime}:{" "}
+                    {t(
+                      tempRegimeLine(
+                        fmt(calc.techResult.temperature.annualC, 1),
+                        fmt(calc.techResult.temperature.summerC, 1),
+                        fmt(calc.techResult.temperature.factor, 2)
+                      ),
+                      language
+                    )}
+                  </p>
+                )}
               </>
             ) : (
               <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.6 }}>{t(TX.techAuto, language)}</p>
@@ -1566,6 +1686,33 @@ function ProResultContent() {
                   {mbrWaiver ? t(TX.membraneWaiverTitle, language) : t(TX.membraneTitle, language)}
                 </div>
                 <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>{requirementNote(!mbrWaiver)}</p>
+              </div>
+            )}
+
+            {/* объём биологии определён зимним режимом — это должно быть
+                видно сразу, а не найдено потом в списке допущений */}
+            {calc.techResult?.temperature.winterGoverns && (
+              <div
+                style={{
+                  marginTop: 14,
+                  border: "1px solid rgba(255,183,77,0.45)",
+                  background: "rgba(255,183,77,0.07)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                }}
+              >
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>
+                  {U.tempWinterTitle}
+                </div>
+                <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+                  {t(
+                    tempWinterWarning(
+                      fmt(calc.techResult.temperature.annualC, 1),
+                      fmt(calc.techResult.temperature.factor, 2)
+                    ),
+                    language
+                  )}
+                </p>
               </div>
             )}
 
@@ -1980,6 +2127,14 @@ function ProResultContent() {
             style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: "pointer", background: ACCENT, color: "#06232e", fontSize: 15, fontWeight: 700 }}>
             {U.btnPdf}
           </button>
+          <button type="button" onClick={downloadNoteDocx} disabled={docBusy}
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: docBusy ? "wait" : "pointer", background: docBusy ? "#2a6d80" : "#7fb1e0", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            {docBusy ? U.btnNoteDocxBusy : U.btnNoteDocx}
+          </button>
+          <button type="button" onClick={downloadSpecXlsx} disabled={xlsBusy}
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: xlsBusy ? "wait" : "pointer", background: xlsBusy ? "#2a6d80" : "#8fce9a", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            {xlsBusy ? U.btnSpecXlsxBusy : U.btnSpecXlsx}
+          </button>
           <button type="button" onClick={dxfScheme}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
             {U.btnDxfScheme}
@@ -2000,6 +2155,9 @@ function ProResultContent() {
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
             {U.btnPrintModels}
           </button>
+          {fileError ? (
+            <span style={{ color: "#e5a54b", fontSize: 13, alignSelf: "center" }}>{fileError}</span>
+          ) : null}
           <a href="/engineering/assumptions"
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
             {U.btnAssumptions}

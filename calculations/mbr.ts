@@ -1,6 +1,9 @@
 import { kMaxByDailyFlow, oxygenTransferKgPerNm3 } from "../norms/kmk-2-04-03-19";
 
 export type MBRCalculationInput = {
+  /** среднемесячная летняя температура воды, °C — входит в K_T ф. (71)
+   *  и в растворимость кислорода табл. 44 ҚМҚ 2.04.03-19 п. 6.156 */
+  waterTempSummerC?: number;
   flowM3Day: number;
   hrtHours: number;
   bodMgL: number;
@@ -181,9 +184,14 @@ const volumePerSectionM3 =
   // ҚМҚ 2.04.03-19 п. 6.156 (не 0,28 кг O₂/Нм³ — это полное содержание
   // кислорода в воздухе, усваивается лишь ~10 %). Для MBR глубина
   // погружения аэраторов принята 4 м, мелкопузырчатая аэрация.
+  // Температура берётся ЛЕТНЯЯ: K_T по ф. (71) и растворимость кислорода
+  // по табл. 44 — от неё, и чем вода теплее, тем хуже растворяется
+  // кислород и тем больше нужно воздуха. Расчётный худший случай по
+  // аэрации — лето, а не зима. Не задана — 20 °C, как было.
+  const summerTempC = Math.min(30, Math.max(6, positive(input.waterTempSummerC, 20)));
   const airNm3H =
     oxygenKgDay /
-    oxygenTransferKgPerNm3({ depthM: 4, fRatio: 0.2, tempC: 20 }) /
+    oxygenTransferKgPerNm3({ depthM: 4, fRatio: 0.2, tempC: summerTempC }) /
     24;
 
   return {

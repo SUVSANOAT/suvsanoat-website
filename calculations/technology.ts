@@ -22,6 +22,23 @@ export type TechnologyInput = {
   nitrogenMgL: number;
   phosphorusMgL: number;
   people?: number;
+  /**
+   * Среднегодовая температура сточной воды, °C. Формулы времени
+   * аэрации ҚМҚ 2.04.03-19 даны для 15 °C (п. 6.143 прим.), и при
+   * иной температуре время умножается на 15/T_w. В Узбекистане зимой
+   * сток в посёлковой сети приходит с 10–14 °C: объём, посчитанный
+   * без поправки, зимой азот не снимет. Не задана — принимается 15 °C,
+   * то есть базовая температура норматива без поправки.
+   */
+  waterTempAnnualC?: number;
+  /**
+   * Среднемесячная летняя температура воды, °C — она и только она
+   * входит в K_T формулы (71) п. 6.156 и в растворимость кислорода
+   * (табл. 44). Норматив здесь оперирует ЛЕТНЕЙ температурой, а не
+   * среднегодовой: летом кислород хуже растворяется, и воздуха нужно
+   * больше. Не задана — 20 °C.
+   */
+  waterTempSummerC?: number;
 };
 
 export type Metric = {
@@ -55,6 +72,15 @@ export type TechnologyResult = {
     nitrogen: number;
     phosphorus: number;
   };
+  /** температурный режим расчёта и вытекающая из него поправка */
+  temperature: {
+    annualC: number;
+    summerC: number;
+    /** множитель времени аэрации 15/T_w (п. 6.143 прим.); 1 при 15 °C */
+    factor: number;
+    /** объём определяет зимний режим — предупредить проектировщика */
+    winterGoverns: boolean;
+  };
   specialized: Metric[];
   equipment: EquipmentItem[];
   assumptions: string[];
@@ -74,6 +100,13 @@ export const technologyCalculations = {
 } as const;
 
 const n = (x: number) => (Number.isFinite(x) && x > 0 ? x : 0);
+
+/** Температура в пределах, при которых работает биологическая очистка
+ *  (п. 6.2: 6–30 °C). Вне их расчёт по этим формулам смысла не имеет. */
+function clampTemp(v: number | undefined, fallback: number): number {
+  if (!Number.isFinite(v as number) || (v as number) <= 0) return fallback;
+  return Math.min(30, Math.max(6, v as number));
+}
 const max0 = (x: number) => (Number.isFinite(x) && x > 0 ? x : 0);
 const round = (x: number, digits = 2) => Number.isFinite(x) ? Number(x.toFixed(digits)) : 0;
 
@@ -104,13 +137,14 @@ function aerobicOxygen(bodLoad: number, nitrogenLoad: number, removal = 0.9) {
   };
 }
 
-/** кг O₂, фактически передаваемых 1 Нм³ воздуха: знаменатель ф. (70) ҚМҚ 2.04.03-19 п. 6.156
- *  при мелкопузырчатой аэрации, h_a = 4 м, f_az/f_at = 0,2, городские СВ, 20 °C, C_O = 2 мг/л (≈0,03). */
-const O2_PER_NM3 = oxygenTransferKgPerNm3({ depthM: 4, fRatio: 0.2, tempC: 20 });
-
-/** Расход воздуха, Нм³/ч, по суточной потребности в кислороде. */
-function airFromOxygen(oxygenKgDay: number) {
-  return oxygenKgDay / O2_PER_NM3 / 24;
+/** кг O₂, фактически передаваемых 1 Нм³ воздуха: знаменатель ф. (70)
+ *  ҚМҚ 2.04.03-19 п. 6.156 при мелкопузырчатой аэрации, h_a = 4 м,
+ *  f_az/f_at = 0,2, городские СВ, C_O = 2 мг/л. Зависит от температуры:
+ *  чем теплее вода, тем хуже в ней растворяется кислород (табл. 44), и
+ *  тем больше воздуха нужно на ту же нагрузку. Поэтому в знаменатель
+ *  идёт ЛЕТНЯЯ температура — расчётный худший случай по аэрации. */
+function o2PerNm3(summerTempC: number) {
+  return oxygenTransferKgPerNm3({ depthM: 4, fRatio: 0.2, tempC: summerTempC });
 }
 
 function anaerobicBiogas(removedCodKgDay: number) {
@@ -204,14 +238,37 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
   // Максимальный часовой расход — по табл. 2 ҚМҚ 2.04.03-19 (п. 2.7), а не константой.
   const kGen = kMaxByDailyFlow(flow);
   const qPeak = qAvg * kGen.kMax;
-  const hrt = technologyCalculations[technology].hrt;
+  /* ТЕМПЕРАТУРА.
+     Норматив оперирует двумя разными температурами, и путать их нельзя:
+     время аэрации по ф. (51)/(54) дано для среднегодовой 15 °C и при
+     иной умножается на 15/T_w (п. 6.143 прим.), а K_T в ф. (70)/(71) и
+     растворимость кислорода по табл. 44 берутся по среднемесячной
+     ЛЕТНЕЙ. Первое определяет объём (хуже зимой), второе — воздух
+     (хуже летом). Считать и то и другое по одной температуре — ошибка,
+     из-за которой сооружение либо зимой не нитрифицирует, либо летом
+     задыхается по кислороду. */
+  const tAnnual = clampTemp(input.waterTempAnnualC, AEROTANK.formula51.tempRefC);
+  const tSummer = clampTemp(input.waterTempSummerC, 20);
+  const tempFactor = AEROTANK.formula51.tempRefC / tAnnual;
+  const O2_PER_NM3 = o2PerNm3(tSummer);
+
+  const hrt = technologyCalculations[technology].hrt * tempFactor;
   const hydraulicVolume = qWorking * hrt;
   const volumeWithReserve = hydraulicVolume * 1.15;
   const l = loads(input);
   const specialized: Metric[] = [];
+
+  /** Расход воздуха, Нм³/ч, по суточной потребности в кислороде. */
+  const airFromOxygen = (oxygenKgDay: number) => oxygenKgDay / O2_PER_NM3 / 24;
+
   const assumptions: string[] = [
     `Максимальный часовой расход: K gen.max = ${kGen.kMax.toFixed(2)} (${kGen.source}).`,
-    `Расход воздуха: передача кислорода ${(O2_PER_NM3 * 1000).toFixed(1)} г O₂/Нм³ по ф. (70) ҚМҚ 2.04.03-19 п. 6.156 (мелкопузырчатая аэрация, h_a = 4 м, K₁ = 1,68, K₂ = 2,52, K₃ = 0,85, 20 °C); удельный расход кислорода 1,1 кг/кг снятой БПК.`,
+    tempFactor > 1
+      ? `Расчётная среднегодовая температура сточной воды ${tAnnual.toFixed(1)} °C ниже базовых ${AEROTANK.formula51.tempRefC} °C ${AEROTANK.formula51.ref}: время аэрации и объём биологической ступени увеличены в 15/T_w = ${tempFactor.toFixed(2)} раза. Без этой поправки сооружение, посчитанное «по лету», зимой не выйдет на нитрификацию.`
+      : tempFactor < 1
+        ? `Расчётная среднегодовая температура сточной воды ${tAnnual.toFixed(1)} °C выше базовых ${AEROTANK.formula51.tempRefC} °C ${AEROTANK.formula51.ref}: время аэрации уменьшено в 15/T_w = ${tempFactor.toFixed(2)} раза. Уменьшение объёма за счёт тёплого стока принимать только при подтверждённых круглогодичных замерах.`
+        : `Расчётная среднегодовая температура сточной воды принята базовой ${AEROTANK.formula51.tempRefC} °C ${AEROTANK.formula51.ref} — поправка 15/T_w не применяется. Фактическую температуру зимой следует замерить: при 12 °C объём биологии вырастает на четверть, при 10 °C — в полтора раза.`,
+    `Расход воздуха: передача кислорода ${(O2_PER_NM3 * 1000).toFixed(1)} г O₂/Нм³ по ф. (70) ҚМҚ 2.04.03-19 п. 6.156 при среднемесячной летней температуре ${tSummer.toFixed(1)} °C (мелкопузырчатая аэрация, h_a = 4 м, K₁ = 1,68, K₂ = 2,52, K₃ = 0,85); удельный расход кислорода 1,1 кг/кг снятой БПК.`,
   ];
   const values: Record<string, number> = {};
 
@@ -499,9 +556,18 @@ export function calculateTechnology(input: TechnologyInput): TechnologyResult {
       qAvg: round(qAvg),
       qWorking: round(qWorking),
       qPeak: round(qPeak),
-      hrt,
+      hrt: round(hrt),
       hydraulicVolume: round(hydraulicVolume),
       volumeWithReserve: round(volumeWithReserve),
+    },
+    temperature: {
+      annualC: tAnnual,
+      summerC: tSummer,
+      factor: round(tempFactor, 3),
+      /* Зимний режим считаем определяющим, когда поправка ощутима:
+         при 13 °C и ниже она даёт больше 15 % объёма, и проектировщик
+         обязан это увидеть, а не найти потом в примечаниях. */
+      winterGoverns: tempFactor >= 1.15,
     },
     loads: {
       bod: round(l.bod),

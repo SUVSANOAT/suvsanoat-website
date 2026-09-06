@@ -213,6 +213,7 @@ export function thickenerModel(input: DrawingInput, overrides: Partial<Thickener
     supply: TANK_SUPPLY,
     material: TANK_MATERIAL,
     footprint: { shape: "rect", w: g.W, l: g.L },
+    units: g.units,
     bottom: g.bottom,
     water: g.water,
     top: g.top,
