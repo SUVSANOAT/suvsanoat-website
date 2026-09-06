@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import TechnologyCompare from "./TechnologyCompare";
 
 type Technology = {
   id: string;
@@ -607,6 +608,27 @@ function TechnologyContent() {
           </div>
 
         </section>
+
+        {/* СРАВНЕНИЕ ВАРИАНТОВ
+
+           Стоит перед автоподбором намеренно: сначала проектировщик
+           видит, чем схемы отличаются по числам, и только потом —
+           рекомендацию системы. Обратный порядок приучает верить
+           подсказке, не глядя на расчёт. */}
+
+        <TechnologyCompare
+          flowM3Day={Number(flow) || 0}
+          hoursPerDay={Number(hours) || 24}
+          bodMgL={Number(bod) || 0}
+          codMgL={Number(cod) || 0}
+          tssMgL={Number(tss) || 0}
+          nitrogenMgL={Number(nitrogen) || 0}
+          phosphorusMgL={Number(phosphorus) || 0}
+          waterTempAnnualC={Number(searchParams.get("tAnnual")) || undefined}
+          waterTempSummerC={Number(searchParams.get("tSummer")) || undefined}
+          selected={selectedTechnology}
+          onSelect={(code) => setSelectedTechnology(code === "CAS" ? "AS" : code)}
+        />
 
         {/* AUTO SELECTION */}
 
