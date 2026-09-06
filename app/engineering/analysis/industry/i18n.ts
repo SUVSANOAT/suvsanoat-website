@@ -69,6 +69,35 @@ export const UI = {
     "For every industry we hold typical pollutant loads and a treatment train. If you have a laboratory analysis, enter your own figures; if not, reference values from standards and industry data are used.",
     "每个行业均预置了典型污染物与工艺流程。有化验数据可直接填写；没有则采用规范与行业手册的参考值。"
   ),
+  tzSection: L("ТЕХНИЧЕСКОЕ ЗАДАНИЕ ИЛИ ТЕХНИЧЕСКИЕ УСЛОВИЯ", "TEXNIK TOPSHIRIQ YOKI TEXNIK SHARTLAR", "DESIGN BRIEF OR UTILITY CONDITIONS", "设计任务书或接管技术条件"),
+  tzLead: L(
+    "Приложите ТЗ заказчика, технические условия водоканала или протокол анализа — PDF, скан или фотографию. Что найдётся в документе, подставится в анкету; спросим только недостающее. К каждому значению будет показана цитата из документа, чтобы вы могли его проверить.",
+    "Buyurtmachining texnik topshirig‘ini, suv kanalining texnik shartlarini yoki tahlil bayonnomasini biriktiring — PDF, skan yoki foto. Hujjatdagi ma’lumotlar anketaga qo‘yiladi; faqat yetishmagani so‘raladi. Har bir qiymat uchun hujjatdan iqtibos ko‘rsatiladi.",
+    "Attach the client’s design brief, the utility’s technical conditions or a laboratory report — PDF, scan or photo. Whatever the document states is filled into the form; only the gaps are asked. Every value is shown with the quotation it came from.",
+    "上传业主设计任务书、供排水部门技术条件或化验报告——PDF、扫描件或照片。文件中有的自动填入表单，仅询问缺失项。每个数值都附原文引用以便核对。"
+  ),
+  tzPick: L("Выбрать файл", "Faylni tanlash", "Choose file", "选择文件"),
+  tzParsing: L("Читаю документ…", "Hujjat o‘qilmoqda…", "Reading the document…", "正在读取文件…"),
+  tzApply: L("Подставить в анкету", "Anketaga qo‘yish", "Fill the form", "填入表单"),
+  tzClear: L("Убрать документ", "Hujjatni olib tashlash", "Remove document", "移除文件"),
+  tzFilled: L("нашлось значений", "topilgan qiymatlar", "values found", "已找到数值"),
+  tzMissing: L("В документе не нашлось — заполните вручную:", "Hujjatda topilmadi — qo‘lda to‘ldiring:", "Not found in the document — fill in manually:", "文件中未找到——请手动填写："),
+  tzWarnings: L("Обратите внимание", "E’tibor bering", "Points to check", "请注意"),
+  tzRequirements: L("Требования документа", "Hujjat talablari", "Requirements stated in the document", "文件提出的要求"),
+  tzNothing: L(
+    "В документе не нашлось исходных данных для расчёта. Заполните анкету вручную.",
+    "Hujjatda hisob uchun boshlang‘ich ma’lumotlar topilmadi. Anketani qo‘lda to‘ldiring.",
+    "The document holds no input data for the calculation. Fill the form manually.",
+    "文件中没有可用于计算的原始数据，请手动填写表单。"
+  ),
+  tzDocKind: L("Тип документа", "Hujjat turi", "Document type", "文件类型"),
+  tzFromDoc: L("из документа", "hujjatdan", "from the document", "来自文件"),
+  tzHint: L(
+    "Файл разбирает ИИ. Он не считает и не додумывает: возвращает только то, что буквально написано, и обязан привести цитату — значение без цитаты отбрасывается. Проверьте подставленные числа перед расчётом.",
+    "Faylni sun’iy intellekt tahlil qiladi. U hisoblamaydi va o‘ylab topmaydi: faqat hujjatda yozilganini qaytaradi va iqtibos keltirishi shart — iqtibossiz qiymat rad etiladi. Hisobdan oldin raqamlarni tekshiring.",
+    "The file is parsed by AI. It neither calculates nor guesses: it returns only what is literally written and must quote it — a value without a quotation is discarded. Check the figures before calculating.",
+    "文件由 AI 解析。它不计算、不臆测，只返回文件中明确写出的内容并须附引用——无引用的数值将被丢弃。计算前请核对。"
+  ),
   searchPlaceholder: L(
     "Поиск отрасли: молоко, деним, теплица, НПЗ…",
     "Tarmoq qidirish: sut, denim, issiqxona, NQZ…",

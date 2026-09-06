@@ -193,6 +193,18 @@ export async function POST(request: Request) {
   const input = parsed.input;
   const opts = parseOpts(read.body.opts);
 
+  /* Администратор SUVSANOAT скачивает комплект без счёта: выставлять
+     счёт самому себе незачем, а проверять выдачу на своих объектах нужно
+     постоянно. Заказ при этом не создаётся. */
+  if (session.r === "admin") {
+    try {
+      return zipResponse(input, opts);
+    } catch (e) {
+      console.error("drawings build (admin):", e);
+      return Response.json({ ok: false, error: "Не удалось собрать комплект чертежей." }, { status: 500 });
+    }
+  }
+
   /* база не подключена — режим без оплаты: комплект отдаётся сразу */
   if (!dbUrl()) {
     console.warn("drawings: база не подключена (DATABASE_URL / POSTGRES_URL) — комплект выдан без оплаты");

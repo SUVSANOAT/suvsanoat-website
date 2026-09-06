@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -14,6 +14,7 @@ import {
   type PollutantKey,
 } from "./industries";
 import { DISCHARGES, findDischarge } from "./targets";
+import { filledCount, hasAnything, type Extracted, type FieldSource, type TzExtract } from "./tz-extract";
 import { MEMBRANE_TECHNOLOGIES } from "./equipment";
 import type { TechnologyCode } from "../../../../calculations/technology";
 import { BIO_TECHNOLOGIES, t, ui } from "./i18n";
@@ -125,6 +126,85 @@ function parsePolygon(text: string): [number, number][] {
   return out;
 }
 
+/* ------------------------------------------------------------------
+ * ПРИЛОЖЕННОЕ ТЗ / ТУ: ПОДГОТОВКА ФАЙЛА
+ *
+ * Сервер (app/api/tz/route.ts) принимает не более ~3 МБ, а страница ТЗ,
+ * снятая телефоном, весит впятеро больше. Текст на ней читается и с
+ * меньшего разрешения, поэтому крупные фотографии ужимаем прямо в
+ * браузере: иначе проектировщик получит отказ по размеру и не поймёт,
+ * что делать. PDF отправляем как есть — перерисовать его здесь нечем.
+ * ------------------------------------------------------------------ */
+
+/** больше этого размера картинку имеет смысл ужимать */
+const TZ_SHRINK_OVER_BYTES = 2 * 1024 * 1024;
+/** большая сторона после сжатия, px — на этом мелкий шрифт ещё читается */
+const TZ_MAX_IMAGE_SIDE = 2000;
+
+/** если сеть или браузер подвели, показываем то же, что сказал бы сервер */
+const TZ_FALLBACK_ERROR = "Разбор документа не завершился. Заполните анкету вручную.";
+
+/** сервер ждёт голый base64, без обвязки data:image/...;base64, */
+function stripDataUrl(url: string): string {
+  const comma = url.indexOf(",");
+  return comma >= 0 ? url.slice(comma + 1) : url;
+}
+
+function readAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("file-read"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image-decode"));
+    img.src = src;
+  });
+}
+
+/** Файл в вид, который понимает /api/tz. Сжатие необязательно: если оно
+ *  почему-то не удалось, отправляем оригинал и пусть решает сервер. */
+async function encodeForUpload(file: File): Promise<{ type: string; dataBase64: string }> {
+  const dataUrl = await readAsDataUrl(file);
+  if (!file.type.startsWith("image/") || file.size <= TZ_SHRINK_OVER_BYTES) {
+    return { type: file.type, dataBase64: stripDataUrl(dataUrl) };
+  }
+  try {
+    const img = await loadImage(dataUrl);
+    const side = Math.max(img.naturalWidth, img.naturalHeight);
+    const scale = side > TZ_MAX_IMAGE_SIDE ? TZ_MAX_IMAGE_SIDE / side : 1;
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas");
+    ctx.drawImage(img, 0, 0, w, h);
+    return { type: "image/jpeg", dataBase64: stripDataUrl(canvas.toDataURL("image/jpeg", 0.8)) };
+  } catch {
+    return { type: file.type, dataBase64: stripDataUrl(dataUrl) };
+  }
+}
+
+/** ссылка на страницу документа рядом с цитатой — чтобы найти место в оригинале */
+const TZ_PAGE_PREFIX = "стр.";
+
+/** расшифровка типа документа: код модели проектировщику ничего не говорит */
+const TZ_DOC_KIND_RU: Record<TzExtract["docKind"], string> = {
+  tz: "техническое задание",
+  tu: "технические условия",
+  lab: "протокол анализа",
+  mixed: "задание и технические условия вместе",
+  unknown: "не определён",
+};
+
 const SIDE_IDS = ["N", "S", "E", "W"] as const;
 
 function sideLabel(id: (typeof SIDE_IDS)[number], U: UiStrings): string {
@@ -153,6 +233,23 @@ function IndustryContent() {
 
   const [groupId, setGroupId] = useState<string>("food");
   const [query, setQuery] = useState("");
+
+  /* --- приложенное ТЗ / ТУ ---
+     Разбор документа — вспомогательная операция: анкета обязана
+     работать и без него, поэтому у блока своя ошибка (tzError), которая
+     не трогает setError формы и не мешает отправке. */
+  const tzInputRef = useRef<HTMLInputElement | null>(null);
+  const [tzFile, setTzFile] = useState<{ name: string; size: number } | null>(null);
+  const [tzBusy, setTzBusy] = useState(false);
+  const [tzError, setTzError] = useState("");
+  const [tzResult, setTzResult] = useState<TzExtract | null>(null);
+  const [tzApplied, setTzApplied] = useState(false);
+  /* откуда взялось значение каждого поля анкеты: проектировщик должен
+     видеть, что он проверяет чужую цифру, а не свою */
+  const [fieldSource, setFieldSource] = useState<Record<string, FieldSource>>({});
+  /* что документ дал, но в анкету не легло — честнее показать, чем молчать */
+  const [tzSkipped, setTzSkipped] = useState<string[]>([]);
+
   const [industryId, setIndustryId] = useState<string>("");
   const [hasLab, setHasLab] = useState<boolean | null>(null);
   const [flowMode, setFlowMode] = useState<"known" | "population">("known");
@@ -296,6 +393,202 @@ function IndustryContent() {
 
     /* технология сбрасывается к значению по умолчанию, если у новой отрасли нет биологии */
     if (!item.chain.includes("bio")) setTech(DEFAULT_TECH);
+  }
+
+  /* ---------------- приложенное ТЗ / ТУ ---------------- */
+
+  /** правка поля руками снимает метку «из документа»: с этой минуты за
+   *  цифру отвечает проектировщик, а не приложенный документ */
+  function userEdited(key: string) {
+    setFieldSource((s) => (s[key] ? { ...s, [key]: "user" } : s));
+  }
+
+  /** метка у подписи поля — видно, какие цифры пришли из документа */
+  function srcBadge(key: string) {
+    if (fieldSource[key] !== "document") return null;
+    return (
+      <span
+        style={{
+          marginLeft: 6,
+          padding: "1px 7px",
+          borderRadius: 999,
+          border: `1px solid ${ACCENT}`,
+          color: ACCENT,
+          fontSize: 11,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {U.tzFromDoc}
+      </span>
+    );
+  }
+
+  async function handleTzFile(file: File | null) {
+    if (!file) return;
+    setTzError("");
+    setTzResult(null);
+    setTzApplied(false);
+    setTzSkipped([]);
+    setTzFile({ name: file.name, size: file.size });
+    setTzBusy(true);
+    try {
+      const prepared = await encodeForUpload(file);
+      const res = await fetch("/api/tz", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ file: { name: file.name, type: prepared.type, dataBase64: prepared.dataBase64 } }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; extract?: TzExtract };
+      if (!data.ok || !data.extract) {
+        setTzError(data.error || TZ_FALLBACK_ERROR);
+        return;
+      }
+      setTzResult(data.extract);
+    } catch {
+      setTzError(TZ_FALLBACK_ERROR);
+    } finally {
+      setTzBusy(false);
+    }
+  }
+
+  function clearTz() {
+    setTzFile(null);
+    setTzResult(null);
+    setTzError("");
+    setTzApplied(false);
+    setTzSkipped([]);
+    /* документа больше нет — метки «из документа» стали бы враньём */
+    setFieldSource({});
+    if (tzInputRef.current) tzInputRef.current.value = "";
+  }
+
+  /**
+   * Подстановка разобранных значений в анкету.
+   *
+   * Подставляется только то, что в документе написано буквально.
+   * Технологию не трогаем: в документе она названа словами, а в анкете
+   * это код из списка — сопоставление остаётся за проектировщиком.
+   */
+  function applyExtract(e: TzExtract) {
+    const src: Record<string, FieldSource> = {};
+    const skipped: string[] = [];
+
+    /* отрасль ставим первой: pickIndustry сбрасывает состав стока на
+       справочный, и всё, что подставим после, должно его перекрыть */
+    if (e.industryId.value) pickIndustry(e.industryId.value);
+
+    if (e.flowM3Day.value !== null) {
+      setFlow(String(e.flowM3Day.value));
+      setFlowMode("known");
+      src.flow = "document";
+    }
+    if (e.people.value !== null) {
+      setPeople(String(e.people.value));
+      src.people = "document";
+      /* расхода в документе нет, зато есть жители — считаем по табл. 3 */
+      if (e.flowM3Day.value === null) setFlowMode("population");
+    }
+    if (e.hoursPerDay.value !== null) {
+      setHours(String(e.hoursPerDay.value));
+      src.hours = "document";
+    }
+
+    const inletKeys = KEY_ORDER.filter((key) => e.inlet[key]?.value != null);
+    if (inletKeys.length > 0 || e.inlet.ph?.value != null) {
+      setValues((prev) => {
+        const next = { ...prev };
+        for (const key of inletKeys) {
+          const item = e.inlet[key];
+          if (item && item.value !== null) next[key] = String(item.value);
+        }
+        return next;
+      });
+      for (const key of inletKeys) src[key] = "document";
+      const phItem = e.inlet.ph;
+      if (phItem && phItem.value !== null) {
+        setPh(String(phItem.value));
+        src.ph = "document";
+      }
+      /* состав из ТЗ — фактические данные объекта, а не справочник отрасли */
+      setHasLab(true);
+    }
+
+    const targetKeys = KEY_ORDER.filter((key) => e.targets[key]?.value != null);
+    if (targetKeys.length > 0) {
+      setHasTu(true);
+      setTu((prev) => {
+        const next = { ...prev };
+        for (const key of targetKeys) {
+          const item = e.targets[key];
+          if (item && item.value !== null) next[key] = String(item.value);
+        }
+        return next;
+      });
+      for (const key of targetKeys) src[`tu_${key}`] = "document";
+    }
+
+    if (e.siteWidthM.value !== null || e.siteLengthM.value !== null) {
+      setSiteMode("given");
+      setSiteShape("rect");
+      if (e.siteWidthM.value !== null) {
+        setSiteW(String(e.siteWidthM.value));
+        src.siteW = "document";
+      }
+      if (e.siteLengthM.value !== null) {
+        setSiteL(String(e.siteLengthM.value));
+        src.siteL = "document";
+      }
+    } else if (e.siteAreaM2.value !== null) {
+      /* площадь без сторон: контур генплана из неё не восстановить, а
+         придумывать стороны — значит подсунуть проектировщику выдумку */
+      skipped.push(`${U.siteAreaGiven}: ${e.siteAreaM2.value} ${U.unitM2}`);
+    }
+
+    if (e.groundElevM.value !== null) {
+      setGroundElev(String(e.groundElevM.value));
+      src.groundElev = "document";
+    }
+    if (e.housingDistM.value !== null) {
+      setHousingDist(String(e.housingDistM.value));
+      src.housingDist = "document";
+    }
+
+    setFieldSource(src);
+    setTzSkipped(skipped);
+    setTzApplied(true);
+  }
+
+  /** строки таблицы найденного: величина, значение и цитата-основание */
+  function tzRows(e: TzExtract) {
+    const rows: { key: string; label: string; value: string; quote?: string; page?: number }[] = [];
+    const push = (key: string, label: string, item: Extracted<string> | Extracted<number> | undefined) => {
+      if (!item || item.value === null) return;
+      rows.push({ key, label, value: String(item.value), quote: item.quote, page: item.page });
+    };
+
+    push("object", U.objectWord, e.object);
+    push("industry", U.chooseIndustry, e.industryText);
+    push("flow", U.flowPerDay, e.flowM3Day);
+    push("hours", U.workHours, e.hoursPerDay);
+    push("people", U.peopleLabel, e.people);
+    for (const key of KEY_ORDER) {
+      const info = POLLUTANT_LABELS[key];
+      push(`in_${key}`, `${t(info.label, language)}, ${t(info.unit, language)}`, e.inlet[key]);
+    }
+    push("in_ph", "pH", e.inlet.ph);
+    for (const key of KEY_ORDER) {
+      const info = POLLUTANT_LABELS[key];
+      push(`tu_${key}`, `${U.targetsFrom} · ${t(info.label, language)}, ${t(info.unit, language)}`, e.targets[key]);
+    }
+    push("tu_ph", `${U.targetsFrom} · pH`, e.targets.ph);
+    push("discharge", U.dischargeTo, e.dischargePoint);
+    push("tech", U.techSection, e.technology);
+    push("siteArea", U.siteAreaGiven, e.siteAreaM2);
+    push("siteW", U.siteWidth, e.siteWidthM);
+    push("siteL", U.siteLength, e.siteLengthM);
+    push("groundElev", U.siteGroundElev, e.groundElevM);
+    push("housingDist", U.siteHousingDist, e.housingDistM);
+    return rows;
   }
 
   function handleContinue(event: FormEvent<HTMLFormElement>) {
@@ -442,6 +735,182 @@ function IndustryContent() {
             ) : null}
           </div>
 
+          {/* ТЕХНИЧЕСКОЕ ЗАДАНИЕ ИЛИ ТЕХНИЧЕСКИЕ УСЛОВИЯ.
+              Блок стоит до выбора отрасли намеренно: заказчик может
+              прийти с одними техусловиями, а его производства в
+              справочнике не окажется — документ тогда единственный
+              источник исходных данных. */}
+          <div
+            style={{
+              border: `1px solid ${LINE}`,
+              background: PANEL,
+              borderRadius: 12,
+              padding: "22px 22px 18px",
+              marginBottom: 20,
+            }}
+          >
+            <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>
+              {U.tzSection}
+            </div>
+            <p style={{ fontSize: 12, color: FAINT, margin: "0 0 14px", lineHeight: 1.6 }}>{U.tzLead}</p>
+
+            <input
+              ref={tzInputRef}
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(event) => {
+                void handleTzFile(event.target.files?.[0] ?? null);
+              }}
+              style={{ display: "none" }}
+            />
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                disabled={tzBusy}
+                onClick={() => tzInputRef.current?.click()}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: `1px solid ${LINE}`,
+                  background: "transparent",
+                  color: tzBusy ? FAINT : "#eaf6fa",
+                  fontSize: 14,
+                  cursor: tzBusy ? "default" : "pointer",
+                }}
+              >
+                {tzBusy ? U.tzParsing : U.tzPick}
+              </button>
+              {tzFile && (
+                <span style={{ fontSize: 12, color: FAINT }}>
+                  {tzFile.name} — {Math.max(1, Math.round(tzFile.size / 1024))} KB
+                </span>
+              )}
+            </div>
+
+            {tzError && (
+              <p style={{ fontSize: 13, color: "#ff8a80", margin: "14px 0 0", lineHeight: 1.6 }}>{tzError}</p>
+            )}
+
+            {tzResult && !hasAnything(tzResult) && (
+              <p style={{ fontSize: 13, color: FAINT, margin: "14px 0 0", lineHeight: 1.6 }}>{U.tzNothing}</p>
+            )}
+
+            {tzResult && hasAnything(tzResult) && (
+              <div style={{ marginTop: 16 }}>
+                <p style={{ fontSize: 13, color: "#dfe9ec", margin: "0 0 12px", lineHeight: 1.6 }}>
+                  {U.tzDocKind}: <b>{TZ_DOC_KIND_RU[tzResult.docKind]}</b>
+                  {" · "}
+                  <b style={{ color: ACCENT }}>{filledCount(tzResult)}</b> {U.tzFilled}
+                </p>
+
+                {/* Цитата обязательна к показу: без неё цифру не проверить,
+                    не открывая документ, а именно проверяемость — весь
+                    смысл машинного разбора. */}
+                <div style={{ display: "grid", gap: 10 }}>
+                  {tzRows(tzResult).map((row) => (
+                    <div key={row.key} style={{ borderBottom: `1px solid ${LINE}`, paddingBottom: 8 }}>
+                      <div style={{ fontSize: 13, color: "#dfe9ec" }}>
+                        {row.label}: <b style={{ color: ACCENT }}>{row.value}</b>
+                      </div>
+                      {row.quote && (
+                        <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.5, marginTop: 3 }}>
+                          «{row.quote}»
+                          {row.page !== undefined ? ` — ${TZ_PAGE_PREFIX} ${row.page}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {tzResult.warnings.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 12, letterSpacing: "0.08em", color: "#e5a54b", marginBottom: 6 }}>
+                      {U.tzWarnings}
+                    </div>
+                    {tzResult.warnings.map((w) => (
+                      <p key={w} style={{ fontSize: 12.5, color: "#e5a54b", margin: "0 0 6px", lineHeight: 1.55 }}>
+                        {w}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {tzResult.missing.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 12, color: FAINT, marginBottom: 6 }}>{U.tzMissing}</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: "#cfdde3", fontSize: 12.5, lineHeight: 1.6 }}>
+                      {tzResult.missing.map((m) => (
+                        <li key={m}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {tzResult.requirements.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 12, letterSpacing: "0.08em", color: ACCENT, marginBottom: 6 }}>
+                      {U.tzRequirements}
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: "#cfdde3", fontSize: 12.5, lineHeight: 1.6 }}>
+                      {tzResult.requirements.map((r, i) => (
+                        <li key={`${r.no}-${i}`}>
+                          {r.no ? `${r.no} ` : ""}
+                          {r.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* что документ дал, но анкета взять не может */}
+                {tzApplied && tzSkipped.length > 0 && (
+                  <ul style={{ margin: "14px 0 0", paddingLeft: 18, color: "#e5a54b", fontSize: 12.5, lineHeight: 1.6 }}>
+                    {tzSkipped.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                )}
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+                  <button
+                    type="button"
+                    onClick={() => applyExtract(tzResult)}
+                    style={{
+                      padding: "11px 22px",
+                      borderRadius: 8,
+                      border: 0,
+                      background: ACCENT,
+                      color: BG,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {U.tzApply}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearTz}
+                    style={{
+                      padding: "11px 22px",
+                      borderRadius: 8,
+                      border: `1px solid ${LINE}`,
+                      background: "transparent",
+                      color: FAINT,
+                      fontSize: 14,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {U.tzClear}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p style={{ fontSize: 11, color: "#6f8792", margin: "14px 0 0", lineHeight: 1.6 }}>{U.tzHint}</p>
+          </div>
+
           {/* ГРУППЫ */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18, opacity: q ? 0.4 : 1 }}>
             {INDUSTRY_GROUPS.map((group) => (
@@ -565,9 +1034,13 @@ function IndustryContent() {
                   <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                     <label style={{ fontSize: 13, color: FAINT }}>
                       {U.flowPerDay}
+                      {srcBadge("flow")}
                       <input
                         value={flow}
-                        onChange={(event) => setFlow(event.target.value)}
+                        onChange={(event) => {
+                          setFlow(event.target.value);
+                          userEdited("flow");
+                        }}
                         placeholder={U.flowPlaceholder}
                         inputMode="decimal"
                         style={{ ...inputStyle, width: 180 }}
@@ -575,9 +1048,13 @@ function IndustryContent() {
                     </label>
                     <label style={{ fontSize: 13, color: FAINT }}>
                       {U.workHours}
+                      {srcBadge("hours")}
                       <input
                         value={hours}
-                        onChange={(event) => setHours(event.target.value)}
+                        onChange={(event) => {
+                          setHours(event.target.value);
+                          userEdited("hours");
+                        }}
                         inputMode="numeric"
                         style={{ ...inputStyle, width: 120 }}
                       />
@@ -591,9 +1068,13 @@ function IndustryContent() {
                     <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                       <label style={{ fontSize: 13, color: FAINT }}>
                         {U.peopleLabel}
+                        {srcBadge("people")}
                         <input
                           value={people}
-                          onChange={(event) => setPeople(event.target.value)}
+                          onChange={(event) => {
+                            setPeople(event.target.value);
+                            userEdited("people");
+                          }}
                           placeholder={U.peoplePlaceholder}
                           inputMode="numeric"
                           style={{ ...inputStyle, width: 180 }}
@@ -612,9 +1093,13 @@ function IndustryContent() {
                       </label>
                       <label style={{ fontSize: 13, color: FAINT }}>
                         {U.workHours}
+                        {srcBadge("hours")}
                         <input
                           value={hours}
-                          onChange={(event) => setHours(event.target.value)}
+                          onChange={(event) => {
+                            setHours(event.target.value);
+                            userEdited("hours");
+                          }}
                           inputMode="numeric"
                           style={{ ...inputStyle, width: 120 }}
                         />
@@ -760,9 +1245,13 @@ function IndustryContent() {
                           {KEY_ORDER.map((key) => (
                             <label key={key} style={{ fontSize: 12, color: FAINT }}>
                               {t(POLLUTANT_LABELS[key].label, language)}, {t(POLLUTANT_LABELS[key].unit, language)}
+                              {srcBadge(`tu_${key}`)}
                               <input
                                 value={tu[key] ?? (d.targets[key] !== undefined ? String(d.targets[key]) : "")}
-                                onChange={(e) => setTu({ ...tu, [key]: e.target.value })}
+                                onChange={(e) => {
+                                  setTu({ ...tu, [key]: e.target.value });
+                                  userEdited(`tu_${key}`);
+                                }}
                                 inputMode="decimal"
                                 placeholder={U.tuPlaceholder}
                                 style={{
@@ -842,12 +1331,14 @@ function IndustryContent() {
                         return (
                           <label key={key} style={{ fontSize: 12, color: FAINT }}>
                             {t(info.label, language)}, {t(info.unit, language)}
+                            {srcBadge(key)}
                             {hasLab ? (
                               <input
                                 value={values[key] ?? ""}
-                                onChange={(event) =>
-                                  setValues({ ...values, [key]: event.target.value })
-                                }
+                                onChange={(event) => {
+                                  setValues({ ...values, [key]: event.target.value });
+                                  userEdited(key);
+                                }}
                                 inputMode="decimal"
                                 style={{
                                   display: "block", marginTop: 5, width: "100%", padding: "9px 11px",
@@ -876,10 +1367,14 @@ function IndustryContent() {
 
                       <label style={{ fontSize: 12, color: FAINT }}>
                         pH
+                        {srcBadge("ph")}
                         {hasLab ? (
                           <input
                             value={ph}
-                            onChange={(event) => setPh(event.target.value)}
+                            onChange={(event) => {
+                              setPh(event.target.value);
+                              userEdited("ph");
+                            }}
                             inputMode="decimal"
                             style={{
                               display: "block", marginTop: 5, width: "100%", padding: "9px 11px",
@@ -1132,18 +1627,26 @@ function IndustryContent() {
                       <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                         <label style={{ fontSize: 13, color: FAINT }}>
                           {U.siteWidth}
+                          {srcBadge("siteW")}
                           <input
                             value={siteW}
-                            onChange={(event) => setSiteW(event.target.value)}
+                            onChange={(event) => {
+                              setSiteW(event.target.value);
+                              userEdited("siteW");
+                            }}
                             inputMode="decimal"
                             style={{ ...inputStyle, width: 160 }}
                           />
                         </label>
                         <label style={{ fontSize: 13, color: FAINT }}>
                           {U.siteLength}
+                          {srcBadge("siteL")}
                           <input
                             value={siteL}
-                            onChange={(event) => setSiteL(event.target.value)}
+                            onChange={(event) => {
+                              setSiteL(event.target.value);
+                              userEdited("siteL");
+                            }}
                             inputMode="decimal"
                             style={{ ...inputStyle, width: 160 }}
                           />
@@ -1180,9 +1683,13 @@ function IndustryContent() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
                   <label style={{ fontSize: 12, color: FAINT }}>
                     {U.siteGroundElev}
+                    {srcBadge("groundElev")}
                     <input
                       value={groundElev}
-                      onChange={(event) => setGroundElev(event.target.value)}
+                      onChange={(event) => {
+                        setGroundElev(event.target.value);
+                        userEdited("groundElev");
+                      }}
                       inputMode="decimal"
                       style={{ ...inputStyle, width: "100%" }}
                     />
@@ -1228,9 +1735,13 @@ function IndustryContent() {
                   </label>
                   <label style={{ fontSize: 12, color: FAINT }}>
                     {U.siteHousingDist}
+                    {srcBadge("housingDist")}
                     <input
                       value={housingDist}
-                      onChange={(event) => setHousingDist(event.target.value)}
+                      onChange={(event) => {
+                        setHousingDist(event.target.value);
+                        userEdited("housingDist");
+                      }}
                       inputMode="decimal"
                       style={{ ...inputStyle, width: "100%" }}
                     />
