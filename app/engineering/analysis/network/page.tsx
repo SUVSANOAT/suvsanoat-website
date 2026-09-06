@@ -72,11 +72,11 @@ function NetworkPageContent() {
   const [dxf, setDxf] = useState<ParsedDxf | null>(null);
   const [traceIdx, setTraceIdx] = useState(0);
   const [maxSurveyDist, setMaxSurveyDist] = useState("20");
+  const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false);
   const [object, setObject] = useState("Канализационная сеть");
   const [fileError, setFileError] = useState("");
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const outfallId = nodes.length ? nodes[nodes.length - 1].id : "";
 
@@ -109,6 +109,7 @@ function NetworkPageContent() {
 
   async function onFile(file: File) {
     setFileError("");
+    setFileName(file.name);
     const raw = await file.text().catch(() => "");
     if (!raw) {
       setFileError("Файл не прочитался. KMZ и DWG — не текстовые: KMZ распакуйте и приложите doc.kml, а съёмку сохраните из CAD как «DXF (ASCII)».");
@@ -284,13 +285,7 @@ function NetworkPageContent() {
                 файл. Из него читаются координаты и, если путь сохранён с привязкой к рельефу,
                 высоты. KMZ — это архив: распакуйте и приложите doc.kml.
               </p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".kml,.csv,.txt"
-                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
-                style={{ color: "#b7cbd3", fontSize: 14 }}
-              />
+              <FilePick accept=".kml,.csv,.txt" label="Выбрать файл KML" name={fileName} onPick={onFile} />
             </>
           ) : (
             <>
@@ -300,12 +295,7 @@ function NetworkPageContent() {
                 колодце по ближайшим точкам. Трасса берётся из полилинии — выберите её ниже.
                 Двоичный DXF и DWG не читаются: сохраните из CAD как «DXF (ASCII)».
               </p>
-              <input
-                type="file"
-                accept=".dxf"
-                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
-                style={{ color: "#b7cbd3", fontSize: 14 }}
-              />
+              <FilePick accept=".dxf" label="Выбрать файл DXF" name={fileName} onPick={onFile} />
 
               {dxf && (
                 <div style={{ marginTop: 16 }}>
@@ -517,7 +507,61 @@ function NetworkPageContent() {
   );
 }
 
+/* ------------------------------------------------------------------
+ * ВЫБОР ФАЙЛА
+ *
+ * Системная кнопка «Выберите файл» на тёмном фоне почти не видна:
+ * браузер рисует её своим светлым текстом по светлому. Поэтому input
+ * скрыт, а нажимают на обычную кнопку страницы; рядом показывается
+ * имя выбранного файла, чтобы человек видел, что файл принят.
+ * ------------------------------------------------------------------ */
+function FilePick({
+  accept,
+  label,
+  name,
+  onPick,
+}: {
+  accept: string;
+  label: string;
+  name: string;
+  onPick: (f: File) => void;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
+      <input
+        ref={ref}
+        type="file"
+        accept={accept}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.target.value = ""; // тот же файл можно приложить повторно
+        }}
+        style={{ display: "none" }}
+      />
+      <button type="button" style={pickButton} onClick={() => ref.current?.click()}>
+        {label}
+      </button>
+      <span style={{ color: name ? "#9fd6b4" : "#5c7280", fontSize: 13 }}>
+        {name || "файл не выбран"}
+      </span>
+    </div>
+  );
+}
+
 /* ---------------------------- стили ---------------------------- */
+
+const pickButton: CSSProperties = {
+  background: "#0f5f73",
+  border: 0,
+  color: "#eaf7fa",
+  borderRadius: 10,
+  padding: "11px 20px",
+  fontSize: 14,
+  fontWeight: 700,
+  cursor: "pointer",
+};
 
 const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
 const container: CSSProperties = { width: "min(1250px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
