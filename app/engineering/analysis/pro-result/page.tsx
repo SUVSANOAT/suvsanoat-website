@@ -56,6 +56,9 @@ import {
   pipeSizing,
   powerEstimate,
 } from "../industry/construction";
+import { buildModels } from "../../../../drawings/package/build";
+import type { DrawingInput, SiteInput } from "../../../../drawings/core/types";
+import { layoutSite, requiredArea } from "../../../../drawings/site/layout";
 import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
 import { buildTemplateNote, kmkClausesFor, kmkDocLine, type NoteInput } from "./note-template";
@@ -153,6 +156,60 @@ const TX = {
     "无需曝气：厌氧工艺，不设鼓风机房。"
   ),
 } satisfies Record<string, L10n>;
+
+/* ------------------------------------------------------------------
+ * УЧАСТОК ИЗ URL
+ *
+ * Анкета передаёт либо прямоугольник (siteW × siteL), либо контур
+ * точками «x y», разделёнными «;». Стороны света и отметки —
+ * необязательные привязки, они уточняют компоновку и профиль.
+ * ------------------------------------------------------------------ */
+
+function numParam(raw: string | null): number | undefined {
+  if (raw === null || raw === "") return undefined;
+  const v = parseFloat(raw.replace(",", "."));
+  return Number.isFinite(v) ? v : undefined;
+}
+
+function sideParam(raw: string | null): "N" | "S" | "E" | "W" | undefined {
+  return raw === "N" || raw === "S" || raw === "E" || raw === "W" ? raw : undefined;
+}
+
+function parseSitePolygon(poly: string | null, w: string | null, l: string | null): [number, number][] {
+  if (poly) {
+    const out: [number, number][] = [];
+    for (const part of poly.split(";")) {
+      const [x, y] = part.trim().replace(/,/g, ".").split(/\s+/);
+      const xv = parseFloat(x);
+      const yv = parseFloat(y);
+      if (Number.isFinite(xv) && Number.isFinite(yv)) out.push([xv, yv]);
+    }
+    if (out.length >= 3) return out;
+  }
+  const wv = numParam(w);
+  const lv = numParam(l);
+  if (wv && lv && wv > 0 && lv > 0) return [[0, 0], [lv, 0], [lv, wv], [0, wv]];
+  return [];
+}
+
+/** имя файла из заголовка Content-Disposition */
+function filenameFrom(header: string | null): string {
+  const m = header?.match(/filename="?([^";]+)"?/);
+  return m ? m[1] : "";
+}
+
+/** счёт-оферта в том виде, в каком его отдаёт /api/drawings (lib/orders.ts) */
+type InvoiceView = {
+  invoiceNo: string;
+  amount: number;
+  currency: string;
+  object: string;
+  q: number;
+  status: string;
+  payee: { name: string; inn: string; bank: string; account: string; mfo: string; contact: string };
+  cardEnabled: boolean;
+  lines: string[];
+};
 
 /* целевые показатели берутся из точки сброса (industry/targets.ts);
    значения из ТУ/НДС, введённые проектировщиком, имеют приоритет */
@@ -605,6 +662,8 @@ function ProResultContent() {
 
     return {
       Qh, Qls, bodLoad, stages, scale, common,
+      /* величины, которые нужны генератору чертежей (drawings/core/types.ts) */
+      chain: chain as string[], qMaxH: peak.qMax, vAvg, dryKg,
       civil, area, pipes, power, szz,
       norms: kmkClausesFor(chain),
       civilList: civilItems(civil, a),
@@ -617,6 +676,119 @@ function ProResultContent() {
   function schemeInput(): SchemeInput | null {
     if (!industry || !calc) return null;
     return { industry, object, lab, Q, hours, Qh: calc.Qh, ph, conc: c, target: TARGET, stages: calc.stages, lang: language };
+  }
+
+  /* ==================================================================
+   * УЧАСТОК И КОМПЛЕКТ ЧЕРТЕЖЕЙ
+   *
+   * Участок приходит из анкеты (industry/page.tsx) в URL. Здесь он
+   * только показывается: потребная и заданная площадь, помещаются ли
+   * сооружения и из чего состоит комплект. Сами листы собираются на
+   * сервере (POST /api/drawings) — там же проверяется оплата.
+   * ================================================================== */
+
+  const site = useMemo<SiteInput | undefined>(() => {
+    const mode = sp.get("siteMode") || "";
+    const polygon = parseSitePolygon(sp.get("sitePoly"), sp.get("siteW"), sp.get("siteL"));
+    const unlimited = mode === "unlimited" || polygon.length < 3;
+    return {
+      polygon,
+      unlimited,
+      groundElev: numParam(sp.get("groundElev")),
+      inletSide: sideParam(sp.get("inletSide")),
+      inletInvert: numParam(sp.get("inletInvert")),
+      outletSide: sideParam(sp.get("outletSide")),
+      outletElev: numParam(sp.get("outletElev")),
+      housingSide: sideParam(sp.get("housingSide")),
+    };
+  }, [sp]);
+
+  const housingDistM = numParam(sp.get("housingDist"));
+
+  const drawingInput = useMemo<DrawingInput | null>(() => {
+    if (!industry || !calc) return null;
+    return {
+      object: object || t(industry.name, language),
+      industryId: industry.id,
+      q: Q,
+      hours,
+      qMaxH: calc.qMaxH,
+      bod: c.bod ?? 0,
+      cod: c.cod ?? 0,
+      ss: c.ss ?? 0,
+      fats: c.fats ?? 0,
+      tn: c.tn ?? 0,
+      chain: calc.chain,
+      tech: calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language),
+      vAvg: calc.vAvg,
+      vBio: calc.vBio,
+      air: calc.air,
+      dryKg: calc.dryKg,
+      scale: calc.scale,
+      szz: calc.szz?.meters,
+      site,
+      lang: language,
+    };
+  }, [industry, calc, object, language, Q, hours, c, site]);
+
+  /** предпросмотр компоновки: площадь и состав комплекта, без генерации листов */
+  const drawings = useMemo(() => {
+    if (!drawingInput) return null;
+    try {
+      const entries = buildModels(drawingInput);
+      const models = entries.map((e) => e.model);
+      const need = requiredArea(models, a);
+      const layout = layoutSite(drawingInput.site, models, { assumptions: a, housingDistM });
+      return { entries, need, layout };
+    } catch (e) {
+      console.error("drawings preview:", e);
+      return null;
+    }
+  }, [drawingInput, a, housingDistM]);
+
+  const [zipBusy, setZipBusy] = useState(false);
+  const [zipError, setZipError] = useState("");
+  const [invoice, setInvoice] = useState<InvoiceView | null>(null);
+
+  async function downloadPackage() {
+    if (!drawingInput || zipBusy) return;
+    setZipBusy(true);
+    setZipError("");
+    try {
+      const res = await fetch("/api/drawings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input: drawingInput, opts: { housingDistM } }),
+      });
+      if (res.status === 401) {
+        router.push(`/engineering/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
+      const type = res.headers.get("content-type") ?? "";
+      if (res.ok && type.includes("application/zip")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filenameFrom(res.headers.get("content-disposition")) || `SUVSANOAT_chertezhi_${Math.round(Q)}m3.zip`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        setInvoice(null);
+        return;
+      }
+      const data = (await res.json().catch(() => null)) as { error?: string; invoice?: InvoiceView } | null;
+      if (res.status === 402 && data?.invoice) {
+        setInvoice(data.invoice);
+        return;
+      }
+      setZipError(data?.error || "Не удалось получить комплект чертежей.");
+    } catch {
+      setZipError("Нет связи с сервером.");
+    } finally {
+      setZipBusy(false);
+    }
   }
 
   const [note, setNote] = useState<{ text: string; source: "ai" | "template"; reason?: string } | null>(null);
@@ -1208,6 +1380,99 @@ function ProResultContent() {
           <p style={{ fontSize: 12, color: FAINT, margin: "10px 0 0", lineHeight: 1.6 }}>{calc.power.note}</p>
         </div>
 
+        {/* ================= ЧЕРТЕЖИ ================= */}
+        {drawings && (
+          <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+            <b style={{ fontSize: 16 }}>{U.drawTitle}</b>
+            <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 12px", lineHeight: 1.55 }}>{U.drawLead}</p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 13 }}>
+                <div style={{ color: FAINT, fontSize: 11 }}>{U.drawNeedArea}</div>
+                <b style={{ fontSize: 17 }}>{fmt(drawings.need.needM2)}</b> {U.unitM2}
+              </div>
+              <div style={{ fontSize: 13 }}>
+                <div style={{ color: FAINT, fontSize: 11 }}>{U.drawHaveArea}</div>
+                <b style={{ fontSize: 17 }}>{drawings.layout.generated ? "—" : fmt(drawings.layout.haveM2)}</b>{" "}
+                {drawings.layout.generated ? "" : U.unitM2}
+              </div>
+            </div>
+
+            {drawings.layout.generated ? (
+              <p style={{ fontSize: 13, color: "#9ccc65", margin: "0 0 10px", lineHeight: 1.6 }}>{U.drawUnlimited}</p>
+            ) : drawings.layout.fits ? (
+              <p style={{ fontSize: 13, color: "#9ccc65", margin: "0 0 10px", lineHeight: 1.6 }}>{U.drawFits}</p>
+            ) : (
+              <div style={{ border: "1px solid rgba(255,183,77,0.45)", background: "rgba(255,183,77,0.07)", borderRadius: 10, padding: "12px 14px", margin: "0 0 12px" }}>
+                <div style={{ fontSize: 13, color: "#ffb74d", marginBottom: 8 }}>
+                  {U.drawDeficit}: <b>{fmt(drawings.layout.deficitM2)}</b> {U.unitM2}
+                </div>
+                {drawings.layout.hint.map((h, i) => (
+                  <p key={i} style={{ fontSize: 12, color: "#cfdde3", margin: "0 0 5px", lineHeight: 1.55 }}>— {h}</p>
+                ))}
+              </div>
+            )}
+
+            <div style={{ fontSize: 12, letterSpacing: "0.08em", color: FAINT, margin: "0 0 8px" }}>{U.drawSheets}</div>
+            <ol style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 13, lineHeight: 1.7 }}>
+              <li>{U.drawSheetRegister}</li>
+              <li>{U.drawSheetSite}</li>
+              {drawings.entries.map((e, i) => (
+                <li key={i}>{e.title}</li>
+              ))}
+              <li>{U.drawSheetProfile}</li>
+              <li>{U.drawSheetScheme}</li>
+            </ol>
+
+            <button type="button" onClick={downloadPackage} disabled={zipBusy} className="noPrint"
+              style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: zipBusy ? "wait" : "pointer", background: zipBusy ? "#2a6d80" : ACCENT, color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+              {zipBusy ? U.drawBusy : U.drawButton}
+            </button>
+
+            {zipError && (
+              <p className="noPrint" style={{ fontSize: 13, color: "#ff8a80", margin: "12px 0 0" }}>{zipError}</p>
+            )}
+
+            {/* СЧЁТ-ОФЕРТА */}
+            {invoice && (
+              <div className="noPrint" style={{ marginTop: 16, border: `1px solid ${ACCENT}`, background: "rgba(62,195,230,0.07)", borderRadius: 10, padding: "16px 18px" }}>
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>{U.drawInvoiceTitle}</div>
+                <p style={{ fontSize: 14, margin: "0 0 8px" }}>
+                  {U.drawInvoiceNo} <b>{invoice.invoiceNo}</b> · {U.drawAmount}:{" "}
+                  <b style={{ fontSize: 18 }}>{fmt(invoice.amount)}</b> {U.drawCurrency}
+                </p>
+                <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
+                  {U.objectWord}: {invoice.object} · {fmt(invoice.q)} {U.unitM3Day}
+                </p>
+                {invoice.lines.map((line, i) => (
+                  <p key={i} style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 6px", lineHeight: 1.6 }}>— {line}</p>
+                ))}
+                <div style={{ fontSize: 12.5, margin: "12px 0 0", lineHeight: 1.7 }}>
+                  <div style={{ color: FAINT, fontSize: 11, letterSpacing: "0.08em", marginBottom: 4 }}>{U.drawPayee}</div>
+                  {invoice.payee.name || invoice.payee.account ? (
+                    <>
+                      {invoice.payee.name && <div>{invoice.payee.name}</div>}
+                      {invoice.payee.inn && <div>ИНН {invoice.payee.inn}</div>}
+                      {invoice.payee.bank && <div>{invoice.payee.bank}</div>}
+                      {invoice.payee.account && <div>р/с {invoice.payee.account}</div>}
+                      {invoice.payee.mfo && <div>МФО {invoice.payee.mfo}</div>}
+                      {invoice.payee.contact && <div>{invoice.payee.contact}</div>}
+                    </>
+                  ) : (
+                    <div style={{ color: "#ffb74d" }}>{U.drawPayeePending}</div>
+                  )}
+                </div>
+                <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "12px 0 0", lineHeight: 1.6 }}>{U.drawPendingNote}</p>
+                <button type="button" disabled title={U.drawCardSoon}
+                  style={{ marginTop: 12, padding: "10px 20px", borderRadius: 8, border: `1px dashed ${LINE}`, background: "transparent", color: FAINT, fontSize: 13, cursor: "not-allowed" }}>
+                  {U.drawCardSoon}
+                </button>
+                <p style={{ fontSize: 11.5, color: FAINT, margin: "8px 0 0", lineHeight: 1.6 }}>{U.drawCardNote}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ОСОБЕННОСТИ ОТРАСЛИ */}
         <div style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: 20, margin: "24px 0" }}>
           <div style={{ fontSize: 12, letterSpacing: "0.1em", color: ACCENT, marginBottom: 10 }}>{U.industryNotesTitle}</div>
@@ -1262,6 +1527,10 @@ function ProResultContent() {
           <button type="button" onClick={dxfModels}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
             {U.btnDxfModels}
+          </button>
+          <button type="button" onClick={downloadPackage} disabled={zipBusy}
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: zipBusy ? "wait" : "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            {zipBusy ? U.drawBusy : U.drawButton}
           </button>
           <button type="button" onClick={printScheme}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>

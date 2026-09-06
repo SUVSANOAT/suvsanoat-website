@@ -16,6 +16,17 @@ type User = {
   active: boolean; created_at: string; last_login: string | null; note: string;
 };
 type Req = { id: number; name: string; company: string; phone: string; email: string; message: string; status: string; created_at: string };
+/** заказ на комплект чертежей — lib/orders.ts */
+type Order = {
+  id: number; user_login: string; object: string; q: number; created_at: string;
+  status: "pending" | "paid" | "issued"; amount: number; invoice_no: string; issued_at: string | null;
+};
+
+const ORDER_STATUS: Record<Order["status"], string> = {
+  pending: "счёт выставлен",
+  paid: "оплачен",
+  issued: "выдан",
+};
 
 const BG = "#06151d";
 const PANEL = "rgba(255,255,255,0.04)";
@@ -49,6 +60,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [reqs, setReqs] = useState<Req[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ login: "", name: "", company: "", phone: "", email: "", note: "", password: "" });
   const [issued, setIssued] = useState<{ login: string; password: string } | null>(null);
@@ -57,10 +69,15 @@ export default function AdminPage() {
   const load = useCallback(async () => {
     setError("");
     try {
-      const [u, r] = await Promise.all([fetch("/api/admin/users").then((x) => x.json()), fetch("/api/admin/requests").then((x) => x.json())]);
+      const [u, r, o] = await Promise.all([
+        fetch("/api/admin/users").then((x) => x.json()),
+        fetch("/api/admin/requests").then((x) => x.json()),
+        fetch("/api/drawings").then((x) => x.json()),
+      ]);
       if (!u.ok) setError(u.error || "Ошибка загрузки пользователей");
       else setUsers(u.users);
       if (r.ok) setReqs(r.requests);
+      if (o.ok) setOrders(o.orders ?? []);
     } catch {
       setError("Нет связи с сервером");
     }
@@ -108,6 +125,16 @@ export default function AdminPage() {
 
   async function reqStatus(r: Req, status: string) {
     await fetch("/api/admin/requests", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: r.id, status }) });
+    load();
+  }
+
+  async function orderStatus(o: Order, status: Order["status"]) {
+    const data = await fetch("/api/drawings", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: o.id, status }),
+    }).then((x) => x.json());
+    if (!data.ok) setError(data.error || "Не удалось изменить статус заказа");
     load();
   }
 
@@ -198,6 +225,40 @@ export default function AdminPage() {
                 </tr>
               ))}
               {!reqs.length && <tr><td colSpan={8} style={{ padding: 10, color: FAINT }}>Заявок нет.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ЗАКАЗЫ НА КОМПЛЕКТ ЧЕРТЕЖЕЙ */}
+        <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", margin: "0 0 10px" }}>
+          ЗАКАЗЫ НА ЧЕРТЕЖИ — {orders.filter((o) => o.status === "pending").length} ЖДУТ ОПЛАТЫ
+        </div>
+        <div style={{ overflowX: "auto", marginBottom: 28 }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }}>
+            <thead>
+              <tr>{["Дата", "Счёт", "Пользователь", "Объект", "Q, м³/сут", "Сумма, сум", "Статус", "Выдан", ""].map((h) => (
+                <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600 }}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id} style={{ opacity: o.status === "pending" ? 1 : 0.65 }}>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{dt(o.created_at)}</td>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{o.invoice_no}</td>
+                  <td style={{ padding: "6px 8px", fontWeight: 600 }}>{o.user_login}</td>
+                  <td style={{ padding: "6px 8px", maxWidth: 260 }}>{o.object}</td>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{Number(o.q).toLocaleString("ru-RU")}</td>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{Number(o.amount).toLocaleString("ru-RU")}</td>
+                  <td style={{ padding: "6px 8px", color: o.status === "pending" ? "#ffb74d" : "#9ccc65" }}>{ORDER_STATUS[o.status]}</td>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{dt(o.issued_at)}</td>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                    {o.status === "pending"
+                      ? <button type="button" style={{ ...btn, borderColor: "#9ccc65" }} onClick={() => orderStatus(o, "paid")}>Отметить оплаченным</button>
+                      : <button type="button" style={btn} onClick={() => orderStatus(o, "pending")}>Снять оплату</button>}
+                  </td>
+                </tr>
+              ))}
+              {!orders.length && <tr><td colSpan={9} style={{ padding: 10, color: FAINT }}>Заказов на чертежи нет.</td></tr>}
             </tbody>
           </table>
         </div>

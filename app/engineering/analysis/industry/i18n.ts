@@ -377,6 +377,104 @@ export const UI = {
   noteTemplateBadge: L("ТЕХНИЧЕСКАЯ ЗАПИСКА · ШАБЛОН ПО РАСЧЁТУ SUVSANOAT", "TEXNIK IZOHNOMA · SUVSANOAT HISOBI BO‘YICHA SHABLON", "TECHNICAL NOTE · TEMPLATE FROM THE SUVSANOAT CALCULATION", "技术说明书 · 依据计算的模板"),
   noteDownload: L("Скачать .md", ".md yuklab olish", "Download .md", "下载 .md"),
   notePdf: L("PDF (расчёт + записка)", "PDF (hisob + izohnoma)", "PDF (calculation + note)", "PDF（计算＋说明书）"),
+  /* --- участок под очистные сооружения (анкета) --- */
+  siteSection: L("УЧАСТОК ПОД ОЧИСТНЫЕ СООРУЖЕНИЯ", "TOZALASH INSHOOTLARI UCHUN MAYDON", "SITE FOR THE TREATMENT PLANT", "污水处理站用地"),
+  siteLead: L(
+    "Участок нужен для генерального плана: по нему проверяется, помещаются ли сооружения, и собирается комплект чертежей.",
+    "Maydon bosh reja uchun kerak: inshootlar sig‘ishi shu bo‘yicha tekshiriladi va chizmalar to‘plami shakllantiriladi.",
+    "The site is needed for the general layout: it decides whether the structures fit and drives the drawing set.",
+    "用地用于总平面：据此校核构筑物是否放得下，并生成图纸集。"
+  ),
+  siteModeTitle: L("КАК ЗАДАН УЧАСТОК", "MAYDON QANDAY BERILGAN", "HOW THE SITE IS DEFINED", "用地如何给定"),
+  siteModeGiven: L("Площадь задана", "Maydon berilgan", "The area is given", "已给定面积"),
+  siteModeGivenHint: L(
+    "Известны границы площадки — задайте прямоугольник или контур по точкам.",
+    "Maydon chegaralari ma’lum — to‘rtburchak yoki nuqtalar bo‘yicha kontur bering.",
+    "The boundaries are known — enter a rectangle or a polygon by points.",
+    "边界已知 — 输入矩形或按点给出多边形。"
+  ),
+  siteModeUnlimited: L("Участок не ограничен", "Maydon cheklanmagan", "The site is unlimited", "用地不受限"),
+  siteModeUnlimitedHint: L(
+    "Границы ещё не выбраны — площадку подберёт компоновка.",
+    "Chegaralar hali tanlanmagan — maydonni kompozitsiya o‘zi tanlaydi.",
+    "The boundaries are not chosen yet — the layout will size the site.",
+    "边界尚未确定 — 由布置方案确定用地。"
+  ),
+  siteShapeTitle: L("СПОСОБ ВВОДА", "KIRITISH USULI", "INPUT METHOD", "录入方式"),
+  siteShapeRect: L("Прямоугольник", "To‘rtburchak", "Rectangle", "矩形"),
+  siteShapePoly: L("Контур по точкам", "Nuqtalar bo‘yicha kontur", "Polygon by points", "按点给出多边形"),
+  siteWidth: L("Ширина, м", "Eni, m", "Width, m", "宽度，m"),
+  siteLength: L("Длина, м", "Uzunligi, m", "Length, m", "长度，m"),
+  sitePolyLabel: L("Контур участка — по одной точке «x y» в строке, м", "Maydon konturi — har satrda bitta «x y» nuqta, m", "Site outline — one point “x y” per line, m", "用地轮廓 — 每行一个点“x y”，m"),
+  sitePolyHint: L(
+    "Координаты в метрах в любой местной системе, обход по часовой стрелке; замыкать контур не нужно.",
+    "Koordinatalar metrda, istalgan mahalliy tizimda, soat yo‘nalishi bo‘yicha; konturni yopish shart emas.",
+    "Metres in any local grid, clockwise; there is no need to close the outline.",
+    "任意地方坐标系下的米制坐标，顺时针；无需闭合。"
+  ),
+  siteAreaGiven: L("Заданная площадь", "Berilgan maydon", "Given area", "给定面积"),
+  siteExtraTitle: L("ДОПОЛНИТЕЛЬНО — НЕОБЯЗАТЕЛЬНО", "QO‘SHIMCHA — MAJBURIY EMAS", "ADDITIONAL — OPTIONAL", "补充信息 — 非必填"),
+  siteGroundElev: L("Отметка планировки, м абс.", "Tekislash belgisi, m abs.", "Finished ground level, m a.s.l.", "场地设计标高，m 绝对"),
+  siteInletSide: L("Сторона подвода коллектора", "Kollektor keladigan tomon", "Side the incoming sewer comes from", "进水管道来向"),
+  siteInletInvert: L("Отметка лотка коллектора, м абс.", "Kollektor tovoni belgisi, m abs.", "Invert of the incoming sewer, m a.s.l.", "进水管管底标高，m 绝对"),
+  siteOutletSide: L("Сторона точки сброса", "Chiqarish nuqtasi tomoni", "Side of the discharge point", "排放点方位"),
+  siteOutletElev: L("Отметка точки сброса, м абс.", "Chiqarish nuqtasi belgisi, m abs.", "Level of the discharge point, m a.s.l.", "排放点标高，m 绝对"),
+  siteHousingSide: L("Сторона жилой застройки", "Turar-joy qurilishi tomoni", "Side of the residential area", "居民区方位"),
+  siteHousingDist: L("Расстояние до жилой застройки, м", "Turar-joygacha masofa, m", "Distance to the residential area, m", "至居民区距离，m"),
+  sideNotSet: L("не задано", "berilmagan", "not set", "未指定"),
+  sideNorth: L("север", "shimol", "north", "北"),
+  sideSouth: L("юг", "janub", "south", "南"),
+  sideEast: L("восток", "sharq", "east", "东"),
+  sideWest: L("запад", "g‘arb", "west", "西"),
+  siteUnlimitedNote: L(
+    `Участок не ограничен: компоновка принимается по пп. 6.11–6.12 ${KMK_2_04_03_19_DOC.code} — сооружения размещаются по ходу потока с понижением отметок, обработка осадка и механическая очистка относятся дальше от жилой застройки, предусматривается резервная полоса для расширения. Санитарно-защитная зона — по табл. 1 того же документа.`,
+    `Maydon cheklanmagan: kompozitsiya ${KMK_2_04_03_19_DOC.code} 6.11–6.12-bandlari bo‘yicha qabul qilinadi — inshootlar oqim yo‘nalishi bo‘yicha belgilarni pasaytirib joylashtiriladi, cho‘kindi ishlov berish va mexanik tozalash turar-joydan uzoqroqqa olinadi, kengaytirish uchun zaxira yo‘lak ko‘zda tutiladi. Sanitariya-himoya zonasi — shu hujjatning 1-jadvali bo‘yicha.`,
+    `The site is unlimited: the layout follows cl. 6.11–6.12 of ${KMK_2_04_03_19_DOC.code} — structures are placed along the flow with descending levels, sludge handling and mechanical treatment are kept away from housing, and a reserve strip for extension is provided. The sanitary protection zone is taken from Table 1 of the same document.`,
+    `用地不受限：布置按 ${KMK_2_04_03_19_DOC.code} 第 6.11–6.12 条采用 — 构筑物沿流程布置并逐段降低标高，污泥处理与机械处理段远离居民区，并预留扩建用地。卫生防护带按同一规范表 1 确定。`
+  ),
+
+  /* --- блок «Чертежи» на странице результата --- */
+  drawTitle: L("ЧЕРТЕЖИ", "CHIZMALAR", "DRAWINGS", "图纸"),
+  drawLead: L(
+    "Комплект листов А1 в DXF собирается по этому же расчёту: генеральный план площадки, лист на каждое сооружение (план, разрезы, изометрия), гидравлический профиль, технологическая схема и ведомость чертежей.",
+    "A1 formatdagi DXF varaqlar to‘plami shu hisob bo‘yicha shakllanadi: bosh reja, har bir inshoot uchun varaq (plan, kesimlar, izometriya), gidravlik profil, texnologik sxema va chizmalar ro‘yxati.",
+    "The A1 DXF sheet set is built from this very calculation: the general layout, a sheet per structure (plan, sections, isometric view), the hydraulic profile, the process diagram and the drawing register.",
+    "A1 幅面 DXF 图纸集由本计算生成：总平面、每个构筑物一张（平面、剖面、轴测）、水力高程图、工艺流程图及图纸目录。"
+  ),
+  drawNeedArea: L("Потребная площадь участка", "Talab qilinadigan maydon", "Required site area", "所需用地面积"),
+  drawHaveArea: L("Заданная площадь участка", "Berilgan maydon", "Given site area", "给定用地面积"),
+  drawFits: L("Сооружения размещаются на заданном участке.", "Inshootlar berilgan maydonga joylashadi.", "The structures fit on the given site.", "构筑物可在给定用地内布置。"),
+  drawDeficit: L("Не помещается — дефицит площади", "Sig‘maydi — maydon tanqisligi", "Does not fit — area deficit", "放不下 — 用地缺口"),
+  drawUnlimited: L("Участок не ограничен: площадка подобрана компоновкой.", "Maydon cheklanmagan: maydon kompozitsiya bo‘yicha tanlangan.", "The site is unlimited: the layout sized the plot.", "用地不受限：由布置方案确定场地。"),
+  drawSheets: L("Состав комплекта", "To‘plam tarkibi", "Sheets in the set", "图纸组成"),
+  drawSheetSite: L("Генеральный план площадки", "Maydon bosh rejasi", "General site layout", "场地总平面图"),
+  drawSheetProfile: L("Гидравлический профиль", "Gidravlik profil", "Hydraulic profile", "水力高程图"),
+  drawSheetScheme: L("Технологическая схема", "Texnologik sxema", "Process flow diagram", "工艺流程图"),
+  drawSheetRegister: L("Ведомость чертежей", "Chizmalar ro‘yxati", "Drawing register", "图纸目录"),
+  drawButton: L("Скачать комплект чертежей (DXF)", "Chizmalar to‘plamini yuklab olish (DXF)", "Download the drawing set (DXF)", "下载图纸集（DXF）"),
+  drawBusy: L("Собираю комплект…", "To‘plam yig‘ilmoqda…", "Building the set…", "正在生成…"),
+  drawNeedLogin: L("Для выдачи комплекта нужен вход в раздел «Инжиниринг».", "To‘plamni olish uchun «Injiniring» bo‘limiga kirish kerak.", "Sign in to the Engineering section to receive the set.", "领取图纸集需登录“工程”栏目。"),
+  drawInvoiceTitle: L("СЧЁТ-ОФЕРТА НА КОМПЛЕКТ ЧЕРТЕЖЕЙ", "CHIZMALAR TO‘PLAMI UCHUN HISOB-OFERTA", "INVOICE-OFFER FOR THE DRAWING SET", "图纸集报价单（要约）"),
+  drawInvoiceNo: L("Счёт №", "Hisob №", "Invoice no.", "单号"),
+  drawAmount: L("Сумма", "Summa", "Amount", "金额"),
+  drawCurrency: L("сум", "so‘m", "UZS", "苏姆"),
+  drawPayee: L("Получатель платежа", "To‘lov oluvchi", "Payee", "收款方"),
+  drawPayeePending: L("уточняется — реквизиты выдаёт администратор", "aniqlanmoqda — rekvizitlarni administrator beradi", "to be confirmed — the administrator issues the details", "待确认 — 由管理员提供"),
+  drawPendingNote: L(
+    "Оплата не подтверждена. После поступления оплаты администратор отметит счёт оплаченным, и комплект станет доступен по этой же кнопке.",
+    "To‘lov tasdiqlanmagan. To‘lov kelgach administrator hisobni to‘langan deb belgilaydi va to‘plam shu tugma orqali ochiladi.",
+    "The payment is not confirmed yet. Once it arrives, the administrator marks the invoice as paid and the set becomes available from this same button.",
+    "款项尚未确认。到账后管理员将标记为已付款，届时可通过同一按钮下载。"
+  ),
+  drawCardSoon: L("Оплатить картой (Payme / Click) — скоро", "Karta bilan to‘lash (Payme / Click) — tez orada", "Pay by card (Payme / Click) — coming soon", "银行卡支付（Payme / Click）— 即将开通"),
+  drawCardNote: L(
+    "Для физических лиц оплата картой (Payme, Click) будет подключена позже; сейчас счёт оплачивается по банковским реквизитам.",
+    "Jismoniy shaxslar uchun karta orqali to‘lov (Payme, Click) keyinroq ulanadi; hozircha hisob bank rekvizitlari bo‘yicha to‘lanadi.",
+    "Card payment (Payme, Click) for individuals will be connected later; for now the invoice is paid by bank transfer.",
+    "面向个人的银行卡支付（Payme、Click）将于稍后开通；目前按银行账户付款。"
+  ),
+  drawPaidHint: L("Счёт оплачен — комплект можно скачивать.", "Hisob to‘langan — to‘plamni yuklab olish mumkin.", "The invoice is paid — the set can be downloaded.", "已付款 — 可下载图纸集。"),
+
   notFound: L("Недостаточно данных.", "Ma’lumot yetarli emas.", "Not enough data.", "数据不足。"),
   startOver: L("Начать заново", "Qaytadan boshlash", "Start over", "重新开始"),
 } satisfies Record<string, L10n>;

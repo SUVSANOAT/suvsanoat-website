@@ -17,6 +17,7 @@ import { DISCHARGES, findDischarge } from "./targets";
 import { MEMBRANE_TECHNOLOGIES } from "./equipment";
 import type { TechnologyCode } from "../../../../calculations/technology";
 import { BIO_TECHNOLOGIES, t, ui } from "./i18n";
+import type { UiStrings } from "./i18n";
 import { useLanguage } from "../../../LanguageContext";
 import {
   DEFAULT_WATER_USE_HORIZON,
@@ -100,6 +101,36 @@ const POPULATION_FIRST = new Set([
 
 const ADDITIONAL_PERCENTS = ["0", "5", "10", "15"] as const;
 
+/* ------------------------------------------------------------------
+ * УЧАСТОК
+ *
+ * Контур участка нужен генплану и компоновке (drawings/site/layout.ts):
+ * либо прямоугольник ширина × длина, либо контур по точкам «x y», м.
+ * Стороны света и отметки — необязательные, они уточняют компоновку.
+ * ------------------------------------------------------------------ */
+
+type SiteMode = "given" | "unlimited";
+type SiteShape = "rect" | "poly";
+
+/** разбор текстового контура: по одной точке «x y» в строке, м */
+function parsePolygon(text: string): [number, number][] {
+  const out: [number, number][] = [];
+  for (const line of text.split(/[\n;]/)) {
+    const parts = line.trim().replace(/,/g, ".").split(/[\s\t]+/).filter(Boolean);
+    if (parts.length < 2) continue;
+    const x = parseFloat(parts[0]);
+    const y = parseFloat(parts[1]);
+    if (Number.isFinite(x) && Number.isFinite(y)) out.push([x, y]);
+  }
+  return out;
+}
+
+const SIDE_IDS = ["N", "S", "E", "W"] as const;
+
+function sideLabel(id: (typeof SIDE_IDS)[number], U: UiStrings): string {
+  return id === "N" ? U.sideNorth : id === "S" ? U.sideSouth : id === "E" ? U.sideEast : U.sideWest;
+}
+
 const inputStyle = {
   display: "block",
   marginTop: 6,
@@ -137,6 +168,39 @@ function IndustryContent() {
   const [hasTu, setHasTu] = useState(false);
   const [tu, setTu] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+
+  /* --- участок под очистные сооружения (для генплана и комплекта чертежей) --- */
+  const [siteMode, setSiteMode] = useState<SiteMode>("unlimited");
+  const [siteShape, setSiteShape] = useState<SiteShape>("rect");
+  const [siteW, setSiteW] = useState("");
+  const [siteL, setSiteL] = useState("");
+  const [sitePoly, setSitePoly] = useState("");
+  const [groundElev, setGroundElev] = useState("");
+  const [inletSide, setInletSide] = useState("");
+  const [inletInvert, setInletInvert] = useState("");
+  const [outletSide, setOutletSide] = useState("");
+  const [outletElev, setOutletElev] = useState("");
+  const [housingSide, setHousingSide] = useState("");
+  const [housingDist, setHousingDist] = useState("");
+
+  /** площадь заданного участка, м² — для подсказки под блоком */
+  const siteArea = useMemo(() => {
+    if (siteMode !== "given") return null;
+    if (siteShape === "rect") {
+      const w = parseFloat(siteW.replace(",", "."));
+      const l = parseFloat(siteL.replace(",", "."));
+      return Number.isFinite(w) && Number.isFinite(l) && w > 0 && l > 0 ? Math.round(w * l) : null;
+    }
+    const poly = parsePolygon(sitePoly);
+    if (poly.length < 3) return null;
+    let s = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const [x1, y1] = poly[i];
+      const [x2, y2] = poly[(i + 1) % poly.length];
+      s += x1 * y2 - x2 * y1;
+    }
+    return Math.round(Math.abs(s) / 2);
+  }, [siteMode, siteShape, siteW, siteL, sitePoly]);
 
   const industry = useMemo(
     () => (industryId ? findIndustry(industryId) : undefined),
@@ -289,6 +353,25 @@ function IndustryContent() {
     /* снятие требования об обязательной мембранной очистке — осознанное
        решение инженера, оно должно быть видно в расчёте и в записке */
     if (mbrWaiver) params.set("mbrWaiver", "1");
+
+    /* участок: контур и привязки уходят в pro-result, оттуда — в генплан */
+    params.set("siteMode", siteMode);
+    if (siteMode === "given") {
+      if (siteShape === "rect") {
+        if (siteW) params.set("siteW", siteW);
+        if (siteL) params.set("siteL", siteL);
+      } else {
+        const poly = parsePolygon(sitePoly);
+        if (poly.length >= 3) params.set("sitePoly", poly.map(([x, y]) => `${x} ${y}`).join(";"));
+      }
+    }
+    if (groundElev) params.set("groundElev", groundElev);
+    if (inletSide) params.set("inletSide", inletSide);
+    if (inletInvert) params.set("inletInvert", inletInvert);
+    if (outletSide) params.set("outletSide", outletSide);
+    if (outletElev) params.set("outletElev", outletElev);
+    if (housingSide) params.set("housingSide", housingSide);
+    if (housingDist) params.set("housingDist", housingDist);
 
     router.push(`/engineering/analysis/pro-result?${params.toString()}`);
   }
@@ -925,6 +1008,203 @@ function IndustryContent() {
                   )}
                 </div>
               )}
+
+              {/* УЧАСТОК ПОД ОЧИСТНЫЕ СООРУЖЕНИЯ */}
+              <div
+                style={{
+                  border: `1px solid ${LINE}`,
+                  background: PANEL,
+                  borderRadius: 12,
+                  padding: "22px",
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ fontSize: 13, letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>
+                  {U.siteSection}
+                </div>
+                <p style={{ fontSize: 12, color: FAINT, margin: "0 0 14px", lineHeight: 1.6 }}>{U.siteLead}</p>
+
+                <div style={{ fontSize: 12, letterSpacing: "0.08em", color: FAINT, marginBottom: 8 }}>
+                  {U.siteModeTitle}
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+                  {([
+                    { id: "given" as const, title: U.siteModeGiven, hint: U.siteModeGivenHint },
+                    { id: "unlimited" as const, title: U.siteModeUnlimited, hint: U.siteModeUnlimitedHint },
+                  ]).map((item) => (
+                    <label
+                      key={item.id}
+                      style={{
+                        flex: "1 1 260px",
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "flex-start",
+                        padding: "12px 16px",
+                        borderRadius: 10,
+                        border: `1px solid ${siteMode === item.id ? ACCENT : LINE}`,
+                        background: siteMode === item.id ? "rgba(62,195,230,0.12)" : "transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="siteMode"
+                        checked={siteMode === item.id}
+                        onChange={() => setSiteMode(item.id)}
+                        style={{ marginTop: 3 }}
+                      />
+                      <span>
+                        <span style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{item.title}</span>
+                        <span style={{ display: "block", fontSize: 12, color: FAINT, lineHeight: 1.5 }}>{item.hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                {siteMode === "given" && (
+                  <>
+                    <div style={{ fontSize: 12, letterSpacing: "0.08em", color: FAINT, marginBottom: 8 }}>
+                      {U.siteShapeTitle}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                      {([
+                        { id: "rect" as const, title: U.siteShapeRect },
+                        { id: "poly" as const, title: U.siteShapePoly },
+                      ]).map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setSiteShape(item.id)}
+                          style={{
+                            padding: "10px 16px",
+                            borderRadius: 999,
+                            border: `1px solid ${siteShape === item.id ? ACCENT : LINE}`,
+                            background: siteShape === item.id ? "rgba(62,195,230,0.14)" : "transparent",
+                            color: siteShape === item.id ? "#eaf6fa" : FAINT,
+                            fontSize: 13,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {item.title}
+                        </button>
+                      ))}
+                    </div>
+
+                    {siteShape === "rect" ? (
+                      <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+                        <label style={{ fontSize: 13, color: FAINT }}>
+                          {U.siteWidth}
+                          <input
+                            value={siteW}
+                            onChange={(event) => setSiteW(event.target.value)}
+                            inputMode="decimal"
+                            style={{ ...inputStyle, width: 160 }}
+                          />
+                        </label>
+                        <label style={{ fontSize: 13, color: FAINT }}>
+                          {U.siteLength}
+                          <input
+                            value={siteL}
+                            onChange={(event) => setSiteL(event.target.value)}
+                            inputMode="decimal"
+                            style={{ ...inputStyle, width: 160 }}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <label style={{ display: "block", fontSize: 13, color: FAINT }}>
+                        {U.sitePolyLabel}
+                        <textarea
+                          value={sitePoly}
+                          onChange={(event) => setSitePoly(event.target.value)}
+                          rows={6}
+                          placeholder={"0 0\n80 0\n80 50\n0 50"}
+                          style={{ ...inputStyle, width: "100%", maxWidth: 420, fontFamily: "monospace", resize: "vertical" }}
+                        />
+                        <span style={{ display: "block", fontSize: 11, color: "#6f8792", marginTop: 6, lineHeight: 1.55 }}>
+                          {U.sitePolyHint}
+                        </span>
+                      </label>
+                    )}
+
+                    {siteArea !== null && (
+                      <p style={{ fontSize: 13, color: "#dfe9ec", margin: "14px 0 0" }}>
+                        {U.siteAreaGiven}: <b style={{ color: ACCENT }}>{siteArea}</b> {U.unitM2}
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {/* ДОПОЛНИТЕЛЬНЫЕ ПРИВЯЗКИ */}
+                <div style={{ fontSize: 12, letterSpacing: "0.08em", color: FAINT, margin: "20px 0 10px" }}>
+                  {U.siteExtraTitle}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+                  <label style={{ fontSize: 12, color: FAINT }}>
+                    {U.siteGroundElev}
+                    <input
+                      value={groundElev}
+                      onChange={(event) => setGroundElev(event.target.value)}
+                      inputMode="decimal"
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </label>
+                  {([
+                    { label: U.siteInletSide, value: inletSide, set: setInletSide },
+                    { label: U.siteOutletSide, value: outletSide, set: setOutletSide },
+                    { label: U.siteHousingSide, value: housingSide, set: setHousingSide },
+                  ]).map((item) => (
+                    <label key={item.label} style={{ fontSize: 12, color: FAINT }}>
+                      {item.label}
+                      <select
+                        value={item.value}
+                        onChange={(event) => item.set(event.target.value)}
+                        style={{ ...inputStyle, width: "100%" }}
+                      >
+                        <option value="">{U.sideNotSet}</option>
+                        {SIDE_IDS.map((id) => (
+                          <option key={id} value={id}>
+                            {sideLabel(id, U)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                  <label style={{ fontSize: 12, color: FAINT }}>
+                    {U.siteInletInvert}
+                    <input
+                      value={inletInvert}
+                      onChange={(event) => setInletInvert(event.target.value)}
+                      inputMode="decimal"
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </label>
+                  <label style={{ fontSize: 12, color: FAINT }}>
+                    {U.siteOutletElev}
+                    <input
+                      value={outletElev}
+                      onChange={(event) => setOutletElev(event.target.value)}
+                      inputMode="decimal"
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </label>
+                  <label style={{ fontSize: 12, color: FAINT }}>
+                    {U.siteHousingDist}
+                    <input
+                      value={housingDist}
+                      onChange={(event) => setHousingDist(event.target.value)}
+                      inputMode="decimal"
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  </label>
+                </div>
+
+                {siteMode === "unlimited" && (
+                  <p style={{ fontSize: 11, color: "#6f8792", margin: "16px 0 0", lineHeight: 1.6 }}>
+                    {U.siteUnlimitedNote}
+                  </p>
+                )}
+              </div>
             </>
           )}
 
