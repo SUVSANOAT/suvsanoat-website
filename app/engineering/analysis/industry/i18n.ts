@@ -69,6 +69,7 @@ export const UI = {
     "For every industry we hold typical pollutant loads and a treatment train. If you have a laboratory analysis, enter your own figures; if not, reference values from standards and industry data are used.",
     "每个行业均预置了典型污染物与工艺流程。有化验数据可直接填写；没有则采用规范与行业手册的参考值。"
   ),
+  backToInput: L("Назад к исходным данным", "Boshlang‘ich ma’lumotlarga qaytish", "Back to input data", "返回原始数据"),
   tzSection: L("ТЕХНИЧЕСКОЕ ЗАДАНИЕ ИЛИ ТЕХНИЧЕСКИЕ УСЛОВИЯ", "TEXNIK TOPSHIRIQ YOKI TEXNIK SHARTLAR", "DESIGN BRIEF OR UTILITY CONDITIONS", "设计任务书或接管技术条件"),
   tzLead: L(
     "Приложите ТЗ заказчика, технические условия водоканала или протокол анализа — PDF, скан или фотографию. Что найдётся в документе, подставится в анкету; спросим только недостающее. К каждому значению будет показана цитата из документа, чтобы вы могли его проверить.",
@@ -516,6 +517,15 @@ export const UI = {
     "面向个人的银行卡支付（Payme、Click）将于稍后开通；目前按银行账户付款。"
   ),
   drawPaidHint: L("Счёт оплачен — комплект можно скачивать.", "Hisob to‘langan — to‘plamni yuklab olish mumkin.", "The invoice is paid — the set can be downloaded.", "已付款 — 可下载图纸集。"),
+
+  /* --- сообщения об ошибках --- */
+  errDrawings: L(
+    "Не удалось получить комплект чертежей.",
+    "Chizmalar to‘plamini olishning iloji bo‘lmadi.",
+    "The drawing set could not be retrieved.",
+    "未能获取图纸集。"
+  ),
+  errNetwork: L("Нет связи с сервером.", "Server bilan aloqa yo‘q.", "No connection to the server.", "无法连接服务器。"),
 
   notFound: L("Недостаточно данных.", "Ma’lumot yetarli emas.", "Not enough data.", "数据不足。"),
   startOver: L("Начать заново", "Qaytadan boshlash", "Start over", "重新开始"),

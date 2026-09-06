@@ -17,9 +17,10 @@ import { DISCHARGES, findDischarge } from "./targets";
 import { filledCount, hasAnything, type Extracted, type FieldSource, type TzExtract } from "./tz-extract";
 import { MEMBRANE_TECHNOLOGIES } from "./equipment";
 import type { TechnologyCode } from "../../../../calculations/technology";
-import { BIO_TECHNOLOGIES, t, ui } from "./i18n";
-import type { UiStrings } from "./i18n";
+import { BIO_TECHNOLOGIES, L, t, ui } from "./i18n";
+import type { L10n, UiStrings } from "./i18n";
 import { useLanguage } from "../../../LanguageContext";
+import LanguageSwitcher from "../../../components/LanguageSwitcher";
 import {
   DEFAULT_WATER_USE_HORIZON,
   KMK_2_04_03_19_DOC,
@@ -142,7 +143,12 @@ const TZ_SHRINK_OVER_BYTES = 2 * 1024 * 1024;
 const TZ_MAX_IMAGE_SIDE = 2000;
 
 /** если сеть или браузер подвели, показываем то же, что сказал бы сервер */
-const TZ_FALLBACK_ERROR = "Разбор документа не завершился. Заполните анкету вручную.";
+const TZ_FALLBACK_ERROR = L(
+  "Разбор документа не завершился. Заполните анкету вручную.",
+  "Hujjatni tahlil qilish yakunlanmadi. Anketani qo‘lda to‘ldiring.",
+  "Parsing the document did not finish. Fill the form manually.",
+  "文件解析未完成，请手动填写表单。"
+);
 
 /** сервер ждёт голый base64, без обвязки data:image/...;base64, */
 function stripDataUrl(url: string): string {
@@ -194,15 +200,15 @@ async function encodeForUpload(file: File): Promise<{ type: string; dataBase64: 
 }
 
 /** ссылка на страницу документа рядом с цитатой — чтобы найти место в оригинале */
-const TZ_PAGE_PREFIX = "стр.";
+const TZ_PAGE_PREFIX = L("стр.", "bet", "p.", "第 页");
 
 /** расшифровка типа документа: код модели проектировщику ничего не говорит */
-const TZ_DOC_KIND_RU: Record<TzExtract["docKind"], string> = {
-  tz: "техническое задание",
-  tu: "технические условия",
-  lab: "протокол анализа",
-  mixed: "задание и технические условия вместе",
-  unknown: "не определён",
+const TZ_DOC_KIND: Record<TzExtract["docKind"], L10n> = {
+  tz: L("техническое задание", "texnik topshiriq", "design brief", "设计任务书"),
+  tu: L("технические условия", "texnik shartlar", "technical conditions", "技术条件"),
+  lab: L("протокол анализа", "tahlil bayonnomasi", "laboratory report", "化验报告"),
+  mixed: L("задание и технические условия вместе", "topshiriq va texnik shartlar birga", "brief and conditions together", "任务书与技术条件合并"),
+  unknown: L("не определён", "aniqlanmadi", "not identified", "未能确定"),
 };
 
 const SIDE_IDS = ["N", "S", "E", "W"] as const;
@@ -440,12 +446,12 @@ function IndustryContent() {
       });
       const data = (await res.json()) as { ok?: boolean; error?: string; extract?: TzExtract };
       if (!data.ok || !data.extract) {
-        setTzError(data.error || TZ_FALLBACK_ERROR);
+        setTzError(data.error || t(TZ_FALLBACK_ERROR, language));
         return;
       }
       setTzResult(data.extract);
     } catch {
-      setTzError(TZ_FALLBACK_ERROR);
+      setTzError(t(TZ_FALLBACK_ERROR, language));
     } finally {
       setTzBusy(false);
     }
@@ -687,13 +693,20 @@ function IndustryContent() {
   return (
     <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: "60px 24px 110px" }}>
       <div style={{ width: "100%", maxWidth: 980, margin: "0 auto" }}>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer", marginBottom: 26 }}
-        >
-          ← {U.back}
-        </button>
+        {/* Шапка шага: назад слева, выбор языка справа. Переключатель
+            обязан быть на каждой странице расчёта — общей шапки у сайта
+            нет, и без него проектировщик, зашедший сразу на этот адрес,
+            остаётся запертым в языке, выбранном на главной. */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 26 }}>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer" }}
+          >
+            ← {U.back}
+          </button>
+          <LanguageSwitcher />
+        </div>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
           {U.stepInput}
@@ -799,7 +812,7 @@ function IndustryContent() {
             {tzResult && hasAnything(tzResult) && (
               <div style={{ marginTop: 16 }}>
                 <p style={{ fontSize: 13, color: "#dfe9ec", margin: "0 0 12px", lineHeight: 1.6 }}>
-                  {U.tzDocKind}: <b>{TZ_DOC_KIND_RU[tzResult.docKind]}</b>
+                  {U.tzDocKind}: <b>{t(TZ_DOC_KIND[tzResult.docKind], language)}</b>
                   {" · "}
                   <b style={{ color: ACCENT }}>{filledCount(tzResult)}</b> {U.tzFilled}
                 </p>
@@ -816,7 +829,7 @@ function IndustryContent() {
                       {row.quote && (
                         <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.5, marginTop: 3 }}>
                           «{row.quote}»
-                          {row.page !== undefined ? ` — ${TZ_PAGE_PREFIX} ${row.page}` : ""}
+                          {row.page !== undefined ? ` — ${t(TZ_PAGE_PREFIX, language)} ${row.page}` : ""}
                         </div>
                       )}
                     </div>

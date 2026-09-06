@@ -15,7 +15,9 @@ import {
 import { chainForDischarge, findDischarge } from "../industry/targets";
 import { L, t, ui } from "../industry/i18n";
 import type { L10n, UiStrings } from "../industry/i18n";
+import type { Language } from "../../../translations";
 import { useLanguage } from "../../../LanguageContext";
+import LanguageSwitcher from "../../../components/LanguageSwitcher";
 import {
   SCALE_LABEL,
   TECHNOLOGY_CHOICES,
@@ -155,7 +157,346 @@ const TX = {
     "No aeration required: the process is anaerobic and no blower station is included.",
     "无需曝气：厌氧工艺，不设鼓风机房。"
   ),
+
+  /* --- карточка «Технология биоблока»: фраза про принятые величины
+     собирается из кусков, чтобы числа остались выделенными жирным --- */
+  bioFiguresPre: L("Объём биоблока ", "Bioblok hajmi ", "The bio-block volume ", "生物段容积 "),
+  bioFiguresMid: L(" м³ и ", " m³ va ", " m³ and ", " m³ 与 "),
+  bioFiguresAir: L("расход воздуха ", "havo sarfi ", "the air flow ", "供气量 "),
+  bioFiguresAirUnit: L(" Нм³/ч", " Nm³/soat", " Nm³/h", " Nm³/h"),
+  bioFiguresTail: L(
+    " приняты по расчёту выбранной технологии; на эти величины опираются спецификация, объёмы строительных работ, трубопроводы, площадь и электрика.",
+    " tanlangan texnologiya hisobi bo‘yicha qabul qilindi; spetsifikatsiya, qurilish ishlari hajmi, quvurlar, maydon va elektr qismi shu kattaliklarga tayanadi.",
+    " are taken from the calculation of the selected technology; the equipment schedule, the civil work volumes, the pipework, the area and the electrical part all rely on these figures.",
+    " 按所选工艺的计算确定；设备清单、土建工程量、管道、占地与电气均以此为依据。"
+  ),
+
+  /* --- сноска об источниках под особенностями отрасли --- */
+  sourcesNotNormed: L(
+    "(справочно, ҚМҚ не нормируются)",
+    "(ma’lumot uchun, ҚМҚ me’yorlamaydi)",
+    "(for reference; not codified by ҚМҚ)",
+    "（供参考，ҚМҚ 未作规定）"
+  ),
+
+  /* --- записка собрана по шаблону, а не ИИ --- */
+  noteFallbackPre: L("ИИ сейчас недоступен", "SI hozir mavjud emas", "The AI is currently unavailable", "AI 当前不可用"),
+  noteFallbackTail: L(
+    " — записка собрана по шаблону из тех же расчётных данных.",
+    " — izohnoma shu hisob ma’lumotlari asosida shablon bo‘yicha tuzildi.",
+    " — the note has been assembled from a template using the same calculation data.",
+    " —— 说明书已依据相同计算数据按模板生成。"
+  ),
 } satisfies Record<string, L10n>;
+
+/* ------------------------------------------------------------------
+ * ПОЯСНЕНИЯ К СТУПЕНЯМ ОЧИСТКИ НА ЧЕТЫРЁХ ЯЗЫКАХ
+ *
+ * Строки привязаны к расчёту именно этой страницы, поэтому лежат
+ * здесь, а не в i18n.ts. Числа приходят уже отформатированными:
+ * порядок слов в узбекском и китайском другой, и шаблон для каждого
+ * языка пишется отдельно, а не собирается склейкой.
+ *
+ * Ссылки на нормы (${…}.ref, «п.», «ф.») — цитаты ҚМҚ 2.04.03-19:
+ * номера не меняются, переводится только словесная обёртка.
+ * ------------------------------------------------------------------ */
+const M = {
+  parallelLines: (count: number) =>
+    L(
+      `${count} параллельных линии`,
+      `${count} ta parallel liniya`,
+      `${count} parallel lines`,
+      `${count} 条并联系列`
+    ),
+
+  bioVolumeByLoad: (byLoad: string, byHrt: string, taken: string) =>
+    L(
+      `Объём биоблока определён органической нагрузкой: ${byLoad} м³ против ${byHrt} м³ по времени пребывания с запасом. В расчёт принят больший — ${taken} м³.`,
+      `Bioblok hajmi organik yuklama bilan aniqlandi: ${byLoad} m³, zaxira bilan olingan bo‘lish vaqti bo‘yicha esa ${byHrt} m³. Hisobga kattarog‘i — ${taken} m³ qabul qilindi.`,
+      `The bio-block volume is governed by the organic load: ${byLoad} m³ against ${byHrt} m³ from the retention time with reserve. The larger value is taken — ${taken} m³.`,
+      `生物段容积由有机负荷控制：${byLoad} m³，而按含富余量的停留时间计为 ${byHrt} m³。计算取较大者 —— ${taken} m³。`
+    ),
+
+  /* --- решётка --- */
+  screen: (qh: string, qls: string, qMax: string, kMax: string, src: string) =>
+    L(
+      `Средний расход рабочего периода ${qh} м³/ч (${qls} л/с); максимальный приток ${qMax} м³/ч при K_gen.max = ${kMax} (${src}); прозор решётки 1–6 мм по составу отбросов.`,
+      `Ish davridagi o‘rtacha sarf ${qh} m³/soat (${qls} l/s); maksimal oqim ${qMax} m³/soat, K_gen.max = ${kMax} (${src}); panjara tirqishi chiqindi tarkibiga qarab 1–6 mm.`,
+      `Average flow over the operating period ${qh} m³/h (${qls} L/s); peak inflow ${qMax} m³/h at K_gen.max = ${kMax} (${src}); screen openings 1–6 mm depending on the screenings.`,
+      `运行时段平均流量 ${qh} m³/h（${qls} L/s）；最大进水 ${qMax} m³/h，K_gen.max = ${kMax}（${src}）；格栅缝隙按栅渣性质取 1–6 mm。`
+    ),
+
+  /* --- усреднитель --- */
+  avgVolume: (v: string, h: string) =>
+    L(
+      `Объём усреднения ≈ ${v} м³ (${h} часов среднего притока).`,
+      `O‘rtachalashtirish hajmi ≈ ${v} m³ (${h} soatlik o‘rtacha oqim).`,
+      `Equalisation volume ≈ ${v} m³ (${h} hours of average inflow).`,
+      `均质调节容积 ≈ ${v} m³（${h} 小时平均进水量）。`
+    ),
+  avgMixing: L(
+    "Перемешивание — эрлифт/мешалка против осаждения; для pH-нестабильных стоков здесь же коррекция.",
+    "Aralashtirish — cho‘kishga qarshi erlift yoki mikser; pH beqaror oqovalar uchun pH tuzatish ham shu yerda.",
+    "Mixing by air lift or submersible mixer prevents settling; for pH-unstable wastewater the pH correction is done here as well.",
+    "采用空气提升或潜水搅拌防止沉积；pH 波动较大的废水在此同时进行 pH 调节。"
+  ),
+
+  /* --- жироуловитель --- */
+  greaseBelow: (limit: number) =>
+    L(
+      `Жиры ниже ${limit} мг/л — отдельный жироуловитель не обязателен, контроль на усреднителе.`,
+      `Yog‘lar ${limit} mg/l dan past — alohida yog‘ tutgich shart emas, nazorat tenglashtirgichda olib boriladi.`,
+      `Fats are below ${limit} mg/L — a separate grease trap is not mandatory; control is done at the equalisation tank.`,
+      `油脂低于 ${limit} mg/L —— 可不设单独隔油池，在调节池处监控。`
+    ),
+  grease: (qh: string, fats: string, limit: number) =>
+    L(
+      `Расход ${qh} м³/ч; жиры ${fats} → цель ≤${limit} мг/л перед биологией.`,
+      `Sarf ${qh} m³/soat; yog‘lar ${fats} → biologiyadan oldin maqsad ≤${limit} mg/l.`,
+      `Flow ${qh} m³/h; fats ${fats} → target ≤${limit} mg/L ahead of the biology.`,
+      `流量 ${qh} m³/h；油脂 ${fats} → 生物段前目标 ≤${limit} mg/L。`
+    ),
+
+  /* --- песколовка --- */
+  sand: (qls: string, size: number, ref: string, qLimit: number, units: number, unitsRef: string) =>
+    L(
+      `Расход ${qls} л/с; задержание частиц от ${size} мм (${ref}); при Q > ${qLimit} м³/сут — не менее ${units} отделений (${unitsRef}).`,
+      `Sarf ${qls} l/s; ${size} mm dan yirik zarralarni ushlab qolish (${ref}); Q > ${qLimit} m³/kun bo‘lganda — kamida ${units} ta bo‘lim (${unitsRef}).`,
+      `Flow ${qls} L/s; retention of particles from ${size} mm (${ref}); at Q > ${qLimit} m³/day at least ${units} compartments are required (${unitsRef}).`,
+      `流量 ${qls} L/s；拦截粒径 ${size} mm 以上颗粒（${ref}）；当 Q > ${qLimit} m³/日 时不少于 ${units} 格（${unitsRef}）。`
+    ),
+
+  /* --- нефтеуловитель --- */
+  oil: (qls: string, petro: string) =>
+    L(
+      `Расход ${qls} л/с; нефтепродукты ${petro} → 0,3 мг/л с фильтром доочистки.`,
+      `Sarf ${qls} l/s; neft mahsulotlari ${petro} → qo‘shimcha tozalash filtri bilan 0,3 mg/l gacha.`,
+      `Flow ${qls} L/s; petroleum products ${petro} → 0.3 mg/L with a polishing filter.`,
+      `流量 ${qls} L/s；石油类 ${petro} → 配深度处理过滤器可达 0.3 mg/L。`
+    ),
+
+  /* --- нейтрализация --- */
+  phAcid: (ph: string) =>
+    L(
+      `pH ${ph} — дозирование кислоты до 6,5–8,5.`,
+      `pH ${ph} — 6,5–8,5 gacha kislota dozalash.`,
+      `pH ${ph} — acid dosing down to 6.5–8.5.`,
+      `pH ${ph} —— 投加酸调至 6.5–8.5。`
+    ),
+  phAlkali: (ph: string) =>
+    L(
+      `pH ${ph} — дозирование щёлочи до 6,5–8,5.`,
+      `pH ${ph} — 6,5–8,5 gacha ishqor dozalash.`,
+      `pH ${ph} — alkali dosing up to 6.5–8.5.`,
+      `pH ${ph} —— 投加碱调至 6.5–8.5。`
+    ),
+  phOk: (ph: string) =>
+    L(
+      `pH ${ph} в норме — станция дозирования в резерве на залповые сбросы.`,
+      `pH ${ph} me’yorda — dozalash stansiyasi zalvorli chiqindilar uchun zaxirada.`,
+      `pH ${ph} is within limits — the dosing station is kept in reserve for shock discharges.`,
+      `pH ${ph} 在正常范围 —— 加药装置作为冲击负荷时的备用。`
+    ),
+
+  /* --- реагентная обработка --- */
+  physchem: (coagDose: number, coagKgDay: string, flocDose: number) =>
+    L(
+      `Реагентная обработка: коагулянт ~${coagDose} г/м³ (${coagKgDay} кг/сут), флокулянт ${flocDose} г/м³. Дозы уточняются пробным коагулированием.`,
+      `Reagentli ishlov berish: koagulyant ~${coagDose} g/m³ (${coagKgDay} kg/kun), flokulyant ${flocDose} g/m³. Dozalar sinov koagulyatsiyasi bilan aniqlanadi.`,
+      `Chemical treatment: coagulant ~${coagDose} g/m³ (${coagKgDay} kg/day), flocculant ${flocDose} g/m³. The doses are confirmed by jar tests.`,
+      `化学混凝处理：混凝剂约 ${coagDose} g/m³（${coagKgDay} kg/日），助凝剂 ${flocDose} g/m³。投加量经烧杯试验确定。`
+    ),
+  physchemReactor: L(
+    "реактор смешения-хлопьеобразования",
+    "aralashtirish va parcha hosil qilish reaktori",
+    "rapid-mix and flocculation reactor",
+    "混合絮凝反应池"
+  ),
+
+  /* --- флотация --- */
+  daf: (load: number, area: string, recycle: number) =>
+    L(
+      `Напорная флотация: гидравлическая нагрузка ${load} м³/м²·ч → площадь ≈ ${area} м²; рециркуляция ${recycle} %.`,
+      `Bosimli flotatsiya: gidravlik yuklama ${load} m³/m²·soat → maydon ≈ ${area} m²; retsirkulyatsiya ${recycle} %.`,
+      `Dissolved air flotation: hydraulic loading ${load} m³/m²·h → area ≈ ${area} m²; recycle ratio ${recycle} %.`,
+      `加压溶气气浮：水力负荷 ${load} m³/m²·h → 面积 ≈ ${area} m²；回流比 ${recycle} %。`
+    ),
+
+  /* --- биологическая очистка --- */
+  techByRequirementLine: (label: string, description: string) =>
+    L(
+      `Технология принята по требованию: ${label}. ${description}`,
+      `Texnologiya talab bo‘yicha qabul qilindi: ${label}. ${description}`,
+      `The technology is adopted to satisfy the requirement: ${label}. ${description}`,
+      `按强制要求采用该工艺：${label}。${description}`
+    ),
+  techByEngineerLine: (label: string, description: string) =>
+    L(
+      `Технология принята инженером: ${label}. ${description}`,
+      `Texnologiyani muhandis tanladi: ${label}. ${description}`,
+      `The technology is selected by the engineer: ${label}. ${description}`,
+      `该工艺由工程师选定：${label}。${description}`
+    ),
+  bioLoads: (bod: string, cod: string, qWork: string, qPeak: string) =>
+    L(
+      `Нагрузка ${bod} кг БПК₅/сут и ${cod} кг ХПК/сут; расчётный расход ${qWork} м³/ч в рабочее время, максимальный часовой ${qPeak} м³/ч.`,
+      `Yuklama ${bod} kg BPK₅/kun va ${cod} kg KKT/kun; hisobiy sarf ish vaqtida ${qWork} m³/soat, maksimal soatlik ${qPeak} m³/soat.`,
+      `Load ${bod} kg BOD₅/day and ${cod} kg COD/day; design flow ${qWork} m³/h during operating hours, peak hourly ${qPeak} m³/h.`,
+      `负荷 ${bod} kg BOD₅/日、${cod} kg COD/日；运行时段计算流量 ${qWork} m³/h，最大时流量 ${qPeak} m³/h。`
+    ),
+  bioHydraulic: (hrt: number, volume: string, withReserve: string) =>
+    L(
+      `Гидравлический объём при HRT ${hrt} ч — ${volume} м³; принято с запасом +15 % → ${withReserve} м³.`,
+      `HRT ${hrt} soat bo‘lganda gidravlik hajm — ${volume} m³; +15 % zaxira bilan ${withReserve} m³ qabul qilindi.`,
+      `Hydraulic volume at an HRT of ${hrt} h — ${volume} m³; taken with a +15 % reserve → ${withReserve} m³.`,
+      `HRT ${hrt} h 时水力容积为 ${volume} m³；计入 +15 % 富余量后取 ${withReserve} m³。`
+    ),
+  bioMetrics: (list: string) =>
+    L(
+      `Расчёт технологии: ${list}.`,
+      `Texnologiya hisobi: ${list}.`,
+      `Technology calculation: ${list}.`,
+      `工艺计算：${list}。`
+    ),
+  bioAirNm3: (perHour: string, perDay: string, ref: string) =>
+    L(
+      `Воздух на аэрацию ≈ ${perHour} Нм³/ч (${perDay} Нм³/сут) — по ф. (70) ${ref}.`,
+      `Aeratsiya uchun havo ≈ ${perHour} Nm³/soat (${perDay} Nm³/kun) — (70)-formula bo‘yicha ${ref}.`,
+      `Aeration air ≈ ${perHour} Nm³/h (${perDay} Nm³/day) — per eq. (70) ${ref}.`,
+      `曝气空气量 ≈ ${perHour} Nm³/h（${perDay} Nm³/日）—— 按式(70) ${ref}。`
+    ),
+  bioNitroDenitro: (tn: string, share: number) =>
+    L(
+      `Азот ${tn} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${share} % объёма).`,
+      `Azot ${tn} mg/l — nitri-denitrifikatsiyali sxema (anoksid zona hajmning ~${share} % i).`,
+      `Nitrogen ${tn} mg/L — a nitrification–denitrification scheme (anoxic zone ~${share} % of the volume).`,
+      `氮 ${tn} mg/L —— 采用硝化反硝化流程（缺氧区约占容积 ${share} %）。`
+    ),
+  bioNitroModerate: L(
+    "Азот умеренный — классическая аэрация.",
+    "Azot mo‘tadil — klassik aeratsiya.",
+    "Nitrogen is moderate — conventional aeration.",
+    "氮浓度适中 —— 采用常规曝气。"
+  ),
+  bioAutoVolume: (
+    bodLoad: string,
+    bodFull: string,
+    volLoad: number,
+    rho: number,
+    dose: string,
+    ref: string,
+    volume: string
+  ) =>
+    L(
+      `Нагрузка ${bodLoad} кг БПК₅/сут (${bodFull} кг БПКполн/сут); объёмная нагрузка ${volLoad} кг/м³·сут (продлённая аэрация: ρ = ${rho} мг/(г·ч), доза ила ${dose} г/л, ${ref}) → объём биоблока ≈ ${volume} м³.`,
+      `Yuklama ${bodLoad} kg BPK₅/kun (${bodFull} kg to‘liq BPK/kun); hajmiy yuklama ${volLoad} kg/m³·kun (uzaytirilgan aeratsiya: ρ = ${rho} mg/(g·soat), loyqa dozasi ${dose} g/l, ${ref}) → bioblok hajmi ≈ ${volume} m³.`,
+      `Load ${bodLoad} kg BOD₅/day (${bodFull} kg total BOD/day); volumetric load ${volLoad} kg/m³·day (extended aeration: ρ = ${rho} mg/(g·h), MLSS ${dose} g/L, ${ref}) → bio-block volume ≈ ${volume} m³.`,
+      `负荷 ${bodLoad} kg BOD₅/日（${bodFull} kg 完全BOD/日）；容积负荷 ${volLoad} kg/m³·日（延时曝气：ρ = ${rho} mg/(g·h)，污泥浓度 ${dose} g/L，${ref}）→ 生物段容积 ≈ ${volume} m³。`
+    ),
+  bioAutoAir: (perDay: string, perHour: string, ref: string) =>
+    L(
+      `Воздух на аэрацию ≈ ${perDay} м³/сут (${perHour} м³/ч) — удельный расход по ф. (70) ${ref}.`,
+      `Aeratsiya uchun havo ≈ ${perDay} m³/kun (${perHour} m³/soat) — solishtirma sarf (70)-formula bo‘yicha ${ref}.`,
+      `Aeration air ≈ ${perDay} m³/day (${perHour} m³/h) — specific demand per eq. (70) ${ref}.`,
+      `曝气空气量 ≈ ${perDay} m³/日（${perHour} m³/h）—— 单位需气量按式(70) ${ref}。`
+    ),
+  bioEquivalent: (qEq: string) =>
+    L(
+      `эквивалент ${qEq} м³/сут по хозбытовому стоку`,
+      `maishiy oqova bo‘yicha ekvivalent ${qEq} m³/kun`,
+      `equivalent to ${qEq} m³/day of domestic wastewater`,
+      `折合生活污水 ${qEq} m³/日`
+    ),
+
+  /* --- вторичное отстаивание --- */
+  clarify: L(
+    "Вторичное отстаивание в составе блока биологической очистки (тонкослойные модули).",
+    "Ikkilamchi tindirish biologik tozalash bloki tarkibida (yupqa qatlamli modullar).",
+    "Secondary clarification is integrated into the biological block (lamella modules).",
+    "二沉设于生物处理单元内（斜板模块）。"
+  ),
+
+  /* --- доочистка --- */
+  post: (qh: string, rate: number) =>
+    L(
+      `Фильтр доочистки на ${qh} м³/ч при скорости ${rate} м/ч — до нормативов сброса/оборота.`,
+      `Qo‘shimcha tozalash filtri ${qh} m³/soat ga, filtrlash tezligi ${rate} m/soat — chiqindi yoki qayta foydalanish me’yorlarigacha.`,
+      `Polishing filter for ${qh} m³/h at a filtration rate of ${rate} m/h — down to the discharge or reuse limits.`,
+      `深度处理过滤器按 ${qh} m³/h 设计，滤速 ${rate} m/h —— 出水达到排放或回用标准。`
+    ),
+
+  /* --- обеззараживание --- */
+  chlorBasisHospital: L(
+    "санитарные требования для медицинских объектов",
+    "tibbiyot obyektlari uchun sanitariya talablari",
+    "sanitary requirements for medical facilities",
+    "医疗机构卫生要求"
+  ),
+  chlorBasisBio: (afterBio: number, ref: string) =>
+    L(
+      `${afterBio} г/м³ после биологической очистки, ${ref}`,
+      `biologik tozalashdan keyin ${afterBio} g/m³, ${ref}`,
+      `${afterBio} g/m³ after biological treatment, ${ref}`,
+      `生物处理后 ${afterBio} g/m³，${ref}`
+    ),
+  disinfect: (
+    dose: number,
+    basis: string,
+    perHour: string,
+    storeK: number,
+    storePerHour: string,
+    contact: number,
+    contactRef: string
+  ) =>
+    L(
+      `Доза активного хлора ${dose} г/м³ (${basis}) → ${perHour} г/ч; хлорное хозяйство на ×${storeK} — ${storePerHour} г/ч (п. 6.230); контакт ${contact} мин (${contactRef}).`,
+      `Faol xlor dozasi ${dose} g/m³ (${basis}) → ${perHour} g/soat; xlor xo‘jaligi ×${storeK} zaxira bilan — ${storePerHour} g/soat (6.230-band); kontakt vaqti ${contact} min (${contactRef}).`,
+      `Active chlorine dose ${dose} g/m³ (${basis}) → ${perHour} g/h; the chlorination facility is sized ×${storeK} — ${storePerHour} g/h (cl. 6.230); contact time ${contact} min (${contactRef}).`,
+      `有效氯投加量 ${dose} g/m³（${basis}）→ ${perHour} g/h；加氯间按 ×${storeK} 配置 —— ${storePerHour} g/h（第 6.230 条）；接触时间 ${contact} min（${contactRef}）。`
+    ),
+
+  /* --- обработка осадка --- */
+  sludge: (dry: string, volume: string, ds: number) =>
+    L(
+      `Осадок ≈ ${dry} кг сухого вещества/сут (~${volume} м³/сут при ${ds} % СВ) — уплотнение и обезвоживание.`,
+      `Cho‘kindi ≈ ${dry} kg quruq modda/kun (${ds} % QM da ~${volume} m³/kun) — quyuqlashtirish va suvsizlantirish.`,
+      `Sludge ≈ ${dry} kg dry solids/day (~${volume} m³/day at ${ds} % DS) — thickening and dewatering.`,
+      `污泥量 ≈ ${dry} kg 干固体/日（含固率 ${ds} % 时约 ${volume} m³/日）—— 浓缩与脱水。`
+    ),
+  sludgeThickener: (days: number) =>
+    L(
+      `илоуплотнитель на ${days} сут`,
+      `${days} sutkaga mo‘ljallangan loyqa quyuqlashtirgich`,
+      `sludge thickener for ${days} days`,
+      `按 ${days} 天设计的污泥浓缩池`
+    ),
+
+  /* --- источник данных для записки при автоподборе --- */
+  autoSource: (extendedRef: string, airRef: string) =>
+    L(
+      `Автоподбор; ${extendedRef} и ф. (70) ${airRef}.`,
+      `Avtotanlov; ${extendedRef} va (70)-formula ${airRef}.`,
+      `Automatic selection; ${extendedRef} and eq. (70) ${airRef}.`,
+      `自动选型；${extendedRef} 与式(70) ${airRef}。`
+    ),
+
+  /* --- строительная часть: как получены габариты ёмкостей --- */
+  civilCover: (thickness: number) =>
+    L(`, перекрытия ${thickness} мм`, `, yopma ${thickness} mm`, `, cover slab ${thickness} mm`, `，顶板 ${thickness} mm`),
+  civilNoCover: L(
+    " (сооружения открытые)",
+    " (inshootlar ochiq)",
+    " (the structures are open-top)",
+    "（构筑物为敞开式）"
+  ),
+  civilBasins: (depth: number, ratio: number, freeboard: number, wall: number, slab: number, cover: string) =>
+    L(
+      `Размеры получены от расчётного объёма при рабочей глубине ${depth} м и соотношении сторон ${ratio} : 1; борт ${freeboard} м. Объёмы бетона — по толщинам стен ${wall} мм, днища ${slab} мм${cover}.`,
+      `O‘lchamlar hisobiy hajmdan olingan: ishchi chuqurlik ${depth} m, tomonlar nisbati ${ratio} : 1; bort ${freeboard} m. Beton hajmlari devor qalinligi ${wall} mm, tub ${slab} mm${cover} bo‘yicha olingan.`,
+      `The dimensions follow from the design volume at a working depth of ${depth} m and a side ratio of ${ratio} : 1; freeboard ${freeboard} m. Concrete volumes are based on a wall thickness of ${wall} mm, a base slab of ${slab} mm${cover}.`,
+      `尺寸由计算容积按有效水深 ${depth} m、边长比 ${ratio} : 1 推得；超高 ${freeboard} m。混凝土工程量按墙厚 ${wall} mm、底板 ${slab} mm${cover} 计算。`
+    ),
+};
 
 /* ------------------------------------------------------------------
  * УЧАСТОК ИЗ URL
@@ -221,7 +562,7 @@ type Pick = {
 };
 
 /** подбор модели линейки по требуемому значению поля */
-function pickModel(line: string, field: keyof Model, need: number): Pick | null {
+function pickModel(line: string, field: keyof Model, need: number, lang: Language): Pick | null {
   const list = MODELS
     .filter((m) => m.line === line && typeof m[field] === "number")
     .sort((a, b) => (a[field] as number) - (b[field] as number));
@@ -232,7 +573,7 @@ function pickModel(line: string, field: keyof Model, need: number): Pick | null 
 
   const top = list[list.length - 1];
   const count = Math.ceil(need / (top[field] as number));
-  return { count, model: top, note: `${count} параллельных линии` };
+  return { count, model: top, note: t(M.parallelLines(count), lang) };
 }
 
 function fmt(value: number, digits = 0): string {
@@ -428,9 +769,14 @@ function ProResultContent() {
     const techWarnings = technologyWarnings(ctx);
     if (techResult && techVolumeMetric && techVolumeMetric.value > techResult.hydraulic.volumeWithReserve) {
       techWarnings.unshift(
-        `Объём биоблока определён органической нагрузкой: ${fmt(techVolumeMetric.value)} м³ ` +
-          `против ${fmt(techResult.hydraulic.volumeWithReserve)} м³ по времени пребывания с запасом. ` +
-          `В расчёт принят больший — ${fmt(vBio)} м³.`
+        t(
+          M.bioVolumeByLoad(
+            fmt(techVolumeMetric.value),
+            fmt(techResult.hydraulic.volumeWithReserve),
+            fmt(vBio)
+          ),
+          language
+        )
       );
     }
 
@@ -467,36 +813,53 @@ function ProResultContent() {
       switch (key) {
         case "screen": {
           s.sizing.push(
-            `Средний расход рабочего периода ${fmt(Qh, 1)} м³/ч (${fmt(Qls, 1)} л/с); максимальный приток ${fmt(peak.qMax, 1)} м³/ч при K_gen.max = ${peak.kMax.toFixed(2)} (${peak.source}); прозор решётки 1–6 мм по составу отбросов.`
+            t(
+              M.screen(fmt(Qh, 1), fmt(Qls, 1), fmt(peak.qMax, 1), peak.kMax.toFixed(2), peak.source),
+              language
+            )
           );
           break;
         }
         case "avg": {
           const V = vAvg;
-          s.sizing.push(`Объём усреднения ≈ ${fmt(V)} м³ (${hours >= 20 ? a.avgHoursLong : a.avgHoursShort} часов среднего притока).`);
-          const p = pickModel("tanks", "vol", V);
+          s.sizing.push(
+            t(M.avgVolume(fmt(V), String(hours >= 20 ? a.avgHoursLong : a.avgHoursShort)), language)
+          );
+          const p = pickModel("tanks", "vol", V, language);
           if (p) s.picks.push(p);
-          s.extra = "Перемешивание — эрлифт/мешалка против осаждения; для pH-нестабильных стоков здесь же коррекция.";
+          s.extra = t(M.avgMixing, language);
           break;
         }
         case "grease": {
-          if (fats < a.greaseTarget) s.sizing.push(`Жиры ниже ${a.greaseTarget} мг/л — отдельный жироуловитель не обязателен, контроль на усреднителе.`);
+          if (fats < a.greaseTarget) s.sizing.push(t(M.greaseBelow(a.greaseTarget), language));
           else {
-            s.sizing.push(`Расход ${fmt(Qh, 1)} м³/ч; жиры ${fmt(fats)} → цель ≤${a.greaseTarget} мг/л перед биологией.`);
-            const p = pickModel("grease-traps", "q", Qh);
+            s.sizing.push(t(M.grease(fmt(Qh, 1), fmt(fats), a.greaseTarget), language));
+            const p = pickModel("grease-traps", "q", Qh, language);
             if (p) s.picks.push(p);
           }
           break;
         }
         case "sand": {
-          s.sizing.push(`Расход ${fmt(Qls, 1)} л/с; задержание частиц от ${a.sandSize} мм (${GRIT.table28.ref}); при Q > ${GRIT.requiredFromM3Day.value} м³/сут — не менее ${GRIT.minUnits.value} отделений (${GRIT.minUnits.ref}).`);
-          const p = pickModel("sand-traps", "ns", Qls);
+          s.sizing.push(
+            t(
+              M.sand(
+                fmt(Qls, 1),
+                a.sandSize,
+                GRIT.table28.ref,
+                GRIT.requiredFromM3Day.value,
+                GRIT.minUnits.value,
+                GRIT.minUnits.ref
+              ),
+              language
+            )
+          );
+          const p = pickModel("sand-traps", "ns", Qls, language);
           if (p) s.picks.push(p);
           break;
         }
         case "oil": {
-          s.sizing.push(`Расход ${fmt(Qls, 1)} л/с; нефтепродукты ${fmt(petro)} → 0,3 мг/л с фильтром доочистки.`);
-          const p = pickModel("oil-separators", "ns", Qls);
+          s.sizing.push(t(M.oil(fmt(Qls, 1), fmt(petro)), language));
+          const p = pickModel("oil-separators", "ns", Qls, language);
           if (p) s.picks.push(p);
           break;
         }
@@ -504,28 +867,33 @@ function ProResultContent() {
           const acid = ph > 8.5;
           const alk = ph < 6.5;
           s.sizing.push(
-            acid
-              ? `pH ${ph.toFixed(1)} — дозирование кислоты до 6,5–8,5.`
-              : alk
-              ? `pH ${ph.toFixed(1)} — дозирование щёлочи до 6,5–8,5.`
-              : `pH ${ph.toFixed(1)} в норме — станция дозирования в резерве на залповые сбросы.`
+            t(
+              acid
+                ? M.phAcid(ph.toFixed(1))
+                : alk
+                ? M.phAlkali(ph.toFixed(1))
+                : M.phOk(ph.toFixed(1)),
+              language
+            )
           );
-          const p = pickModel("dosing", "vol", Math.max(100, Q * 2)); // ориентир: 2 л реагента на м³
+          const p = pickModel("dosing", "vol", Math.max(100, Q * 2), language); // ориентир: 2 л реагента на м³
           if (p) s.picks.push(p);
           break;
         }
         case "physchem": {
           const doseCoag = a.coagDose;
-          s.sizing.push(`Реагентная обработка: коагулянт ~${doseCoag} г/м³ (${fmt((Q * doseCoag) / 1000, 1)} кг/сут), флокулянт ${a.flocDose} г/м³. Дозы уточняются пробным коагулированием.`);
-          const reactor = pickModel("tanks", "vol", Math.max(1, Qh * 0.75));
-          if (reactor) s.picks.push({ ...reactor, note: "реактор смешения-хлопьеобразования" });
-          const dos = pickModel("dosing", "vol", Math.max(100, (Q * doseCoag) / 100));
+          s.sizing.push(
+            t(M.physchem(doseCoag, fmt((Q * doseCoag) / 1000, 1), a.flocDose), language)
+          );
+          const reactor = pickModel("tanks", "vol", Math.max(1, Qh * 0.75), language);
+          if (reactor) s.picks.push({ ...reactor, note: t(M.physchemReactor, language) });
+          const dos = pickModel("dosing", "vol", Math.max(100, (Q * doseCoag) / 100), language);
           if (dos) s.picks.push(dos);
           break;
         }
         case "daf": {
           const area = Qh / a.dafLoad;
-          s.sizing.push(`Напорная флотация: гидравлическая нагрузка ${a.dafLoad} м³/м²·ч → площадь ≈ ${fmt(area, 1)} м²; рециркуляция ${a.dafRecycle} %.`);
+          s.sizing.push(t(M.daf(a.dafLoad, fmt(area, 1), a.dafRecycle), language));
           break;
         }
         case "bio": {
@@ -539,28 +907,59 @@ function ProResultContent() {
             } else if (mbrWaiver) {
               s.sizing.push(requirementNote(false));
             }
+            const techLabel = t(TECHNOLOGY_LABEL[tech], language);
+            const techDescription = t(TECHNOLOGY_DESCRIPTION[tech], language);
             s.sizing.push(
-              techByRequirement
-                ? `Технология принята по требованию: ${t(TECHNOLOGY_LABEL[tech], language)}. ${t(TECHNOLOGY_DESCRIPTION[tech], language)}`
-                : `Технология принята инженером: ${t(TECHNOLOGY_LABEL[tech], language)}. ${t(TECHNOLOGY_DESCRIPTION[tech], language)}`,
-              `Нагрузка ${fmt(techResult.loads.bod, 1)} кг БПК₅/сут и ${fmt(techResult.loads.cod, 1)} кг ХПК/сут; ` +
-                `расчётный расход ${fmt(techResult.hydraulic.qWorking, 1)} м³/ч в рабочее время, максимальный часовой ${fmt(techResult.hydraulic.qPeak, 1)} м³/ч.`,
-              `Гидравлический объём при HRT ${techResult.hydraulic.hrt} ч — ${fmt(techResult.hydraulic.hydraulicVolume)} м³; принято с запасом +15 % → ${fmt(techResult.hydraulic.volumeWithReserve)} м³.`
+              t(
+                techByRequirement
+                  ? M.techByRequirementLine(techLabel, techDescription)
+                  : M.techByEngineerLine(techLabel, techDescription),
+                language
+              ),
+              t(
+                M.bioLoads(
+                  fmt(techResult.loads.bod, 1),
+                  fmt(techResult.loads.cod, 1),
+                  fmt(techResult.hydraulic.qWorking, 1),
+                  fmt(techResult.hydraulic.qPeak, 1)
+                ),
+                language
+              ),
+              t(
+                M.bioHydraulic(
+                  techResult.hydraulic.hrt,
+                  fmt(techResult.hydraulic.hydraulicVolume),
+                  fmt(techResult.hydraulic.volumeWithReserve)
+                ),
+                language
+              )
             );
             const rest = techResult.specialized.filter((m) => m.key !== "air" && m.key !== "airPerReactor");
             if (rest.length) {
-              s.sizing.push(`Расчёт технологии: ${rest.map((m) => `${m.label} ${fmt(m.value, 2)} ${m.unit}`).join("; ")}.`);
+              s.sizing.push(
+                t(M.bioMetrics(rest.map((m) => `${m.label} ${fmt(m.value, 2)} ${m.unit}`).join("; ")), language)
+              );
             }
             s.sizing.push(
               anaerobic
                 ? t(TX.techNoAir, language)
-                : `Воздух на аэрацию ≈ ${fmt(airH, 1)} Нм³/ч (${fmt(airH * 24)} Нм³/сут) — по ф. (70) ${AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")}.`
+                : t(
+                    M.bioAirNm3(
+                      fmt(airH, 1),
+                      fmt(airH * 24),
+                      AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")
+                    ),
+                    language
+                  )
             );
             if (!anaerobic) {
               s.sizing.push(
-                tn > a.denitroTn
-                  ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).`
-                  : `Азот умеренный — классическая аэрация.`
+                t(
+                  tn > a.denitroTn
+                    ? M.bioNitroDenitro(fmt(tn), a.denitroShare)
+                    : M.bioNitroModerate,
+                  language
+                )
               );
             }
             s.sizing.push(technologySourceNote(tech, language));
@@ -573,40 +972,78 @@ function ProResultContent() {
             const V = bodLoad / vLoad;
             const air = bodLoad * a.airPerBod;
             s.sizing.push(
-              `Нагрузка ${fmt(bodLoad, 1)} кг БПК₅/сут (${fmt(bodLoad / (a.bod5Ratio || 0.68), 1)} кг БПКполн/сут); объёмная нагрузка ${vLoad} кг/м³·сут (продлённая аэрация: ρ = ${ext.rho} мг/(г·ч), доза ила ${ext.doseGL[0]}–${ext.doseGL[1]} г/л, ${ext.ref}) → объём биоблока ≈ ${fmt(V)} м³.`,
-              `Воздух на аэрацию ≈ ${fmt(air)} м³/сут (${fmt(air / 24, 1)} м³/ч) — удельный расход по ф. (70) ${AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")}.`,
-              tn > a.denitroTn ? `Азот ${fmt(tn)} мг/л — схема с нитри-денитрификацией (аноксидная зона ~${a.denitroShare} % объёма).` : `Азот умеренный — классическая аэрация.`
+              t(
+                M.bioAutoVolume(
+                  fmt(bodLoad, 1),
+                  fmt(bodLoad / (a.bod5Ratio || 0.68), 1),
+                  vLoad,
+                  ext.rho,
+                  `${ext.doseGL[0]}–${ext.doseGL[1]}`,
+                  ext.ref,
+                  fmt(V)
+                ),
+                language
+              ),
+              t(
+                M.bioAutoAir(
+                  fmt(air),
+                  fmt(air / 24, 1),
+                  AEROTANK.air.ref.replace(KMK_2_04_03_19_DOC.code + ", ", "")
+                ),
+                language
+              ),
+              t(
+                tn > a.denitroTn ? M.bioNitroDenitro(fmt(tn), a.denitroShare) : M.bioNitroModerate,
+                language
+              )
             );
           }
-          const p = pickModel("bio-plants", "qd", qEq);
-          if (p) s.picks.push({ ...p, note: `эквивалент ${fmt(qEq)} м³/сут по хозбытовому стоку` });
+          const p = pickModel("bio-plants", "qd", qEq, language);
+          if (p) s.picks.push({ ...p, note: t(M.bioEquivalent(fmt(qEq)), language) });
           break;
         }
         case "clarify": {
-          s.sizing.push("Вторичное отстаивание в составе блока биологической очистки (тонкослойные модули).");
+          s.sizing.push(t(M.clarify, language));
           break;
         }
         case "post": {
-          s.sizing.push(`Фильтр доочистки на ${fmt(Qh, 1)} м³/ч при скорости ${a.filterRate} м/ч — до нормативов сброса/оборота.`);
+          s.sizing.push(t(M.post(fmt(Qh, 1), a.filterRate), language));
           break;
         }
         case "disinfect": {
           const dose = industry.id === "hospital" ? a.chlorDoseHospital : a.chlorDose;
           const gph = (Q * dose) / hours;
           const storeK = a.chlorStorageFactor || DISINFECTION.chlorineDose.storageFactor;
-          s.sizing.push(
-            `Доза активного хлора ${dose} г/м³ (${industry.id === "hospital" ? "санитарные требования для медицинских объектов" : `${DISINFECTION.chlorineDose.afterBio} г/м³ после биологической очистки, ${DISINFECTION.chlorineDose.ref}`}) → ${fmt(gph, 1)} г/ч; хлорное хозяйство на ×${storeK} — ${fmt(gph * storeK, 1)} г/ч (п. 6.230); контакт ${a.contactTime} мин (${DISINFECTION.contactMinutes.ref}).`
+          const basis = t(
+            industry.id === "hospital"
+              ? M.chlorBasisHospital
+              : M.chlorBasisBio(DISINFECTION.chlorineDose.afterBio, DISINFECTION.chlorineDose.ref),
+            language
           );
-          const p = pickModel("chlorinators", "cl", gph * storeK);
+          s.sizing.push(
+            t(
+              M.disinfect(
+                dose,
+                basis,
+                fmt(gph, 1),
+                storeK,
+                fmt(gph * storeK, 1),
+                a.contactTime,
+                DISINFECTION.contactMinutes.ref
+              ),
+              language
+            )
+          );
+          const p = pickModel("chlorinators", "cl", gph * storeK, language);
           if (p) s.picks.push(p);
           break;
         }
         case "sludge": {
           const dry = dryKg;
           const vol = dry / (10 * a.sludgeDs);
-          s.sizing.push(`Осадок ≈ ${fmt(dry, 1)} кг сухого вещества/сут (~${fmt(vol, 1)} м³/сут при ${a.sludgeDs} % СВ) — уплотнение и обезвоживание.`);
-          const p = pickModel("tanks", "vol", Math.max(1, vol * a.sludgeStoreDays));
-          if (p) s.picks.push({ ...p, note: `илоуплотнитель на ${a.sludgeStoreDays} сут` });
+          s.sizing.push(t(M.sludge(fmt(dry, 1), fmt(vol, 1), a.sludgeDs), language));
+          const p = pickModel("tanks", "vol", Math.max(1, vol * a.sludgeStoreDays), language);
+          if (p) s.picks.push({ ...p, note: t(M.sludgeThickener(a.sludgeStoreDays), language) });
           break;
         }
       }
@@ -783,9 +1220,9 @@ function ProResultContent() {
         setInvoice(data.invoice);
         return;
       }
-      setZipError(data?.error || "Не удалось получить комплект чертежей.");
+      setZipError(data?.error || U.errDrawings);
     } catch {
-      setZipError("Нет связи с сервером.");
+      setZipError(U.errNetwork);
     } finally {
       setZipBusy(false);
     }
@@ -794,16 +1231,22 @@ function ProResultContent() {
   const [note, setNote] = useState<{ text: string; source: "ai" | "template"; reason?: string } | null>(null);
   const [noteBusy, setNoteBusy] = useState(false);
 
+  /* Параметры модели в спецификации. Единицы локализуются вместе с
+     остальным текстом: оставлять «м³/ч» внутри узбекской или китайской
+     строки — значит смешивать языки в одной ячейке таблицы. */
   function modelParams(m: Model): string {
+    const u = (ru: string, uz: string, en: string, zh: string) => t(L(ru, uz, en, zh), language);
+    const mm = u("мм", "mm", "mm", "mm");
+    const m3 = u("м³", "m³", "m³", "m³");
     const parts: string[] = [];
-    if (m.diameter) parts.push(`⌀${m.diameter}×${m.length} мм`);
-    else parts.push(`${m.length}×${m.width ?? "—"}×${m.height ?? "—"} мм`);
-    if (m.vol) parts.push(`${m.vol} ${m.line === "dosing" ? "л" : "м³"}`);
-    else if (m.volumeGross) parts.push(`V ${m.volumeGross} м³`);
-    if (m.q) parts.push(`${m.q} м³/ч`);
-    if (m.ns) parts.push(`NS ${m.ns} л/с`);
-    if (m.qd) parts.push(`${m.qd} м³/сут`);
-    if (m.cl) parts.push(`${m.cl} г/ч Cl`);
+    if (m.diameter) parts.push(`⌀${m.diameter}×${m.length} ${mm}`);
+    else parts.push(`${m.length}×${m.width ?? "—"}×${m.height ?? "—"} ${mm}`);
+    if (m.vol) parts.push(`${m.vol} ${m.line === "dosing" ? u("л", "l", "L", "L") : m3}`);
+    else if (m.volumeGross) parts.push(`V ${m.volumeGross} ${m3}`);
+    if (m.q) parts.push(`${m.q} ${u("м³/ч", "m³/soat", "m³/h", "m³/h")}`);
+    if (m.ns) parts.push(`NS ${m.ns} ${u("л/с", "l/s", "L/s", "L/s")}`);
+    if (m.qd) parts.push(`${m.qd} ${u("м³/сут", "m³/kun", "m³/day", "m³/日")}`);
+    if (m.cl) parts.push(`${m.cl} ${u("г/ч", "g/soat", "g/h", "g/h")} Cl`);
     parts.push(`DN${m.dn}`);
     return parts.join(", ");
   }
@@ -851,7 +1294,9 @@ function ProResultContent() {
             name: calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language),
             chosenBy: techByRequirement ? "requirement" : calc.tech ? "engineer" : "auto",
             description: calc.tech ? t(TECHNOLOGY_DESCRIPTION[calc.tech], language) : t(TX.techAuto, language),
-            source: calc.tech ? technologySourceNote(calc.tech, language) : `Автоподбор; ${AEROTANK.extendedAeration.ref} и ф. (70) ${AEROTANK.air.ref}.`,
+            source: calc.tech
+              ? technologySourceNote(calc.tech, language)
+              : t(M.autoSource(AEROTANK.extendedAeration.ref, AEROTANK.air.ref), language),
             volumeM3: calc.vBio,
             airNm3h: calc.air,
             aerobic: !isAnaerobicTechnology(calc.tech ?? undefined),
@@ -988,10 +1433,15 @@ function ProResultContent() {
       `}</style>
 
       <div style={{ width: "100%", maxWidth: 980, margin: "0 auto" }}>
-        <button type="button" onClick={() => router.back()} className="noPrint"
-          style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer", marginBottom: 26 }}>
-          ← Назад к исходным данным
-        </button>
+        {/* Шапка результата: назад слева, выбор языка справа. При печати
+            скрывается целиком — в отчёт ни кнопка, ни переключатель не идут. */}
+        <div className="noPrint" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 26 }}>
+          <button type="button" onClick={() => router.back()}
+            style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer" }}>
+            ← {U.backToInput}
+          </button>
+          <LanguageSwitcher />
+        </div>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
           {U.resultEyebrow}
@@ -1075,13 +1525,15 @@ function ProResultContent() {
                   {t(TECHNOLOGY_DESCRIPTION[calc.tech], language)}
                 </p>
                 <p style={{ fontSize: 13, margin: "0 0 8px", lineHeight: 1.6 }}>
-                  Объём биоблока <b>{fmt(calc.vBio)}</b> м³ и{" "}
+                  {t(TX.bioFiguresPre, language)}<b>{fmt(calc.vBio)}</b>{t(TX.bioFiguresMid, language)}
                   {isAnaerobicTechnology(calc.tech) ? (
                     <>{t(TX.techNoAir, language).toLowerCase()}</>
                   ) : (
-                    <>расход воздуха <b>{fmt(calc.air, 1)}</b> Нм³/ч</>
-                  )}{" "}
-                  приняты по расчёту выбранной технологии; на эти величины опираются спецификация, объёмы строительных работ, трубопроводы, площадь и электрика.
+                    <>
+                      {t(TX.bioFiguresAir, language)}<b>{fmt(calc.air, 1)}</b>{t(TX.bioFiguresAirUnit, language)}
+                    </>
+                  )}
+                  {t(TX.bioFiguresTail, language)}
                 </p>
                 <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>
                   {technologySourceNote(calc.tech, language)}
@@ -1218,9 +1670,17 @@ function ProResultContent() {
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
           <b style={{ fontSize: 16 }}>{U.basinsTitle}</b>
           <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
-            Размеры получены от расчётного объёма при рабочей глубине {a.basinDepth} м и соотношении сторон {a.basinRatio} : 1;
-            борт {a.basinFreeboard} м. Объёмы бетона — по толщинам стен {a.wallThickness} мм, днища {a.slabThickness} мм
-            {a.coverThickness > 0 ? `, перекрытия ${a.coverThickness} мм` : " (сооружения открытые)"}.
+            {t(
+              M.civilBasins(
+                a.basinDepth,
+                a.basinRatio,
+                a.basinFreeboard,
+                a.wallThickness,
+                a.slabThickness,
+                t(a.coverThickness > 0 ? M.civilCover(a.coverThickness) : M.civilNoCover, language)
+              ),
+              language
+            )}
           </p>
 
           <div style={{ overflowX: "auto", marginBottom: 12 }}>
@@ -1479,7 +1939,7 @@ function ProResultContent() {
           {industry.notes.map((note, i) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 10px" }}>• {t(note, language)}</p>
           ))}
-          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>{U.sourcesWord}: {industry.sources.map((x) => t(x, language)).join("; ")}. {U.methodsWord}: {kmkDocLine()}; DWA-A 131, EN 1825, EN 858 (справочно, ҚМҚ не нормируются).</p>
+          <p style={{ fontSize: 11, color: FAINT, margin: 0 }}>{U.sourcesWord}: {industry.sources.map((x) => t(x, language)).join("; ")}. {U.methodsWord}: {kmkDocLine()}; DWA-A 131, EN 1825, EN 858 {t(TX.sourcesNotNormed, language)}.</p>
         </div>
 
         {/* ТЕХНИЧЕСКАЯ ЗАПИСКА */}
@@ -1503,7 +1963,7 @@ function ProResultContent() {
             </div>
             {note.source === "template" && (
               <p className="noPrint" style={{ fontSize: 12, color: "#ffb74d", margin: "0 0 12px" }}>
-                ИИ сейчас недоступен{note.reason ? ` (${note.reason})` : ""} — записка собрана по шаблону из тех же расчётных данных.
+                {t(TX.noteFallbackPre, language)}{note.reason ? ` (${note.reason})` : ""}{t(TX.noteFallbackTail, language)}
               </p>
             )}
             <NoteView markdown={note.text} />
