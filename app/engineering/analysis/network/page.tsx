@@ -25,6 +25,12 @@ import {
   type PipeMaterial,
 } from "../../../../calculations/network";
 import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
+import {
+  nodesFromPolyline,
+  parseDxfSurvey,
+  type ParsedDxf,
+  type SurveyPolyline,
+} from "../../../../calculations/dxf-survey";
 import RequireAuth from "../../RequireAuth";
 
 /* Пример намеренно показывает ВСЕ столбцы, которые страница умеет
@@ -39,7 +45,7 @@ const SAMPLE = `Колодец;Отметка земли;Жители;Площа
 Б-1;101.2;450;;;;150;;;бетон;Б-2
 Б-2;99.4;450;;;3;220;;;бетон;К-3`;
 
-type Mode = "table" | "kml";
+type Mode = "table" | "kml" | "dxf";
 
 export default function NetworkPage() {
   return (
@@ -63,6 +69,9 @@ function NetworkPageContent() {
   const [industry, setIndustry] = useState("0");
   const [unaccounted, setUnaccounted] = useState("0");
   const [rain, setRain] = useState("");
+  const [dxf, setDxf] = useState<ParsedDxf | null>(null);
+  const [traceIdx, setTraceIdx] = useState(0);
+  const [maxSurveyDist, setMaxSurveyDist] = useState("20");
   const [busy, setBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false);
   const [object, setObject] = useState("Канализационная сеть");
@@ -102,12 +111,49 @@ function NetworkPageContent() {
     setFileError("");
     const raw = await file.text().catch(() => "");
     if (!raw) {
-      setFileError("Файл не прочитался. KMZ — это архив: распакуйте его и приложите doc.kml.");
+      setFileError("Файл не прочитался. KMZ и DWG — не текстовые: KMZ распакуйте и приложите doc.kml, а съёмку сохраните из CAD как «DXF (ASCII)».");
       return;
     }
+    const name = file.name.toLowerCase();
+
+    if (name.endsWith(".dxf")) {
+      const parsed = parseDxfSurvey(raw);
+      setDxf(parsed);
+      setTraceIdx(0);
+      setProblems(parsed.problems);
+      setMode("dxf");
+      return;
+    }
+
     setText(raw.slice(0, 200000));
-    loadText(raw, file.name.toLowerCase().endsWith(".kml") ? "kml" : "table");
-    setMode(file.name.toLowerCase().endsWith(".kml") ? "kml" : "table");
+    loadText(raw, name.endsWith(".kml") ? "kml" : "table");
+    setMode(name.endsWith(".kml") ? "kml" : "table");
+  }
+
+  /** Трасса из съёмки: вершины полилинии становятся колодцами, отметка
+   *  снимается по ближайшим точкам съёмки. Результат кладётся в таблицу,
+   *  а не считается сразу: проектировщику ещё вписывать жителей и
+   *  подключения, и он должен видеть, какие отметки сняты. */
+  function fillFromDxf() {
+    if (!dxf) return;
+    const line = dxf.polylines[traceIdx];
+    if (!line) {
+      setFileError("В файле нет полилинии, которую можно принять за трассу.");
+      return;
+    }
+    const maxD = Number(maxSurveyDist.replace(",", ".")) || 20;
+    const built = nodesFromPolyline(line, dxf.points, "К-", maxD);
+    const rows = built.nodes.map((n, i) => {
+      const next = built.nodes[i + 1];
+      const len = next ? Math.round(Math.hypot(next.x - n.x, next.y - n.y) * 10) / 10 : "";
+      return `${n.id};${n.groundElev};;${n.x};${n.y};${len};${next ? next.id : ""}`;
+    });
+    const table = ["Колодец;Отметка земли;Жители;X;Y;Длина, м;Течёт в", ...rows].join("\n");
+    setText(table);
+    loadText(table, "table");
+    setProblems([...built.problems, ...dxf.problems]);
+    setElevSource("survey");
+    setMode("table");
   }
 
   /** общая часть скачивания: расчёт повторяется на сервере, сюда приходит файл */
@@ -197,6 +243,9 @@ function NetworkPageContent() {
             <button type="button" onClick={() => setMode("kml")} style={mode === "kml" ? tabOn : tab}>
               KML из Google Earth
             </button>
+            <button type="button" onClick={() => setMode("dxf")} style={mode === "dxf" ? tabOn : tab}>
+              DXF топосъёмки
+            </button>
           </div>
 
           {mode === "table" ? (
@@ -228,7 +277,7 @@ function NetworkPageContent() {
                 </button>
               </div>
             </>
-          ) : (
+          ) : mode === "kml" ? (
             <>
               <p style={hint}>
                 В Google Earth проведите трассу инструментом «Путь», сохраните как KML и приложите
@@ -242,6 +291,58 @@ function NetworkPageContent() {
                 onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
                 style={{ color: "#b7cbd3", fontSize: 14 }}
               />
+            </>
+          ) : (
+            <>
+              <p style={hint}>
+                Приложите DXF топографической съёмки. Программа возьмёт из него точки с высотами
+                (POINT, подписи отметок текстом, горизонтали) и снимет отметку земли в каждом
+                колодце по ближайшим точкам. Трасса берётся из полилинии — выберите её ниже.
+                Двоичный DXF и DWG не читаются: сохраните из CAD как «DXF (ASCII)».
+              </p>
+              <input
+                type="file"
+                accept=".dxf"
+                onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+                style={{ color: "#b7cbd3", fontSize: 14 }}
+              />
+
+              {dxf && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ ...hint, color: dxf.points.length ? "#9fd6b4" : "#ffcf8a" }}>
+                    Прочитано: {dxf.points.length} точек с высотами, {dxf.polylines.length} полилиний.
+                    Слои: {dxf.layers.slice(0, 8).join(", ") || "—"}
+                    {dxf.layers.length > 8 ? " …" : ""}
+                  </p>
+
+                  <div style={grid}>
+                    <label style={field}>
+                      <span style={fieldLabel}>Полилиния трассы</span>
+                      <select value={traceIdx} onChange={(e) => setTraceIdx(Number(e.target.value))} style={inputStyle}>
+                        {dxf.polylines.map((l: SurveyPolyline, i: number) => (
+                          <option key={`${l.layer}-${i}`} value={i}>
+                            слой «{l.layer}» — {l.pts.length} вершин, {l.lengthM} м
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={field}>
+                      <span style={fieldLabel}>Предел удаления точки съёмки, м</span>
+                      <input
+                        value={maxSurveyDist}
+                        onChange={(e) => setMaxSurveyDist(e.target.value)}
+                        inputMode="decimal"
+                        style={inputStyle}
+                      />
+                      <span style={fieldHint}>дальше — отметка помечается ненадёжной</span>
+                    </label>
+                  </div>
+
+                  <button type="button" style={{ ...ghost, marginTop: 14 }} onClick={fillFromDxf}>
+                    Снять отметки и заполнить таблицу
+                  </button>
+                </div>
+              )}
             </>
           )}
 
