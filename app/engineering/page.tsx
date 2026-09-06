@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import AccountBar, { AccountNote } from "./AccountBar";
+import EngineeringStory from "./EngineeringStory";
 import type { Language } from "../translations";
 
 type EngineeringText = {
@@ -14,7 +15,6 @@ type EngineeringText = {
   lead: string;
   startButton: string;
   noteRight: string;
-  nodes: { title: string; sub: string }[];
   trustLabel: string;
   cards: { title: string; text: string }[];
   stepLabel: string;
@@ -36,11 +36,6 @@ const T: Record<Language, EngineeringText> = {
     lead: "Вы даёте исходные данные об объекте. Мы помогаем определить производительность, технологическую схему и состав оборудования ещё до начала полноценного проектирования.",
     startButton: "Начать расчёт",
     noteRight: "Предварительное инженерное решение",
-    nodes: [
-      { title: "Исходные данные", sub: "объект / расход / нагрузка" },
-      { title: "Технология", sub: "MBBR / SBR / MBR / другое" },
-      { title: "Оборудование", sub: "насосы / воздуходувки / автоматика" },
-    ],
     trustLabel: "ЧТО ПОЛУЧАЕТ ПРОЕКТИРОВЩИК",
     cards: [
       {
@@ -78,11 +73,6 @@ const T: Record<Language, EngineeringText> = {
     lead: "Siz obyekt bo‘yicha dastlabki ma’lumotlarni berasiz. Biz to‘liq loyihalash boshlanmasidan oldin unumdorlik, texnologik sxema va uskunalar tarkibini aniqlashga yordam beramiz.",
     startButton: "Hisobni boshlash",
     noteRight: "Dastlabki muhandislik yechimi",
-    nodes: [
-      { title: "Dastlabki ma’lumotlar", sub: "obyekt / sarf / yuklama" },
-      { title: "Texnologiya", sub: "MBBR / SBR / MBR / boshqa" },
-      { title: "Uskunalar", sub: "nasoslar / havo puflagichlar / avtomatika" },
-    ],
     trustLabel: "LOYIHACHI NIMA OLADI",
     cards: [
       {
@@ -120,11 +110,6 @@ const T: Record<Language, EngineeringText> = {
     lead: "You provide the input data for your site. We help determine the capacity, the process flow diagram and the equipment list before full design work begins.",
     startButton: "Start calculation",
     noteRight: "Preliminary engineering solution",
-    nodes: [
-      { title: "Input data", sub: "site / flow / load" },
-      { title: "Technology", sub: "MBBR / SBR / MBR / other" },
-      { title: "Equipment", sub: "pumps / blowers / automation" },
-    ],
     trustLabel: "WHAT THE DESIGNER GETS",
     cards: [
       {
@@ -162,11 +147,6 @@ const T: Record<Language, EngineeringText> = {
     lead: "您提供项目的原始数据。我们在正式设计开始之前，帮助确定处理能力、工艺流程和设备配置。",
     startButton: "开始计算",
     noteRight: "初步工程方案",
-    nodes: [
-      { title: "原始数据", sub: "项目 / 流量 / 负荷" },
-      { title: "工艺技术", sub: "MBBR / SBR / MBR / 其他" },
-      { title: "设备", sub: "水泵 / 鼓风机 / 自动化" },
-    ],
     trustLabel: "设计人员将获得什么",
     cards: [
       {
@@ -207,20 +187,6 @@ export default function EngineeringPage() {
   const [project, setProject] = useState("");
 
   const formRef = useRef<HTMLElement | null>(null);
-
-  /* Схема справа «оживает»: подсветка идёт по узлам 01 → 02 → 03.
-     При системной настройке «уменьшить движение» цикл не запускается. */
-  const [activeNode, setActiveNode] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const timer = window.setInterval(() => {
-      setActiveNode((current) => (current + 1) % 3);
-    }, 2600);
-
-    return () => window.clearInterval(timer);
-  }, []);
 
   const handleStart = () => {
     setStarted(true);
@@ -271,92 +237,48 @@ export default function EngineeringPage() {
         </div>
       </header>
 
-      {/* HERO */}
-      <section className={styles.hero}>
-        <div className={styles.heroGlow} />
-        <div className={styles.heroGrid} />
-
-        <div className={styles.container}>
-          <div className={styles.heroContent}>
-            <div className={styles.eyebrow}>
-              <span className={styles.eyebrowLine} />
-              SUVSANOAT ENGINEERING AI
-            </div>
-
-            <h1 className={styles.title}>
-              {t.titleLine1}
-              <br />
-              {t.titleLine2}
-            </h1>
-
-            <p className={styles.lead}>{t.lead}</p>
-
-            <div className={styles.actions}>
-              <button
-                type="button"
-                onClick={handleStart}
-                className={styles.primaryButton}
-              >
-                {t.startButton}
-                <span className={styles.arrow}>→</span>
-              </button>
-
-              <AccountBar variant="hero" buttonClass={styles.ghostButton} />
-            </div>
-
-            <AccountNote className={styles.note} />
-
-            <div className={styles.note}>
-              <span>AI + ENGINEERING</span>
-              <span>{t.noteRight}</span>
-            </div>
+      {/* ПЕРВЫЙ ЭКРАН = ЗАКРЕПЛЁННАЯ СЦЕНА ВО ВСЮ ШИРИНУ
+          Сцена занимает весь экран от края до края, а заголовок, лид и
+          кнопки лежат накладной панелью поверх неё слева и при прокрутке
+          не меняются. Разметка здесь намеренно простая: размеры панели,
+          заголовка и кнопок задаёт story.module.css — там же, где
+          считается место для сцены. */}
+      <EngineeringStory>
+        <div className={`${styles.heroContent} ${styles.storyHead}`}>
+          <div className={styles.eyebrow}>
+            <span className={styles.eyebrowLine} />
+            SUVSANOAT ENGINEERING AI
           </div>
 
-          {/* ENGINEERING VISUAL */}
-          <div className={styles.visual}>
-            <div className={styles.visualFrame}>
-              <div className={styles.visualTop}>
-                <span>ENGINEERING SYSTEM</span>
-                <span className={styles.visualCounter}>
-                  {String(activeNode + 1).padStart(2, "0")} / 03
-                </span>
-              </div>
+          <h1 className={styles.title}>
+            {t.titleLine1}
+            <br />
+            {t.titleLine2}
+          </h1>
 
-              <div className={styles.diagram}>
-                <div className={styles.diagramLine}>
-                  <span className={styles.diagramPulse} />
-                </div>
+          <p className={styles.lead}>{t.lead}</p>
 
-                {t.nodes.map((node, index) => (
-                  <div key={node.title} style={{ display: "contents" }}>
-                    <div
-                      className={`${styles.node}${index === activeNode ? ` ${styles.nodeActive}` : ""}`}
-                    >
-                      <span>{String(index + 1).padStart(2, "0")}</span>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              onClick={handleStart}
+              className={styles.primaryButton}
+            >
+              {t.startButton}
+              <span className={styles.arrow}>→</span>
+            </button>
 
-                      <strong>{node.title}</strong>
+            <AccountBar variant="hero" buttonClass={styles.ghostButton} />
+          </div>
 
-                      <small>{node.sub}</small>
-                    </div>
+          <AccountNote className={styles.note} />
 
-                    {index < t.nodes.length - 1 && (
-                      <div
-                        className={`${styles.connector}${index < activeNode ? ` ${styles.connectorDone}` : ""}`}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className={styles.visualBottom}>
-                <span>ENGINEERING LOGIC</span>
-
-                <span className={styles.status}>● READY</span>
-              </div>
-            </div>
+          <div className={styles.note}>
+            <span>AI + ENGINEERING</span>
+            <span>{t.noteRight}</span>
           </div>
         </div>
-      </section>
+      </EngineeringStory>
 
       {/* TRUST SECTION */}
       <section className={styles.trustSection}>

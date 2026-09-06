@@ -2,7 +2,12 @@
   min-height: 100vh;
   background: #06131d;
   color: #f5f8fa;
-  overflow: hidden;
+  /* Обрезаем только по горизонтали: свечение hero и сетка выходят за края,
+     горизонтальной прокрутки быть не должно. Именно clip, а не hidden:
+     overflow: hidden делает элемент контейнером прокрутки, и тогда
+     position: sticky у скролл-истории перестаёт работать — блок «залипает»
+     не к окну, а к этому контейнеру, который сам никуда не прокручивается. */
+  overflow-x: clip;
 }
 
 .header {
@@ -50,36 +55,8 @@
   box-shadow: 0 0 14px rgba(24, 201, 237, 0.8);
 }
 
-.hero {
-  position: relative;
-  min-height: 690px;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
 
-.heroGlow {
-  position: absolute;
-  width: 720px;
-  height: 720px;
-  right: -180px;
-  top: -180px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(20, 164, 205, 0.17), transparent 67%);
-  pointer-events: none;
-}
 
-.heroGrid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.26;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: linear-gradient(to bottom, black, transparent 90%);
-  pointer-events: none;
-}
 
 .container {
   position: relative;
@@ -88,16 +65,40 @@
   margin: 0 auto;
 }
 
-.hero .container {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.8fr);
-  gap: 90px;
-  align-items: center;
-  padding: 90px 0 110px;
-}
 
 .heroContent {
   max-width: 760px;
+}
+
+/* Левая колонка закреплённой сцены.
+   Прежний первый экран занимал всю ширину, и заголовок в 78 px в него
+   помещался. Теперь рядом стоит поле анимации, колонка вдвое уже — и
+   размеры, заданные в vw, начинают ломать строку заголовка и упираться
+   в нижнюю кромку экрана. Поэтому здесь у текста свои пределы: они
+   считаются от ширины колонки, а не от ширины окна. */
+.storyHead {
+  max-width: 560px;
+}
+
+.storyHead .title {
+  margin-top: 18px;
+  font-size: clamp(30px, 3.1vw, 46px);
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+}
+
+.storyHead .lead {
+  margin-top: 18px;
+  font-size: clamp(13px, 1.05vw, 15.5px);
+  line-height: 1.65;
+}
+
+.storyHead .actions {
+  margin-top: 24px;
+}
+
+.storyHead .note {
+  margin-top: 18px;
 }
 
 .eyebrow {
@@ -246,74 +247,14 @@
   color: rgba(24,201,237,0.72);
 }
 
-.visual {
-  display: flex;
-  justify-content: flex-end;
-}
 
-.visualFrame {
-  width: 100%;
-  max-width: 490px;
-  min-height: 450px;
-  border: 1px solid rgba(255,255,255,0.13);
-  border-radius: 12px;
-  background: linear-gradient(145deg, rgba(13,35,47,0.92), rgba(5,17,26,0.82));
-  box-shadow: 0 30px 100px rgba(0,0,0,0.28);
-  overflow: hidden;
-}
 
-.visualTop,
-.visualBottom {
-  height: 54px;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: rgba(255,255,255,0.38);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-}
 
-.visualTop {
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
 
-.visualBottom {
-  border-top: 1px solid rgba(255,255,255,0.08);
-}
 
-.status {
-  color: #18c9ed;
-}
 
-.diagram {
-  min-height: 340px;
-  padding: 34px 30px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
 
-.diagramLine {
-  position: absolute;
-  width: 1px;
-  height: 250px;
-  margin-left: 20px;
-  overflow: hidden;
-  background: linear-gradient(to bottom, transparent, rgba(24,201,237,0.35), transparent);
-}
 
-/* импульс, идущий сверху вниз — «поток воды» по схеме */
-.diagramPulse {
-  position: absolute;
-  left: 0;
-  width: 1px;
-  height: 46px;
-  background: linear-gradient(to bottom, transparent, #18c9ed, transparent);
-  filter: drop-shadow(0 0 6px rgba(24, 201, 237, 0.9));
-  animation: flowPulse 2.6s linear infinite;
-}
 
 @keyframes flowPulse {
   0% { top: -46px; opacity: 0; }
@@ -322,93 +263,28 @@
   100% { top: 250px; opacity: 0; }
 }
 
-.node {
-  position: relative;
-  z-index: 1;
-  min-height: 72px;
-  padding: 14px 18px 14px 56px;
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.025);
-  transition: border-color 420ms ease, background 420ms ease, transform 420ms ease,
-    box-shadow 420ms ease;
-}
 
-/* активный шаг подсвечивается, пока по схеме идёт расчёт */
-.nodeActive {
-  border-color: rgba(24, 201, 237, 0.75);
-  background: rgba(24, 201, 237, 0.10);
-  transform: translateX(4px);
-  box-shadow: 0 10px 30px rgba(24, 201, 237, 0.18), inset 0 0 24px rgba(24, 201, 237, 0.08);
-}
 
-.nodeActive small {
-  color: rgba(255, 255, 255, 0.62);
-}
 
-.visualCounter {
-  color: #18c9ed;
-  transition: color 300ms ease;
-}
 
-.node span {
-  position: absolute;
-  left: 17px;
-  top: 17px;
-  color: #18c9ed;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-}
 
-.node strong {
-  display: block;
-  font-size: 13px;
-}
 
-.node small {
-  display: block;
-  margin-top: 5px;
-  color: rgba(255,255,255,0.36);
-  font-size: 10px;
-}
 
-.connector {
-  width: 1px;
-  height: 22px;
-  margin-left: 20px;
-  background: rgba(24,201,237,0.25);
-  transition: background 420ms ease, box-shadow 420ms ease;
-}
 
-.connectorDone {
-  background: #18c9ed;
-  box-shadow: 0 0 8px rgba(24, 201, 237, 0.7);
-}
 
-/* индикатор готовности мягко дышит */
-.status {
-  animation: statusBlink 2.4s ease-in-out infinite;
-}
 
-@keyframes statusBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
 
 /* появление первого экрана */
 .eyebrow,
 .title,
 .lead,
-.actions,
-.visual {
+.actions {
   animation: riseIn 700ms ease both;
 }
 
 .title { animation-delay: 90ms; }
 .lead { animation-delay: 180ms; }
 .actions { animation-delay: 270ms; }
-.visual { animation-delay: 360ms; }
 
 @keyframes riseIn {
   from { opacity: 0; transform: translateY(16px); }
@@ -416,13 +292,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diagramPulse,
-  .status,
   .eyebrow,
   .title,
   .lead,
-  .actions,
-  .visual {
+  .actions {
     animation: none;
   }
 
@@ -566,18 +439,8 @@
 }
 
 @media (max-width: 980px) {
-  .hero .container {
-    grid-template-columns: 1fr;
-    gap: 50px;
-  }
 
-  .visual {
-    justify-content: flex-start;
-  }
 
-  .visualFrame {
-    max-width: 620px;
-  }
 
   .cards {
     grid-template-columns: 1fr;
@@ -599,9 +462,6 @@
     font-size: 8px;
   }
 
-  .hero .container {
-    padding: 68px 0 78px;
-  }
 
   .title {
     font-size: 47px;
@@ -622,13 +482,7 @@
     width: 100%;
   }
 
-  .visualFrame {
-    min-height: 390px;
-  }
 
-  .diagram {
-    padding: 25px 18px;
-  }
 
   .trustSection,
   .formSection {

@@ -1,0 +1,1674 @@
+/* ==================================================================
+ * ПЕРВЫЙ ЭКРАН «ИНЖИНИРИНГА» — ЗАКРЕПЛЁННАЯ СЦЕНА
+ *
+ * Секция высокая, но это только «топливо» прокрутки: всё, что видно,
+ * живёт внутри одного sticky-экрана и НЕ едет вместе со страницей.
+ * Под колесом мыши меняется содержимое сцены, а не её положение.
+ *
+ * Раскладка. Сцена занимает ВЕСЬ экран от края до края: чертёж — главное,
+ * что здесь показывают, и зажимать его в половину ширины значит показывать
+ * половину. Текст с кнопками лежит НАКЛАДНОЙ панелью поверх сцены слева:
+ * панель поднята размытием и рамкой, но фон вокруг неё не затемняется —
+ * иначе пропадает то, ради чего сцена и растянута. Содержимое панели
+ * приходит из page.tsx и за всю прокрутку не меняется ни на пиксель.
+ *
+ * Анимация держится на переменных, которые JS кладёт на .stage раз в
+ * кадр: --k0…--k7 — прогресс каждого из восьми этапов (0…1 внутри
+ * своего и 1 после), --a0…--a7 — прозрачность заголовков с
+ * перекрёстным затуханием, --ctx — насколько площадка ушла в фон при
+ * наезде, --mute — приглушение линии осадка, --grid — плотность
+ * координатной сетки (её считает не этап, а масштаб). Дальше считает
+ * CSS: у элемента своё окно --from…--to, из него выводится локальный
+ * прогресс --r. Пересобирать React-дерево на каждый пиксель прокрутки
+ * нельзя — на телефоне это сразу видно по пропущенным кадрам.
+ *
+ * Всё, что связано с движением, живёт под .animated. Класс появляется
+ * только после монтирования и только если система не просит уменьшить
+ * движение. Поэтому без JS левая колонка читается целиком, а сцена
+ * отдаётся прочерченной.
+ * ================================================================== */
+
+.story {
+  position: relative;
+  /* восемь этапов требуют больше топлива, чем четыре */
+  height: 760vh;
+  background: linear-gradient(180deg, #06131d 0%, #061a26 45%, #06131d 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f5f8fa;
+}
+
+/* Движение выключено — держать под статичной картинкой семь экранов
+   пустой прокрутки незачем. */
+.still {
+  height: auto;
+}
+
+.pin {
+  position: sticky;
+  top: 0;
+  /* Ровно один экран: сцена лежит в нём абсолютно и должна знать высоту. */
+  height: 100vh;
+  min-height: 100vh;
+  padding: 0;
+  overflow: hidden;
+
+  /* Геометрия накладной панели вынесена в переменные: от неё зависит не
+     только сама панель, но и левый край всего, что стоит на поле, —
+     подписи этапов, панелей расчёта, статусной строки. Считать эти
+     отступы в каждом правиле заново значит однажды их рассинхронить. */
+  --panel-x: clamp(16px, 3vw, 48px);
+  --panel-w: clamp(320px, 30vw, 440px);
+  /* левый край свободного поля: правее панели плюс воздух */
+  --field-l: calc(var(--panel-x) + var(--panel-w) + clamp(20px, 2.5vw, 44px));
+  /* правый край поля: место под вертикальную рейку этапов */
+  --field-r: 64px;
+  /* ширина правых панелей сцены (ведомость расчёта, вывод по профилю) —
+     одна переменная на всех: подпись этапа отступает ровно на неё, и
+     при изменении ширины панели ничего не надо править вручную */
+  --panel-r-w: 300px;
+}
+
+.still .pin {
+  position: static;
+}
+
+/* НАКЛАДНАЯ ПАНЕЛЬ С ТЕКСТОМ И КНОПКАМИ
+   Лежит поверх сцены, по вертикали примерно по центру. Фон полупрозрачный
+   с размытием: текст читается поверх линий чертежа, а сам чертёж под
+   панелью продолжается — видно, что панель лежит НА сцене, а не вырезает
+   из неё кусок. Тень-подложка мягкая и только под панелью: затемнять всё
+   поле нельзя, ради него страница и переделана. */
+.left {
+  position: absolute;
+  left: var(--panel-x);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--panel-w);
+  max-width: calc(100% - 2 * var(--panel-x));
+  /* На низком окне (ноутбук в 720 px по высоте) панель не должна вылезать
+     за экран: pin обрезает переполнение, и низ карточки просто пропал бы. */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  z-index: 5;
+  /* Нажатия ловит только панель; сцена под ней остаётся кликабельной там,
+     где панели нет. */
+  pointer-events: auto;
+  padding: clamp(24px, 2.2vw, 34px) clamp(22px, 2.2vw, 32px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(6, 19, 29, 0.66);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 30px 80px rgba(2, 10, 16, 0.55), 0 0 0 1px rgba(24, 201, 237, 0.06) inset;
+}
+
+/* ------------------------------------------------------------------
+ * СОДЕРЖИМОЕ ПАНЕЛИ
+ *
+ * Разметку задаёт page.tsx, её классы лежат в engineering.module.css и
+ * здесь недоступны (CSS-модули хешируют имена). Поэтому целимся по
+ * структуре. Путь `.pin .left > div > div > button` — это ровно
+ * `.heroContent > .actions > button`: кнопка «Выйти» из AccountNote
+ * завёрнута в <span> и на два уровня глубже, так что под правило не
+ * попадает и остаётся текстовой ссылкой, какой и была.
+ * Два класса в селекторе нужны, чтобы перебить `.storyHead .title`
+ * и `.primaryButton` из engineering.module.css по весу.
+ * ------------------------------------------------------------------ */
+
+/* Заголовок был рассчитан на первый экран во всю ширину и в панели
+   занимал пол-экрана. Здесь он — подпись к сцене, а не плакат. */
+.pin .left h1 {
+  margin: 14px 0 0;
+  max-width: none;
+  font-size: clamp(26px, 2.6vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.pin .left p {
+  margin: 12px 0 0;
+  max-width: none;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.pin .left > div > div:has(> button) {
+  margin-top: 22px;
+  gap: 12px;
+}
+
+.pin .left > div > div > button,
+.pin .left > div > div > a {
+  min-height: 54px;
+  padding: 0 30px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  border-radius: 12px;
+  /* На узкой панели кнопки переносятся и добирают ширину до края:
+     половинка кнопки в 40 px шириной не нажимается. */
+  flex: 1 1 auto;
+  min-width: min(100%, 220px);
+}
+
+/* Главная кнопка: заметная заливка, различимые наведение и нажатие. */
+.pin .left > div > div > button {
+  background: linear-gradient(135deg, #2ad3f4 0%, #18c9ed 55%, #0fb6d8 100%);
+  color: #04121b;
+  border: 1px solid rgba(24, 201, 237, 0.9);
+  box-shadow: 0 12px 30px rgba(24, 201, 237, 0.28);
+}
+
+.pin .left > div > div > button:hover {
+  background: linear-gradient(135deg, #6ee6ff 0%, #35d6f2 55%, #18c9ed 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(24, 201, 237, 0.44);
+}
+
+/* Нажатие должно быть видно пальцем, а не только курсором: кнопка
+   проседает и теряет тень. */
+.pin .left > div > div > button:active {
+  transform: translateY(1px);
+  background: #0fb6d8;
+  box-shadow: 0 4px 12px rgba(24, 201, 237, 0.3);
+}
+
+/* Вторичная: рамка и прозрачный фон, при наведении подсвечивается. */
+.pin .left > div > div > a {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: rgba(240, 250, 253, 0.9);
+}
+
+.pin .left > div > div > a:hover {
+  background: rgba(24, 201, 237, 0.16);
+  border-color: rgba(24, 201, 237, 0.75);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.pin .left > div > div > a:active {
+  transform: translateY(1px);
+  background: rgba(24, 201, 237, 0.24);
+}
+
+/* Клавиатура: обводка с отступом видна и на светлой заливке главной
+   кнопки, и на тёмном фоне вторичной. */
+.pin .left > div > div > button:focus-visible,
+.pin .left > div > div > a:focus-visible {
+  outline: 2px solid #7ff0ff;
+  outline-offset: 3px;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  min-width: 0;
+  background: radial-gradient(circle at 60% 40%, rgba(20, 164, 205, 0.1), transparent 62%);
+  overflow: hidden;
+  /* Значения по умолчанию — конечное состояние. Так до первого кадра
+     (и вообще без JS) сцена показана целиком, а не спрятана. */
+  --k0: 1;
+  --k1: 1;
+  --k2: 1;
+  --k3: 1;
+  --k4: 1;
+  --k5: 1;
+  --k6: 1;
+  --k7: 1;
+  --ctx: 1;
+  --mute: 1;
+  --nums: 1;
+  --grid: 0.35;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ==================================================================
+ * СЛОИ СЦЕНЫ
+ *
+ * Толщина линии задаётся в пикселях и не масштабируется вместе с
+ * камерой (vector-effect в разметке): иначе при наезде с 400 до 19 м
+ * контур площадки превратился бы в кляксу, а размерные линии чертежа
+ * пропали бы совсем.
+ * ================================================================== */
+
+/* Координатная сетка мира. Ячейка задана в метрах, поэтому при наезде
+   она честно растягивается вместе с миром; чтобы она не мешала читать
+   чертёж, её плотность гасится по масштабу (--grid считает JS). */
+.grid {
+  opacity: var(--grid, 0.35);
+  pointer-events: none;
+}
+
+.svg pattern path {
+  stroke: rgba(120, 190, 220, 0.16);
+  stroke-width: 1px;
+}
+
+.siteLayer,
+.roads,
+.blocks,
+.pipe,
+.waterRun {
+  opacity: var(--ctx, 1);
+}
+
+.siteLine {
+  fill: none;
+  stroke: rgba(226, 240, 247, 0.72);
+  stroke-width: 1.4px;
+}
+
+.fence {
+  fill: none;
+  stroke: rgba(160, 196, 214, 0.4);
+  stroke-width: 1px;
+  stroke-dasharray: 7 5;
+}
+
+/* У ограждения свой штрих, а прорисовка тоже идёт через dasharray.
+   Совместить нельзя, поэтому ограждение проступает прозрачностью. */
+.animated .fence {
+  stroke-dasharray: 7 5 !important;
+  stroke-dashoffset: 0 !important;
+  opacity: calc(var(--k2, 1) * 3);
+}
+
+.roads rect {
+  fill: rgba(255, 255, 255, 0.045);
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 0.4;
+}
+
+/* ---------------- сооружения ---------------- */
+
+.block {
+  --fill: 1;
+  --hl: 0;
+  --dissolve: 1;
+  opacity: var(--dissolve, 1);
+}
+
+/* Осадок и здания приглушаются на четвёртом этапе, чтобы взгляд шёл по
+   воде: иловые площадки занимают больше всех места и без этого
+   перетягивают внимание на себя. */
+.row_sludge,
+.row_building {
+  opacity: calc(var(--dissolve, 1) * var(--mute, 1));
+}
+
+.blockFill {
+  fill: rgba(24, 201, 237, 0.09);
+  opacity: var(--fill, 1);
+}
+
+.blockLine {
+  fill: none;
+  stroke: rgba(24, 201, 237, 0.66);
+  stroke-width: 1.2px;
+}
+
+/* подсветка ступени в свою очередь на четвёртом этапе */
+.block .blockLine {
+  stroke: color-mix(in srgb, #7ff0ff calc(var(--hl, 0) * 100%), rgba(24, 201, 237, 0.66));
+  stroke-width: calc(1.2px + var(--hl, 0) * 0.9px);
+}
+
+.blockNums {
+  fill: rgba(207, 233, 242, 0.85);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 700;
+  opacity: var(--nums, 1);
+}
+
+.blockNo {
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.stageNames {
+  fill: #9fe9f7;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.06em;
+  /* Без анимации названия ступеней не нужны: они рассчитаны на наезд
+     четвёртого этапа и в общем виде легли бы поверх номеров позиций. */
+  opacity: 0;
+}
+
+.stageName text {
+  text-anchor: middle;
+}
+
+.animated .stageNames {
+  opacity: 1;
+}
+
+.animated .stageName {
+  opacity: 0;
+}
+
+/* ---------------- ось потока ---------------- */
+
+.pipe {
+  fill: none;
+  stroke: rgba(90, 208, 255, 0.35);
+  stroke-width: 1.6px;
+}
+
+/* Вода бежит по трубе непрерывно, через @keyframes: гнать этот штрих
+   из JS — значит тратить кадр на то, что браузер делает сам, вне
+   основного потока. */
+.waterRun {
+  fill: none;
+  stroke: #5ad0ff;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-dasharray: 3 9;
+  opacity: 0;
+}
+
+.animated .waterRun {
+  opacity: calc(var(--k3, 0) * 0.9);
+  animation: run 1.4s linear infinite;
+}
+
+@keyframes run {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* ---------------- листы чертежа ---------------- */
+
+.sheet {
+  opacity: 1;
+}
+
+.contour {
+  stroke: #e8f2f7;
+  stroke-width: 1.5px;
+}
+
+.hatch {
+  stroke: rgba(120, 156, 176, 0.55);
+  stroke-width: 0.7px;
+}
+
+.equip {
+  stroke: #ffb46b;
+  stroke-width: 1.1px;
+}
+
+.water {
+  stroke: #5ad0ff;
+  stroke-width: 1.2px;
+}
+
+.dim {
+  stroke: rgba(121, 201, 165, 0.85);
+  stroke-width: 0.9px;
+}
+
+.labels {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.labelText {
+  fill: rgba(207, 233, 242, 0.9);
+}
+
+.labelDim {
+  fill: rgba(121, 201, 165, 0.95);
+}
+
+/* Наполнение разреза водой: прямоугольник растёт снизу вверх, поверх
+   него ложится линия уровня из самого чертежа. */
+.waterFill {
+  fill: rgba(90, 208, 255, 0.16);
+}
+
+/* ---------------- гидравлический профиль ---------------- */
+
+/* Планировочная отметка 0.000: от неё отсчитывается всё остальное,
+   поэтому она нарисована как поверхность земли, а не как размер. */
+.ground {
+  stroke: rgba(226, 240, 247, 0.55);
+  stroke-width: 1.2px;
+  stroke-dasharray: 14 4 2 4;
+}
+
+.animated .ground {
+  stroke-dasharray: none;
+}
+
+.profBox {
+  stroke: rgba(24, 201, 237, 0.7);
+  stroke-width: 1.2px;
+}
+
+.profWater {
+  stroke: #5ad0ff;
+  stroke-width: 1.8px;
+  stroke-linejoin: round;
+}
+
+/* бегущий поток поверх ломаной уровня воды */
+.profRun {
+  stroke: #d6f6ff;
+  stroke-width: 2.2px;
+  stroke-linecap: round;
+  stroke-dasharray: 2 14;
+  opacity: 0;
+}
+
+.animated .profRun {
+  opacity: 0.9;
+  animation: run 1.1s linear infinite;
+}
+
+.profLabels {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------- перо ---------------- */
+
+.pen {
+  stroke: #18c9ed;
+  fill: none;
+  stroke-width: 1px;
+  opacity: 0;
+}
+
+/* ==================================================================
+ * НАКЛАДКА НАД ПОЛЕМ
+ * ================================================================== */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Вспышка сканера на смене этапа: тонкая линия проходит поперёк поля
+   и гаснет. Играет один раз — элемент перемонтируется по key. */
+.scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(24, 201, 237, 0.85), transparent);
+  opacity: 0;
+}
+
+.animated .scan {
+  animation: scan 620ms ease-out 1;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* ---------------- заголовки этапов ---------------- */
+
+/* Крупная подпись текущего этапа. Стоит в верхней части поля ПРАВЕЕ
+   накладной панели (левый край считается от её ширины), поэтому с
+   текстом не сталкивается ни при какой ширине окна. Правый край
+   отодвинут от ведомости расчёта, которая приходит на пятом этапе. */
+.heads {
+  position: absolute;
+  left: var(--field-l);
+  /* не наезжать на правые панели: их край плюс их ширина плюс воздух */
+  right: calc(var(--field-r) + var(--panel-r-w) + 22px);
+  top: clamp(18px, 4vh, 40px);
+  max-width: 520px;
+}
+
+.kicker {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  margin-bottom: 12px;
+}
+
+/* «03 / 08» — самая быстрая подсказка, что перед человеком шаг из
+   восьми, а не отдельная картинка. Поэтому число крупное, а «/ 08»
+   рядом приглушено: важен номер, а не делитель. */
+.headNo {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: clamp(20px, 1.8vw, 26px);
+  font-weight: 700;
+  line-height: 1;
+  color: #18c9ed;
+  letter-spacing: 0.02em;
+}
+
+.headNo i {
+  font-style: normal;
+  margin-left: 6px;
+  font-size: 0.62em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+/* Заголовки лежат друг на друге и подменяются перекрёстным затуханием.
+   Высота коробки задана заранее, иначе при смене этапа текст под ней
+   прыгал бы — а мы обещали, что на месте ничего не съезжает. */
+.headBox {
+  position: relative;
+  min-height: 210px;
+}
+
+.head {
+  position: absolute;
+  inset: 0;
+}
+
+.animated .head {
+  opacity: var(--a, 0);
+  /* заголовок не проезжает мимо, а слегка «доводится» на месте */
+  transform: translateY(calc((1 - var(--a, 0)) * 6px));
+}
+
+/* Без анимации все восемь заголовков легли бы стопкой. Показываем
+   первый, остальные остаются в разметке для чтения с экрана. */
+.head:not(:first-child) {
+  opacity: 0;
+}
+.animated .head:not(:first-child) {
+  opacity: var(--a, 0);
+}
+
+.phaseLabel {
+  margin-top: 8px;
+  color: rgba(24, 201, 237, 0.8);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+}
+
+.head h2 {
+  margin: 8px 0 0;
+  font-size: clamp(26px, 2.4vw, 34px);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-shadow: 0 2px 18px rgba(4, 16, 24, 0.75);
+}
+
+.head p {
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 13px;
+  line-height: 1.55;
+  text-shadow: 0 1px 12px rgba(4, 16, 24, 0.7);
+}
+
+/* ---------------- этап 1: задание ---------------- */
+
+.brief {
+  position: absolute;
+  left: var(--field-l);
+  right: var(--field-r);
+  bottom: 52px;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 19, 29, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+/* Лист документа, из которого вылетают величины: не иллюстрация, а
+   указание на источник — всё, что ниже, извлечено отсюда. */
+.briefSheet {
+  display: grid;
+  gap: 5px;
+  padding: 9px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.briefSheet span {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.briefSheet span:nth-child(1) {
+  background: rgba(24, 201, 237, 0.55);
+  width: 70%;
+}
+
+.briefSheet span:nth-child(4) {
+  width: 82%;
+}
+
+.briefSheet span:nth-child(6) {
+  width: 55%;
+}
+
+.briefCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 7px;
+  margin: 2px 0 8px;
+}
+
+.briefCard {
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-left: 2px solid #18c9ed;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.briefCard span {
+  display: block;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.briefCard strong {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 14px;
+  color: #d9f4fb;
+}
+
+.briefCard i {
+  font-style: normal;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ---------------- этап 2: цепочка ступеней ---------------- */
+
+.chain {
+  position: absolute;
+  left: var(--field-l);
+  right: var(--field-r);
+  bottom: 52px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 19, 29, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.chainList {
+  position: relative;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+/* линия, вдоль которой стоят ступени: ход воды слева направо */
+.chainList::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 5px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(24, 201, 237, 0.15), rgba(24, 201, 237, 0.6));
+}
+
+.chainItem {
+  position: relative;
+  min-width: 0;
+  padding-top: 16px;
+}
+
+.chainDot {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #06131d;
+  border: 1px solid #18c9ed;
+}
+
+/* Пульс идёт волной по цепочке: сдвиг задаётся --d по номеру ступени,
+   поэтому глаз читает направление потока даже на стоящей картинке. */
+.animated .chainDot {
+  animation: stagePulse 2.2s ease-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes stagePulse {
+  0%,
+  70%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(24, 201, 237, 0);
+    background: #06131d;
+  }
+  12% {
+    box-shadow: 0 0 0 4px rgba(24, 201, 237, 0.28);
+    background: #18c9ed;
+  }
+  40% {
+    box-shadow: 0 0 0 7px rgba(24, 201, 237, 0);
+    background: #06131d;
+  }
+}
+
+.chainNo {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 8.5px;
+  color: rgba(24, 201, 237, 0.75);
+}
+
+.chainName {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+/* ---------------- потребная площадь ---------------- */
+
+.area {
+  position: absolute;
+  left: var(--field-l);
+  bottom: 52px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 2px solid #18c9ed;
+  background: rgba(6, 19, 29, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.areaLabel {
+  display: block;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.area strong {
+  display: block;
+  margin-top: 5px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 19px;
+  color: #d9f4fb;
+}
+
+.area i {
+  font-style: normal;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ---------------- подпись листа ---------------- */
+
+.caption {
+  position: absolute;
+  left: var(--field-l);
+  right: var(--field-r);
+  bottom: 52px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 2px solid rgba(121, 201, 165, 0.8);
+  background: rgba(6, 19, 29, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* подпись разреза встаёт на то же место — этапы не совпадают, наложения нет */
+.captionLow {
+  bottom: 52px;
+}
+
+.captionTitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+.captionNums {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 3px 16px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.captionNums b {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 600;
+  color: #d9f4fb;
+}
+
+/* ---------------- ведомость расчёта ---------------- */
+
+.calc {
+  position: absolute;
+  right: var(--field-r);
+  top: 16px;
+  width: min(var(--panel-r-w), 52%);
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 19, 29, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.panelTitle {
+  color: #18c9ed;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  margin-bottom: 9px;
+}
+
+.calc dl {
+  margin: 0;
+}
+
+.calcRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.calcRow dt {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.calcRow dd {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  color: #d9f4fb;
+  white-space: nowrap;
+}
+
+.calcRow dd i {
+  font-style: normal;
+  margin-left: 5px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.clause {
+  grid-column: 1 / -1;
+  color: rgba(121, 201, 165, 0.7);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+}
+
+.panelNote {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+/* ---------------- вывод расчёта (этап 8) ---------------- */
+
+.verdict {
+  position: absolute;
+  right: var(--field-r);
+  top: 16px;
+  width: min(var(--panel-r-w), 52%);
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 180, 107, 0.34);
+  border-left: 2px solid #ffb46b;
+  background: rgba(6, 19, 29, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.verdictHead {
+  display: block;
+  color: #ffb46b;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.verdict p {
+  margin: 7px 0 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.verdictNum {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.verdictNum span {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.verdictNum b {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 20px;
+  color: #ffd7ab;
+}
+
+.verdictNum i {
+  font-style: normal;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ---------------- итоговая плашка ---------------- */
+
+.deliver {
+  position: absolute;
+  left: var(--field-l);
+  right: var(--field-r);
+  bottom: 44px;
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid rgba(24, 201, 237, 0.28);
+  background: rgba(6, 19, 29, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+/* Комплект листов веером: четыре листа выезжают друг из-под друга по
+   мере появления плашки. Раскрытие привязано к --r, а не к своей
+   анимации, — чтобы веер жил ровно в такт прокрутке. */
+.fan {
+  position: relative;
+  width: 46px;
+  height: 46px;
+}
+
+.fan span {
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  width: 24px;
+  height: 34px;
+  border: 1px solid rgba(24, 201, 237, 0.45);
+  background: rgba(6, 26, 38, 0.9);
+  transform-origin: 50% 100%;
+}
+
+.animated .fan span {
+  transform: rotate(calc((var(--i) - 1.5) * var(--r, 1) * 13deg))
+    translateX(calc((var(--i) - 1.5) * var(--r, 1) * 3px));
+}
+
+.deliverList ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 3px 18px;
+}
+
+.deliverList li {
+  position: relative;
+  padding-left: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.deliverList li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 6px;
+  height: 1px;
+  background: #18c9ed;
+}
+
+.deliverCta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  background: #18c9ed;
+  color: #04121b;
+  font-weight: 800;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.cta:hover {
+  background: #4fdcf6;
+}
+
+.ctaNote {
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 9.5px;
+}
+
+/* ---------------- рейка этапов ---------------- */
+
+/* Рейка стоит вертикально у самого правого края — там она не спорит ни с
+   накладной панелью слева, ни с подписью этапа в верхней части поля. */
+.rail {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 10px;
+}
+
+.railBar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* полоса прогресса поверх рейки: тонкая, без чисел — она про место в
+   сцене, а не про проценты */
+.railBar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: calc(var(--p, 0) * 100%);
+  background: #18c9ed;
+}
+
+.railItem {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  /* поле для пальца: восемь целей подряд должны разделяться на ощупь */
+  padding: 7px 0;
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 11px;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.railItem:focus-visible {
+  outline: 2px solid #7ff0ff;
+  outline-offset: 2px;
+}
+
+.railItem:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.railOn {
+  color: #d9f4fb;
+}
+
+.railNo {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 8.5px;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.railOn .railNo {
+  color: #18c9ed;
+}
+
+/* Название этапа на рейке показываем только у активного: восемь
+   подписей столбиком заняли бы четверть поля. */
+.railName {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: max-width 0.25s ease, opacity 0.25s ease;
+}
+
+.railOn .railName,
+.railItem:hover .railName {
+  max-width: 120px;
+  opacity: 1;
+}
+
+/* ---------------- полоса общего прогресса ----------------
+   Идёт по всей ширине поля у нижней кромки: сколько пройдено из восьми
+   этапов, видно, не разбирая рейку. Ширина берётся из --p, который JS и
+   так кладёт на .stage каждый кадр, — отдельного счётчика не нужно. */
+
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.progress::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--p, 0) * 100%);
+  background: linear-gradient(90deg, rgba(24, 201, 237, 0.5), #18c9ed);
+  box-shadow: 0 0 12px rgba(24, 201, 237, 0.5);
+}
+
+/* Без прокрутки полоса врала бы «пройдено всё» — прячем. */
+.story:not(.animated) .progress {
+  display: none;
+}
+
+/* ---------------- поясняющая строка ----------------
+   Единственный текст на поле, который не меняется: он отвечает на вопрос
+   «что я вообще вижу». Висит постоянно, поэтому набран мелко и
+   приглушённо — объясняет, но не спорит с подписью этапа. */
+
+.legend {
+  position: absolute;
+  left: var(--field-l);
+  bottom: 14px;
+  /* Правее по нижней кромке стоит статусная строка — оставляем ей место. */
+  max-width: min(520px, 40%);
+  display: flex;
+  gap: 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.42);
+  text-shadow: 0 1px 10px rgba(4, 16, 24, 0.8);
+}
+
+.legend::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 1px;
+  margin-top: 8px;
+  background: #18c9ed;
+}
+
+/* ---------------- служебная строка ---------------- */
+
+.status {
+  position: absolute;
+  right: var(--field-r);
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.statusSep {
+  color: rgba(255, 255, 255, 0.16);
+}
+
+/* ---------------- подсказка прокрутки ---------------- */
+
+/* Подсказка стоит под накладной панелью: там свободно всегда, а поясняющая
+   строка и статус занимают своё место на поле. */
+.hint {
+  position: absolute;
+  left: var(--panel-x);
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.34);
+  opacity: 0;
+}
+
+/* Подсказка нужна ровно до первого движения колеса — дальше она
+   объясняет то, что человек уже сделал. */
+.animated .hint {
+  opacity: clamp(0, calc(1 - var(--p, 0) * 40), 1);
+}
+
+.hintDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #18c9ed;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
+}
+
+/* ==================================================================
+ * ОБЩЕЕ ПОЯВЛЕНИЕ ЭЛЕМЕНТОВ НАКЛАДКИ
+ *
+ * --pp — прогресс того этапа, к которому привязан элемент; --r —
+ * локальный прогресс внутри окна --from…--to. clamp() без единиц даёт
+ * готовый множитель 0…1.
+ * ================================================================== */
+
+.p0 {
+  --pp: var(--k0, 1);
+}
+.p1 {
+  --pp: var(--k1, 1);
+}
+.p2 {
+  --pp: var(--k2, 1);
+}
+.p3 {
+  --pp: var(--k3, 1);
+}
+.p4 {
+  --pp: var(--k4, 1);
+}
+.p5 {
+  --pp: var(--k5, 1);
+}
+.p6 {
+  --pp: var(--k6, 1);
+}
+.p7 {
+  --pp: var(--k7, 1);
+}
+
+.animated .brief,
+.animated .briefCard,
+.animated .chain,
+.animated .chainItem,
+.animated .area,
+.animated .caption,
+.animated .calc,
+.animated .calcRow,
+.animated .verdict,
+.animated .deliver {
+  --r: clamp(0, calc((var(--pp, 1) - var(--from, 0)) / (var(--to, 1) - var(--from, 0))), 1);
+  opacity: var(--r);
+  transform: translateY(calc((1 - var(--r)) * 10px));
+  will-change: opacity, transform;
+}
+
+/* Панели не копятся на экране: каждая уходит, как только начался этап,
+   которому нужно её место. Иначе к концу прокрутки все восемь этапов
+   оказываются на экране разом. */
+.animated .brief {
+  opacity: calc(var(--r) * clamp(0, calc(1 - var(--k1, 0) * 4), 1));
+}
+
+.animated .chain {
+  opacity: calc(var(--r) * clamp(0, calc(1 - var(--k2, 0) * 4), 1));
+}
+
+.animated .area {
+  opacity: calc(var(--r) * clamp(0, calc(1 - var(--k3, 0) * 3), 1));
+}
+
+.animated .calc {
+  opacity: calc(var(--r) * clamp(0, calc(1 - var(--k5, 0) * 4), 1));
+}
+
+/* подпись плана уходит, когда камера пошла к разрезу */
+.animated .caption {
+  opacity: calc(var(--r) * clamp(0, calc(1 - var(--k6, 0) * 4), 1));
+}
+
+/* у подписи разреза свой срок — она держится до профиля */
+.animated .captionLow {
+  opacity: calc(var(--r) * clamp(0, calc(1 - var(--k7, 0) * 4), 1));
+}
+
+/* Вложенные строки не должны гаснуть дважды: панель уже выведена,
+   внутри осталось только собственное окно строки. */
+.animated .calc .calcRow,
+.animated .brief .briefCard,
+.animated .chain .chainItem {
+  transform: none;
+}
+
+/* ==================================================================
+ * УЗКИЙ ЭКРАН
+ *
+ * До 1100 px накладка перестаёт быть накладкой: на такой ширине панель
+ * поверх сцены съела бы всё поле. Она уходит наверх широкой карточкой,
+ * сцена встаёт под ней. Горизонтальной прокрутки не появляется ни при
+ * какой ширине: сцена перестаёт быть absolute и течёт в потоке.
+ * ================================================================== */
+
+@media (max-width: 1100px) {
+  .pin {
+    height: auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px max(16px, calc(50vw - 620px));
+    overflow: visible;
+    /* панель больше не занимает левый край — поле начинается от кромки */
+    --field-l: 14px;
+    --field-r: 56px;
+  }
+
+  .left {
+    position: static;
+    transform: none;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    padding: 22px;
+  }
+
+  /* Кнопки во всю ширину карточки: на планшете и телефоне промахнуться
+     мимо кнопки легче, чем попасть. */
+  .pin .left > div > div > button,
+  .pin .left > div > div > a {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+
+  .stage {
+    position: relative;
+    inset: auto;
+    height: 58vh;
+    min-height: 320px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+  }
+
+  .heads {
+    left: var(--field-l);
+    right: 200px;
+    top: 14px;
+    max-width: none;
+  }
+
+  .head h2 {
+    font-size: clamp(20px, 3.4vw, 26px);
+  }
+
+  .headBox {
+    min-height: 150px;
+  }
+
+  .legend {
+    max-width: 62%;
+  }
+
+  /* Подсказка прокрутки жила под панелью; панель уехала — возвращаем её
+     к левой кромке поля, под поясняющую строку места нет. */
+  .hint {
+    display: none;
+  }
+
+  .brief {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .briefSheet {
+    display: none;
+  }
+
+  .chainList {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chainList::before {
+    display: none;
+  }
+
+  .chainItem {
+    padding-top: 0;
+    padding-left: 14px;
+  }
+
+  .chainDot {
+    top: 6px;
+  }
+
+  .deliver {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .fan {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .story {
+    height: 420vh;
+  }
+
+  .pin {
+    --field-l: 12px;
+    --field-r: 12px;
+  }
+
+  .left {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .pin .left h1 {
+    font-size: clamp(22px, 6.4vw, 30px);
+  }
+
+  .stage {
+    height: 56vh;
+    min-height: 300px;
+  }
+
+  .heads {
+    left: var(--field-l);
+    right: 12px;
+    top: 12px;
+    max-width: none;
+  }
+
+  .headNo {
+    font-size: 18px;
+  }
+
+  .head h2 {
+    font-size: 20px;
+  }
+
+  .head p {
+    font-size: 11px;
+  }
+
+  .headBox {
+    min-height: 118px;
+  }
+
+  /* Панели поднимаются над горизонтальной рейкой, поясняющей строкой и
+     полосой прогресса — этот нижний пояс занят целиком. */
+  .brief,
+  .chain,
+  .caption,
+  .calc,
+  .verdict,
+  .deliver {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: 88px;
+    max-height: 42%;
+    overflow: hidden;
+  }
+
+  .calc,
+  .verdict {
+    top: auto;
+    bottom: 88px;
+  }
+
+  .area {
+    bottom: 88px;
+  }
+
+  .clause {
+    display: none;
+  }
+
+  /* Рейка ложится горизонтальной полосой внизу: восемь подписей столбиком
+     на телефоне занимают половину экрана. Названия убираем — остаются
+     номера, они и так читаются как «шаг из восьми». */
+  .rail {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 22px;
+    transform: none;
+    flex-direction: row;
+    justify-content: space-between;
+    padding-left: 0;
+    padding-top: 11px;
+  }
+
+  .railBar {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+  }
+
+  .railBar::after {
+    width: calc(var(--p, 0) * 100%);
+    height: 1px;
+  }
+
+  .railName {
+    display: none;
+  }
+
+  .legend {
+    left: 12px;
+    right: 12px;
+    bottom: 54px;
+    max-width: none;
+    font-size: 10px;
+  }
+
+  /* Статусная строка — украшение из CAD; на телефоне её место нужнее
+     поясняющей строке. */
+  .status,
+  .hint {
+    display: none;
+  }
+}
+
+/* ==================================================================
+ * БЕЗ АНИМАЦИИ (нет JS либо система просит уменьшить движение)
+ *
+ * Панели этапов рассчитаны на то, что в каждый момент видна ровно одна:
+ * они стоят на одних и тех же местах поля. Без прокрутки все восемь
+ * легли бы стопкой, поэтому оставляем только те, что имеют смысл сами
+ * по себе, — ведомость расчёта и состав комплекта.
+ * ================================================================== */
+
+.story:not(.animated) .brief,
+.story:not(.animated) .chain,
+.story:not(.animated) .area,
+.story:not(.animated) .caption,
+.story:not(.animated) .verdict,
+.story:not(.animated) .scan,
+.story:not(.animated) .hint {
+  display: none;
+}
+
+/* Движение выключено: сцена показывается в конечном состоянии, секция
+   ужимается до одного экрана. */
+@media (prefers-reduced-motion: reduce) {
+  .story {
+    height: auto;
+  }
+
+  .pin {
+    position: static;
+  }
+}
+
+/* Оговорка о растянутой вертикали профиля: мелко, приглушённо, но
+   обязательно на виду — без неё вид вводит инженера в заблуждение. */
+.profScaleNote {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(190, 214, 224, 0.62);
+}
