@@ -25,6 +25,7 @@ import {
   type PipeMaterial,
 } from "../../../../calculations/network";
 import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
+import { calculatePumpMain, type PipeKind } from "../../../../calculations/pump-main";
 import {
   dwgInfo,
   nodesFromPolyline,
@@ -74,6 +75,15 @@ function NetworkPageContent() {
   const [traceIdx, setTraceIdx] = useState(0);
   const [maxSurveyDist, setMaxSurveyDist] = useState("20");
   const [fileName, setFileName] = useState("");
+  /* КНС и напорная линия — отдельный блок: он нужен не всегда, но когда
+     самотёк упёрся в глубину, нужен сразу и с числами для заказа насоса. */
+  const [pumpOpen, setPumpOpen] = useState(false);
+  const [pumpQ, setPumpQ] = useState("");
+  const [pumpLift, setPumpLift] = useState("8");
+  const [pumpLen, setPumpLen] = useState("600");
+  const [pumpKind, setPumpKind] = useState<PipeKind>("steel");
+  const [pumpLines, setPumpLines] = useState("2");
+  const [pumpDn, setPumpDn] = useState("");
   const [busy, setBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false);
   const [object, setObject] = useState("Канализационная сеть");
@@ -99,6 +109,21 @@ function NetworkPageContent() {
   }, [nodes, links, outfallId, category, elevSource, startDepth, material, density, industry, unaccounted, rain]);
 
   const result = useMemo(() => (input ? calculateNetwork(input) : null), [input]);
+
+  /** расход для КНС: заданный вручную либо расчётный из сети */
+  const pumpFlow = Number(pumpQ.replace(",", ".")) || result?.totalCalcLps || 0;
+
+  const pump = useMemo(() => {
+    if (!pumpOpen || !(pumpFlow > 0)) return null;
+    return calculatePumpMain({
+      qLps: pumpFlow,
+      geoLiftM: Number(pumpLift.replace(",", ".")) || 0,
+      lengthM: Number(pumpLen.replace(",", ".")) || 0,
+      kind: pumpKind,
+      lines: Number(pumpLines) || 2,
+      dnMm: Number(pumpDn.replace(",", ".")) || undefined,
+    });
+  }, [pumpOpen, pumpFlow, pumpLift, pumpLen, pumpKind, pumpLines, pumpDn]);
 
   function loadText(raw: string, kind: Mode) {
     const parsed = kind === "kml" ? parseKml(raw) : parseNodeTable(raw);
@@ -515,6 +540,119 @@ function NetworkPageContent() {
               {fileError && <span style={{ color: "#ff9d8a", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
             </section>
 
+            {/* НАПОРНЫЙ УЧАСТОК ОТ КНС */}
+            <section style={card}>
+              <button type="button" onClick={() => setPumpOpen(!pumpOpen)} style={toggleRow}>
+                <span style={sectionTitle}>НАПОРНЫЙ УЧАСТОК ОТ КНС</span>
+                <span style={{ color: "#5fb6c9", fontSize: 13 }}>{pumpOpen ? "свернуть" : "посчитать"}</span>
+              </button>
+
+              {!pumpOpen && (
+                <p style={hint}>
+                  {result.maxDepthM > 6
+                    ? `Глубина в ${result.maxDepthAt} дошла до ${result.maxDepthM} м — самотёк дальше вести дорого. Посчитайте напорный участок: подача, напор, мощность насоса и объём приёмного резервуара.`
+                    : "Если сеть упирается в глубину или трасса идёт в гору — посчитайте напорный участок: подача, напор, мощность насоса и объём приёмного резервуара."}
+                </p>
+              )}
+
+              {pumpOpen && (
+                <>
+                  <div style={grid}>
+                    <label style={field}>
+                      <span style={fieldLabel}>Расчётный расход, л/с</span>
+                      <input
+                        value={pumpQ}
+                        onChange={(e) => setPumpQ(e.target.value)}
+                        inputMode="decimal"
+                        placeholder={String(result.totalCalcLps)}
+                        style={inputStyle}
+                      />
+                      <span style={fieldHint}>пусто — берётся расход в конечной точке сети</span>
+                    </label>
+                    <label style={field}>
+                      <span style={fieldLabel}>Геометрический подъём, м</span>
+                      <input value={pumpLift} onChange={(e) => setPumpLift(e.target.value)} inputMode="decimal" style={inputStyle} />
+                      <span style={fieldHint}>отметка излива минус уровень в приёмном резервуаре</span>
+                    </label>
+                    <label style={field}>
+                      <span style={fieldLabel}>Длина напорной линии, м</span>
+                      <input value={pumpLen} onChange={(e) => setPumpLen(e.target.value)} inputMode="decimal" style={inputStyle} />
+                    </label>
+                    <label style={field}>
+                      <span style={fieldLabel}>Материал напорной трубы</span>
+                      <select value={pumpKind} onChange={(e) => setPumpKind(e.target.value as PipeKind)} style={inputStyle}>
+                        <option value="steel">сталь</option>
+                        <option value="castIron">чугун</option>
+                        <option value="plastic">полиэтилен</option>
+                      </select>
+                    </label>
+                    <label style={field}>
+                      <span style={fieldLabel}>Число ниток</span>
+                      <select value={pumpLines} onChange={(e) => setPumpLines(e.target.value)} style={inputStyle}>
+                        <option value="1">одна</option>
+                        <option value="2">две</option>
+                      </select>
+                    </label>
+                    <label style={field}>
+                      <span style={fieldLabel}>Диаметр, мм</span>
+                      <input value={pumpDn} onChange={(e) => setPumpDn(e.target.value)} inputMode="decimal" placeholder="подобрать" style={inputStyle} />
+                    </label>
+                  </div>
+
+                  {pump && (
+                    <>
+                      <div style={{ ...totalsRow, marginTop: 20 }}>
+                        <span>Диаметр: <b>DN {pump.dnMm}</b>, скорость <b>{pump.velocity} м/с</b></span>
+                        <span>Напор: <b>{pump.headM} м</b> (подъём + {pump.frictionM} по длине + {pump.localM} местные + {pump.freeM} свободный)</span>
+                        <span>Насос: <b>{pump.flowM3H} м³/ч</b>, потребляемая мощность <b>{pump.motorKW} кВт</b></span>
+                        <span>Приёмный резервуар: <b>{pump.wetWellM3} м³</b></span>
+                      </div>
+
+                      {pump.options.length > 1 && (
+                        <>
+                          <p style={{ ...hint, marginTop: 10 }}>
+                            Приемлемые диаметры рядом. Труба на шаг больше дороже сразу, но напор и
+                            электричество меньше навсегда — выбор за вами, цены знаете вы.
+                          </p>
+                          <div style={{ overflowX: "auto" }}>
+                            <table style={table}>
+                              <thead>
+                                <tr>
+                                  {["DN, мм", "v, м/с", "Напор, м", "Мощность, кВт"].map((h) => (
+                                    <th key={h} style={th}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {pump.options.map((o) => (
+                                  <tr key={o.dnMm}>
+                                    <td style={{ ...td, color: o.dnMm === pump.dnMm ? "#7ee0a1" : "#e7eef1" }}>{o.dnMm}</td>
+                                    <td style={td}>{o.velocity}</td>
+                                    <td style={td}>{o.headM}</td>
+                                    <td style={td}>{o.motorKW}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+
+                      {pump.warnings.map((w) => (
+                        <div key={w} style={{ ...warnBox, marginTop: 14 }}>{w}</div>
+                      ))}
+
+                      <ul style={{ ...notes, marginTop: 16 }}>
+                        {pump.assumptions.map((a) => (
+                          <li key={a} style={{ marginBottom: 6 }}>{a}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+              )}
+            </section>
+
             <section style={card}>
               <div style={sectionTitle}>ЧТО ПРИНЯТО И НА КАКОМ ОСНОВАНИИ</div>
               <ul style={notes}>
@@ -576,6 +714,19 @@ function FilePick({
 }
 
 /* ---------------------------- стили ---------------------------- */
+
+const toggleRow: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  width: "100%",
+  background: "transparent",
+  border: 0,
+  padding: 0,
+  cursor: "pointer",
+  textAlign: "left",
+};
 
 const pickButton: CSSProperties = {
   background: "#0f5f73",
