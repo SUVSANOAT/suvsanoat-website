@@ -69,6 +69,19 @@ export const UI = {
     "For every industry we hold typical pollutant loads and a treatment train. If you have a laboratory analysis, enter your own figures; if not, reference values from standards and industry data are used.",
     "每个行业均预置了典型污染物与工艺流程。有化验数据可直接填写；没有则采用规范与行业手册的参考值。"
   ),
+  searchPlaceholder: L(
+    "Поиск отрасли: молоко, деним, теплица, НПЗ…",
+    "Tarmoq qidirish: sut, denim, issiqxona, NQZ…",
+    "Search industry: dairy, denim, greenhouse, refinery…",
+    "搜索行业：乳品、牛仔、温室、炼油…"
+  ),
+  searchEmpty: L(
+    "Ничего не найдено. Очистите поиск или выберите «Объекта нет в списке».",
+    "Hech narsa topilmadi. Qidiruvni tozalang yoki «Ro‘yxatda yo‘q» ni tanlang.",
+    "Nothing found. Clear the search or choose “Not in the list”.",
+    "未找到。请清除搜索，或选择“列表中没有”。"
+  ),
+  searchFound: L("найдено", "topildi", "found", "找到"),
   errNoIndustry: L("Выберите отрасль.", "Tarmoqni tanlang.", "Select an industry.", "请选择行业。"),
   errNoLab: L("Укажите, есть ли лабораторный анализ стока.", "Oqova suv laboratoriya tahlili bor-yo‘qligini ko‘rsating.", "Indicate whether a laboratory analysis is available.", "请说明是否有化验数据。"),
   errNoFlow: L("Укажите расход сточных вод, м³/сут.", "Oqova suv sarfini ko‘rsating, m³/kun.", "Enter the wastewater flow, m³/day.", "请填写废水流量，m³/日。"),

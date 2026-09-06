@@ -152,6 +152,7 @@ function IndustryContent() {
   const object = searchParams.get("object") || "";
 
   const [groupId, setGroupId] = useState<string>("food");
+  const [query, setQuery] = useState("");
   const [industryId, setIndustryId] = useState<string>("");
   const [hasLab, setHasLab] = useState<boolean | null>(null);
   const [flowMode, setFlowMode] = useState<"known" | "population">("known");
@@ -376,7 +377,19 @@ function IndustryContent() {
     router.push(`/engineering/analysis/pro-result?${params.toString()}`);
   }
 
-  const groupIndustries = INDUSTRIES.filter((item) => item.group === groupId);
+  /* Поиск по всему справочнику: отраслей стало более шестидесяти, и
+     перебирать плитки по группам дольше, чем набрать слово. Пока строка
+     пустая — работает обычный выбор по группе. Ищем по названию на всех
+     четырёх языках и по подсказке удельного расхода. */
+  const q = query.trim().toLowerCase();
+  const matches = (item: (typeof INDUSTRIES)[number]) =>
+    [t(item.name, language), t(item.flowHint, language), t(item.name, "ru"), t(item.name, "en")]
+      .join(" ")
+      .toLowerCase()
+      .includes(q);
+  const groupIndustries = q
+    ? INDUSTRIES.filter((item) => !isGenericIndustry(item.id) && matches(item))
+    : INDUSTRIES.filter((item) => item.group === groupId);
 
   return (
     <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: "60px 24px 110px" }}>
@@ -404,8 +417,33 @@ function IndustryContent() {
         </p>
 
         <form onSubmit={handleContinue}>
+          {/* ПОИСК ПО СПРАВОЧНИКУ */}
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={U.searchPlaceholder}
+              style={{
+                width: "100%",
+                maxWidth: 520,
+                padding: "11px 14px",
+                borderRadius: 10,
+                border: `1px solid ${LINE}`,
+                background: "transparent",
+                color: "#eaf6fa",
+                fontSize: 14,
+              }}
+            />
+            {q ? (
+              <span style={{ color: FAINT, fontSize: 13, marginLeft: 12 }}>
+                {U.searchFound}: {groupIndustries.length}
+              </span>
+            ) : null}
+          </div>
+
           {/* ГРУППЫ */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18, opacity: q ? 0.4 : 1 }}>
             {INDUSTRY_GROUPS.map((group) => (
               <button
                 key={group.id}
