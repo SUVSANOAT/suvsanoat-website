@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateOpex } from "../../../../calculations/opex";
 import { buildPid } from "../../../../calculations/pid";
+import { pidSheet } from "../../../../drawings/site/pid";
 
 import { MODELS, type Model } from "../../../products/data";
 import {
@@ -1493,6 +1494,30 @@ function ProResultContent() {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
+  /** Схема автоматизации отдельным листом: связи «прибор — щит» на
+   *  таблице не видны, а кабель по ним кто-то должен проложить. */
+  function dxfPid() {
+    if (!calc) return;
+    const pid = buildPid({
+      stages: calc.chain,
+      inletPump: calc.chain.includes("pump") || calc.chain.includes("avg"),
+      uv: true,
+      blowers: 2,
+      dosing: calc.chain.includes("physchem") || calc.chain.includes("neutral"),
+    });
+    const sh = pidSheet(pid, calc.chain, { object: `${industry ? t(industry.name, language) : "Объект"}, ${fmt(Q)} м³/сут` });
+    /* Скачиваем сами, а не через downloadDxf из ./dxf: там свой класс
+       Dxf для схем страницы, а лист собран классом из drawings/core. */
+    const bytes = sh.d.toBytes();
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/dxf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "SUVSANOAT_shema_avtomatizacii.dxf";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function dxfScheme() {
     const input = schemeInput();
     if (!input) return;
@@ -2258,6 +2283,10 @@ function ProResultContent() {
           <button type="button" onClick={dxfScheme}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
             {U.btnDxfScheme}
+          </button>
+          <button type="button" onClick={dxfPid}
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            Схема автоматизации DXF
           </button>
           <button type="button" onClick={dxfModels}
             style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
