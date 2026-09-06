@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { calculateOpex } from "../../../../calculations/opex";
 
 import { MODELS, type Model } from "../../../products/data";
 import {
@@ -36,6 +37,7 @@ import {
 import { calculateTechnology, type TechnologyCode } from "../../../../calculations/technology";
 import {
   AEROTANK,
+  BOD5_TO_BODFULL,
   DISINFECTION,
   GRIT,
   KMK_2_04_03_19_DOC,
@@ -1953,6 +1955,7 @@ function ProResultContent() {
               [U.powerYearly, fmt(calc.power.yearly / 1000), U.unitKwh],
               [U.powerSpecific, fmt(calc.power.specific, 2), U.unitKwhM3],
               [U.powerSpecificBod, fmt(calc.power.specificBod, 2), U.unitKwhKg],
+              ["Трансформатор", String(calc.power.transformerKVA), "кВА"],
             ].map(([label, value, unit], i) => (
               <div key={i} style={{ fontSize: 13 }}>
                 <div style={{ color: FAINT, fontSize: 11 }}>{label}</div>
@@ -1986,6 +1989,58 @@ function ProResultContent() {
           </div>
           <p style={{ fontSize: 12, color: FAINT, margin: "10px 0 0", lineHeight: 1.6 }}>{calc.power.note}</p>
         </div>
+
+        {/* ================= ЭКСПЛУАТАЦИЯ =================
+            Показатели в натуре, без цен: тариф у каждого заказчика свой и
+            меняется чаще, чем выходит проект. Количества умножаются на
+            свои цены в одну строку — и тогда деньги настоящие. */}
+        {(() => {
+          const opex = calculateOpex({
+            flowM3Day: Q,
+            bodFullMgL: (c.bod ?? 0) / BOD5_TO_BODFULL,
+            tssMgL: c.ss ?? 0,
+            yearKWh: calc.power.yearly,
+            uv: calc.chain.includes("post"),
+          });
+          return (
+            <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+              <b style={{ fontSize: 16 }}>Эксплуатационные показатели за год</b>
+              <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                В натуральных единицах, без цен: тариф на электроэнергию, стоимость реагентов и вывоза
+                осадка у каждого заказчика свои. Умножьте количества на свои цены — получите себестоимость
+                очистки кубометра.
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                  <thead>
+                    <tr>
+                      {["Статья", "За год", "Ед.", "На 1 м³", "Основание"].map((h) => (
+                        <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {opex.lines.map((l, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.name}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{l.perYear.toLocaleString("ru-RU")}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.unit}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.perM3}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>{l.basis}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ fontSize: 12, color: FAINT, margin: "10px 0 0", lineHeight: 1.6 }}>
+                Осадок: {opex.sludgeDryKgDay} кг сухого вещества в сутки, обезвоженного {opex.cakeM3Day} м³/сут.
+              </p>
+              {opex.warnings.map((w) => (
+                <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* ================= ЧЕРТЕЖИ ================= */}
         {drawings && (
