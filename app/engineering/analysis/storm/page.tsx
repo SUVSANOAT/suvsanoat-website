@@ -21,6 +21,8 @@ import {
   type SurfaceShare,
 } from "../../../../calculations/storm";
 import RequireAuth from "../../RequireAuth";
+import { calculateStormNetwork } from "../../../../calculations/storm-network";
+import { parseNodeTable } from "../../../../calculations/network-input";
 
 export default function StormPage() {
   return (
@@ -46,6 +48,17 @@ function StormPageContent() {
   const [shareGravel, setShareGravel] = useState("0");
   const [shareGround, setShareGround] = useState("20");
   const [shareLawn, setShareLawn] = useState("25");
+
+  /* Сеть по участкам. Расход водосбора — только половина работы:
+     дальше нужны диаметры, уклоны и отметки, а они считаются створ за
+     створом, потому что вниз по коллектору площадь растёт, а расчётная
+     интенсивность падает. */
+  const [netText, setNetText] = useState("");
+  const [netNodes, setNetNodes] = useState<ReturnType<typeof parseNodeTable> | null>(null);
+  const [fillMode, setFillMode] = useState("1");
+  const [minDn, setMinDn] = useState("250");
+  const [busy, setBusy] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   const num = (v: string) => Number(v.replace(",", ".")) || 0;
 
@@ -75,6 +88,65 @@ function StormPageContent() {
   );
 
   const ready = num(q20) > 0 && num(area) > 0;
+
+  const netRes = useMemo(() => {
+    if (!netNodes || netNodes.nodes.length < 2 || !netNodes.links.length || !(num(q20) > 0)) return null;
+    return calculateStormNetwork({
+      nodes: netNodes.nodes,
+      links: netNodes.links,
+      outfallId: netNodes.nodes[netNodes.nodes.length - 1].id,
+      q20: num(q20),
+      zone,
+      periodYears: num(period) || 1,
+      tConMin: num(tCon) || 5,
+      surfaces: surfaces.filter((x) => x.share > 0),
+      designFill: num(fillMode) || 1,
+      minDnMm: num(minDn) || 250,
+    });
+  }, [netNodes, q20, zone, period, tCon, surfaces, fillMode, minDn]);
+
+  async function downloadPackage() {
+    if (!netNodes || !netRes) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const res = await fetch("/api/storm-package", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          input: {
+            nodes: netNodes.nodes,
+            links: netNodes.links,
+            outfallId: netNodes.nodes[netNodes.nodes.length - 1].id,
+            q20: num(q20),
+            zone,
+            periodYears: num(period) || 1,
+            tConMin: num(tCon) || 5,
+            surfaces: surfaces.filter((x) => x.share > 0),
+            designFill: num(fillMode) || 1,
+            minDnMm: num(minDn) || 250,
+          },
+          object: "Дождевая канализация",
+        }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Комплект не собрался.");
+        return;
+      }
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_livnevaya_set.zip";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <main style={page}>
@@ -223,6 +295,97 @@ function StormPageContent() {
             ))}
 
             <section style={card}>
+              <div style={sectionTitle}>СЕТЬ ПО УЧАСТКАМ</div>
+              <p style={hint}>
+                Расход выше посчитан для водосбора целиком. Чтобы получить диаметры, уклоны и
+                отметки, вставьте таблицу колодцев: «Колодец», «Отметка земли», «Площадь, га»,
+                «Длина, м», «Течёт в». Расход считается для каждого створа отдельно — вниз по
+                коллектору площадь растёт, а расчётная интенсивность падает, и расход не
+                пропорционален площади.
+              </p>
+              <textarea
+                value={netText}
+                onChange={(e) => setNetText(e.target.value)}
+                onBlur={() => netText.trim() && setNetNodes(parseNodeTable(netText))}
+                rows={7}
+                placeholder={"Колодец;Отметка земли;Площадь, га;Длина, м;Течёт в\nДК-1;100.0;2,0;220;ДК-2\nДК-2;99.2;2,5;260;ДК-3\nДК-3;98.1;3,0;300;ДК-4\nДК-4;96.8;2,0;180;ДК-5\nДК-5;95.6;;;"}
+                style={textarea}
+              />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <button type="button" style={ghost} onClick={() => netText.trim() && setNetNodes(parseNodeTable(netText))}>
+                  Прочитать таблицу
+                </button>
+                <label style={{ ...field, minWidth: 190 }}>
+                  <span style={fieldLabel}>Расчётное наполнение</span>
+                  <select value={fillMode} onChange={(e) => setFillMode(e.target.value)} style={inputStyle}>
+                    <option value="1">полное сечение (дождевая)</option>
+                    <option value="0.7">0,7 высоты (как бытовая, п. 2.40)</option>
+                  </select>
+                </label>
+                <label style={{ ...field, minWidth: 190 }}>
+                  <span style={fieldLabel}>Наименьший диаметр, мм</span>
+                  <input value={minDn} onChange={(e) => setMinDn(e.target.value)} inputMode="decimal" style={inputStyle} />
+                </label>
+              </div>
+
+              {netNodes?.problems.length ? (
+                <ul style={{ marginTop: 14, paddingLeft: 18, color: "#ffcf8a", fontSize: 13, lineHeight: 1.6 }}>
+                  {netNodes.problems.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {netRes && (
+                <>
+                  <div style={{ overflowX: "auto", marginTop: 18 }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          {["Участок", "L, м", "F, га", "t_r, мин", "Q, л/с", "DN, мм", "i", "v, м/с", "H/D", "Глубина к, м"].map((h) => (
+                            <th key={h} style={th}>
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {netRes.segments.map((sg) => (
+                          <tr key={`${sg.from}-${sg.to}`}>
+                            <td style={tdLeft}>
+                              {sg.from} — {sg.to}
+                              {sg.warnings.length > 0 && <div style={segWarn}>{sg.warnings.join(" ")}</div>}
+                            </td>
+                            <td style={td}>{sg.lengthM}</td>
+                            <td style={td}>{sg.areaHa}</td>
+                            <td style={td}>{sg.tRMin}</td>
+                            <td style={td}>{sg.qLps}</td>
+                            <td style={td}>{sg.dnMm}</td>
+                            <td style={td}>{sg.slope.toFixed(4)}</td>
+                            <td style={td}>{sg.velocity.toFixed(2)}</td>
+                            <td style={td}>{sg.fill.toFixed(2)}</td>
+                            <td style={td}>{sg.depthEnd.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ color: "#b7cbd3", fontSize: 14, margin: "16px 0" }}>
+                    Площадь водосбора всего <b>{netRes.totalAreaHa} га</b>, расход в выпуске{" "}
+                    <b>{netRes.outfallQLps} л/с</b>, наибольшая глубина <b>{netRes.maxDepthM} м</b>
+                    {netRes.maxDepthAt ? ` в ${netRes.maxDepthAt}` : ""}.
+                  </div>
+
+                  <button type="button" style={primary} onClick={downloadPackage} disabled={busy}>
+                    {busy ? "Собираю комплект…" : "Скачать ведомость и чертежи (ZIP)"}
+                  </button>
+                  {fileError && <span style={{ color: "#ff9d8a", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
+                </>
+              )}
+            </section>
+
+            <section style={card}>
               <div style={sectionTitle}>ЧТО ПРИНЯТО И НА КАКОМ ОСНОВАНИИ</div>
               <ul style={notes}>
                 {res.assumptions.map((a) => (
@@ -266,5 +429,13 @@ const bigRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(au
 const smallLabel: CSSProperties = { color: "#5c7280", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
 const bigValue: CSSProperties = { color: "#e7eef1", fontSize: 30, fontWeight: 700 };
 const unit: CSSProperties = { fontSize: 15, color: "#8ca4ad", fontWeight: 400 };
+const textarea: CSSProperties = { width: "100%", background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
+const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
+const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 130 };
+const segWarn: CSSProperties = { color: "#ffcf8a", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
 const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
 const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
