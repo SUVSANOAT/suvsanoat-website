@@ -45,6 +45,8 @@ export default function NetworkPage() {
   const [category, setCategory] = useState<NetworkInput["category"]>("town-under-50k");
   const [startDepth, setStartDepth] = useState("1.5");
   const [busy, setBusy] = useState(false);
+  const [dxfBusy, setDxfBusy] = useState(false);
+  const [object, setObject] = useState("Канализационная сеть");
   const [fileError, setFileError] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -82,6 +84,40 @@ export default function NetworkPage() {
     setText(raw.slice(0, 200000));
     loadText(raw, file.name.toLowerCase().endsWith(".kml") ? "kml" : "table");
     setMode(file.name.toLowerCase().endsWith(".kml") ? "kml" : "table");
+  }
+
+  /** общая часть скачивания: расчёт повторяется на сервере, сюда приходит файл */
+  async function download(url: string, body: unknown, name: string, setFlag: (v: boolean) => void) {
+    setFlag(true);
+    setFileError("");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Файл не собрался.");
+        return;
+      }
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил. Проверьте соединение и попробуйте ещё раз.");
+    } finally {
+      setFlag(false);
+    }
+  }
+
+  async function downloadDxf() {
+    if (!input) return;
+    await download("/api/network-dxf", { input, object }, "SUVSANOAT_chertezhi_seti.zip", setDxfBusy);
   }
 
   async function downloadXlsx() {
@@ -285,9 +321,20 @@ export default function NetworkPage() {
                 </span>
               </div>
 
-              <button type="button" style={primary} onClick={downloadXlsx} disabled={busy}>
-                {busy ? "Собираю ведомость…" : "Скачать ведомость в Excel"}
-              </button>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <button type="button" style={primary} onClick={downloadXlsx} disabled={busy}>
+                  {busy ? "Собираю ведомость…" : "Скачать ведомость в Excel"}
+                </button>
+                <button type="button" style={secondary} onClick={downloadDxf} disabled={dxfBusy}>
+                  {dxfBusy ? "Строю чертежи…" : "Скачать чертежи DXF (план и профили)"}
+                </button>
+                <input
+                  value={object}
+                  onChange={(e) => setObject(e.target.value)}
+                  placeholder="Объект — как писать в штампе"
+                  style={{ ...inputStyle, minWidth: 260 }}
+                />
+              </div>
               {fileError && <span style={{ color: "#ff9d8a", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
             </section>
 
@@ -333,6 +380,7 @@ const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBotto
 const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 130 };
 const segWarn: CSSProperties = { color: "#ffcf8a", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
 const totalsRow: CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", color: "#b7cbd3", fontSize: 14, margin: "18px 0" };
+const secondary: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 10, padding: "12px 20px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
 const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
 const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
 const problemList: CSSProperties = { marginTop: 14, paddingLeft: 18, color: "#ffcf8a", fontSize: 13, lineHeight: 1.6 };
