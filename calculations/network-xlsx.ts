@@ -15,7 +15,7 @@
  * ================================================================== */
 
 import { buildXlsxFile, type XCell, type XRow, type XSheet } from "../app/engineering/analysis/pro-result/xlsx";
-import type { NetworkInput, NetworkResult, SegmentResult } from "./network";
+import { MATERIALS, type NetworkInput, type NetworkResult, type SegmentResult } from "./network";
 
 const t = (v: string | number | null): XCell => ({ v, s: "text" });
 const num = (v: number | null): XCell => ({ v: v === null ? "—" : v, s: v === null ? "text" : "num" });
@@ -40,7 +40,10 @@ function calcSheet(res: NetworkResult): XSheet {
     head("Q ср, л/с"),
     head("K gen.max"),
     head("Q расч, л/с"),
+    head("в т.ч. инфильтрация, л/с"),
+    head("транзит, л/с"),
     head("DN, мм"),
+    head("Материал"),
     head("Уклон i"),
     head("v, м/с"),
     head("v min, м/с"),
@@ -62,7 +65,10 @@ function calcSheet(res: NetworkResult): XSheet {
       num(s.qAvgLps),
       num(s.kMax),
       num(s.qCalcLps),
+      s.qInfiltrationLps > 0 ? num(s.qInfiltrationLps) : t("—"),
+      s.qTransitLps > 0 ? num(s.qTransitLps) : t("—"),
       { v: s.dnMm, s: "int" },
+      t(MATERIALS[s.material].label + (s.fixed ? "; задан" : "")),
       slopeCell(s.slope),
       num(s.velocity),
       num(s.vMinRequired),
@@ -102,7 +108,7 @@ function calcSheet(res: NetworkResult): XSheet {
 
   return {
     name: "Ведомость расчёта",
-    cols: [16, 9, 11, 9, 10, 10, 8, 9, 8, 9, 7, 8, 14, 14, 13, 13, 9, 60],
+    cols: [16, 9, 11, 9, 10, 10, 12, 10, 8, 18, 9, 8, 9, 7, 8, 14, 14, 13, 13, 9, 60],
     rows,
     freezeRows: 4,
   };
@@ -119,7 +125,10 @@ function nodesSheet(input: NetworkInput): XSheet {
     head("Y, м"),
     head("Отметка земли, м"),
     head("Жители, чел."),
+    head("Площадь, га"),
     head("Сосредоточенный расход, м³/сут"),
+    head("Транзит, л/с"),
+    head("Отметка лотка, м"),
     head("Течёт в"),
   ]);
   const out = new Map(input.links.map((l) => [l.from, l.to]));
@@ -130,11 +139,14 @@ function nodesSheet(input: NetworkInput): XSheet {
       n.y === undefined ? t("—") : num(n.y),
       num(n.groundElev),
       { v: n.people ?? 0, s: "int" },
+      n.areaHa ? num(n.areaHa) : t("—"),
       n.qConcentratedM3Day ? num(n.qConcentratedM3Day) : t("—"),
+      n.qTransitLps ? num(n.qTransitLps) : t("—"),
+      n.fixedInvert !== undefined ? num(n.fixedInvert) : t("—"),
       t(n.id === input.outfallId ? "выпуск" : out.get(n.id) ?? "не подключён"),
     ]);
   });
-  return { name: "Узлы", cols: [12, 12, 12, 16, 12, 24, 14], rows, freezeRows: 4 };
+  return { name: "Узлы", cols: [12, 12, 12, 16, 12, 11, 24, 12, 16, 14], rows, freezeRows: 4 };
 }
 
 function basisSheet(input: NetworkInput, res: NetworkResult): XSheet {

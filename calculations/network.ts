@@ -40,6 +40,8 @@
 import {
   SEWER_NETWORK,
   minPipeSlope,
+  infiltrationInflowLps,
+  LOCAL_INDUSTRY_SHARE,
   TABLE_16_MIN_VELOCITY,
   specificWaterUse,
   unevenness,
@@ -66,6 +68,24 @@ export const NETWORK_LIMITS = {
   manningN: { value: 0.013, pending: false, note: "шероховатость n = 0,013 для бетонных и железобетонных труб — практика; ҚМҚ в табл. 16 её не приводит" },
 } as const;
 
+/* ------------------------------------------------------------------
+ * МАТЕРИАЛ ТРУБЫ
+ *
+ * От материала зависит шероховатость, а от неё — уклон и скорость.
+ * ҚМҚ 2.04.03-19 шероховатость не табулирует (в табл. 16 её нет),
+ * поэтому значения взяты из практики и подписаны как практика. Разница
+ * не косметическая: пластмассовая труба того же диаметра при том же
+ * уклоне пропускает примерно на треть больше.
+ * ------------------------------------------------------------------ */
+export type PipeMaterial = "concrete" | "plastic" | "ceramic" | "steel";
+
+export const MATERIALS: Record<PipeMaterial, { label: string; n: number; metal: boolean }> = {
+  concrete: { label: "бетон, железобетон", n: 0.013, metal: false },
+  ceramic: { label: "керамика", n: 0.013, metal: false },
+  plastic: { label: "пластмасса (ПЭ, ПВХ)", n: 0.010, metal: false },
+  steel: { label: "сталь, чугун", n: 0.012, metal: true },
+};
+
 /** ряд диаметров, мм */
 export const DN_ROW = [200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000, 1200] as const;
 
@@ -87,6 +107,14 @@ export type NetworkNode = {
   people?: number;
   /** сосредоточенный расход в узел, м³/сут (предприятие, больница, гостиница) */
   qConcentratedM3Day?: number;
+  /** площадь квартала, подключаемого в узле, га — расход считается по плотности населения */
+  areaHa?: number;
+  /** транзитный расход из существующей сети, л/с (уже максимальный секундный) */
+  qTransitLps?: number;
+  /** отметка лотка, заданная проектировщиком, м — примыкание к существующему колодцу */
+  fixedInvert?: number;
+  /** начальная глубина именно в этом верховом колодце, м */
+  startDepthM?: number;
 };
 
 export type NetworkLink = {
@@ -94,6 +122,12 @@ export type NetworkLink = {
   to: string;
   /** длина, м; не задана — считается по координатам */
   lengthM?: number;
+  /** диаметр, заданный проектировщиком, мм — подбор пропускается, проверка остаётся */
+  dnMm?: number;
+  /** уклон, заданный проектировщиком */
+  slope?: number;
+  /** материал трубы; не задан — общий по сети */
+  material?: PipeMaterial;
 };
 
 export type NetworkInput = {
@@ -111,6 +145,17 @@ export type NetworkInput = {
   startDepthM?: number;
   /** наименьший диаметр, мм */
   minDnMm?: number;
+  /** материал труб по умолчанию */
+  material?: PipeMaterial;
+  /** плотность населения, чел/га — для узлов, где задана площадь квартала */
+  densityPerHa?: number;
+  /** доля местной промышленности, п. 2.3 (0,05 = +5 %); 0 — не учитывать */
+  localIndustryShare?: number;
+  /** доля неучтённых расходов, табл. 3 прим. 5 (0,10–0,15); 0 — не учитывать */
+  unaccountedShare?: number;
+  /** максимальные суточные осадки, мм (КМК 2.01.01-94) — для дополнительного
+   *  притока по ф. (1) п. 2.10; не задано — приток не считается */
+  maxDailyRainMm?: number;
 };
 
 /* ------------------------------------------------------------------
@@ -129,6 +174,14 @@ export type SegmentResult = {
   kMax: number;
   /** расчётный (максимальный секундный) расход, л/с */
   qCalcLps: number;
+  /** дополнительный приток (инфильтрация) по ф. (1), л/с */
+  qInfiltrationLps: number;
+  /** транзит из существующей сети, л/с */
+  qTransitLps: number;
+  /** материал трубы */
+  material: PipeMaterial;
+  /** диаметр и уклон заданы проектировщиком, а не подобраны */
+  fixed: boolean;
   dnMm: number;
   /** принятый уклон */
   slope: number;
@@ -178,19 +231,19 @@ export function flowGeometry(dnMm: number, fill: number) {
 }
 
 /** расход при заданном наполнении и уклоне, м³/с */
-export function dischargeAt(dnMm: number, fill: number, slope: number, n = NETWORK_LIMITS.manningN.value): number {
+export function dischargeAt(dnMm: number, fill: number, slope: number, n: number = NETWORK_LIMITS.manningN.value): number {
   const g = flowGeometry(dnMm, fill);
   return (1 / n) * g.area * Math.pow(g.radius, 2 / 3) * Math.sqrt(Math.max(slope, 0));
 }
 
 /** наполнение, при котором труба пропускает заданный расход (деление отрезка пополам) */
-export function normalFill(dnMm: number, qM3S: number, slope: number): number {
+export function normalFill(dnMm: number, qM3S: number, slope: number, n: number = NETWORK_LIMITS.manningN.value): number {
   let lo = 0.001;
   let hi = 0.999;
-  if (dischargeAt(dnMm, hi, slope) < qM3S) return 1.2; // не проходит даже полным сечением
+  if (dischargeAt(dnMm, hi, slope, n) < qM3S) return 1.2; // не проходит даже полным сечением
   for (let k = 0; k < 60; k += 1) {
     const mid = (lo + hi) / 2;
-    if (dischargeAt(dnMm, mid, slope) < qM3S) lo = mid;
+    if (dischargeAt(dnMm, mid, slope, n) < qM3S) lo = mid;
     else hi = mid;
   }
   return (lo + hi) / 2;
@@ -219,8 +272,32 @@ export function table16(dnMm: number) {
  *   4. Если наполнение выше наибольшего по табл. 16 или скорость выше
  *      предельной — берём следующий диаметр и начинаем сначала.
  * ------------------------------------------------------------------ */
-export function selectPipe(qCalcLps: number, groundSlope: number, minDnMm: number) {
+export function selectPipe(
+  qCalcLps: number,
+  groundSlope: number,
+  minDnMm: number,
+  material: PipeMaterial = "concrete",
+  forced?: { dnMm?: number; slope?: number },
+) {
   const q = Math.max(qCalcLps, 0.1) / 1000; // м³/с
+  const mat = MATERIALS[material];
+  const n = mat.n;
+  const vMax = mat.metal ? SEWER_NETWORK.maxVelocity.metal : SEWER_NETWORK.maxVelocity.nonMetal;
+
+  /* Диаметр и уклон, заданные проектировщиком, не подбираются заново:
+     он мог принять их по существующей сети, по типовому проекту или по
+     согласованию. Но проверяются они так же строго — на скорость,
+     наполнение и наименьший уклон; результат проверки попадёт в
+     предупреждения участка. */
+  if (forced?.dnMm) {
+    const dn = forced.dnMm;
+    const t = table16(dn);
+    const i = forced.slope && forced.slope > 0 ? forced.slope : Math.max(groundSlope, minPipeSlope(dn).i);
+    const fill = Math.min(normalFill(dn, q, i, n), 1.2);
+    const g = flowGeometry(dn, Math.min(fill, 0.999));
+    return { dnMm: dn, slope: i, fill, velocity: q / g.area, vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: false, fixed: true };
+  }
+
   const candidates = DN_ROW.filter((d) => d >= minDnMm);
 
   for (const dn of candidates) {
@@ -242,7 +319,7 @@ export function selectPipe(qCalcLps: number, groundSlope: number, minDnMm: numbe
     const iCap = Math.max(iMin * 3, groundSlope);
 
     for (let step = 0; step < 80; step += 1) {
-      const fill = normalFill(dn, q, i);
+      const fill = normalFill(dn, q, i, n);
       if (fill > 1) {
         i *= 1.15; // не проходит даже полным сечением — круче
         if (i > 0.2) break;
@@ -253,7 +330,7 @@ export function selectPipe(qCalcLps: number, groundSlope: number, minDnMm: numbe
 
       if (fill > t.fill) break; // переполнение — следующий диаметр
 
-      if (v > NETWORK_LIMITS.maxVelocity.value) {
+      if (v > vMax) {
         /* Слишком быстро. На крутом рельефе трубу не гонят по уклону
            местности — её кладут положе предела скорости, а разницу
            отметок добирают перепадными колодцами. Поэтому уклон
@@ -274,11 +351,11 @@ export function selectPipe(qCalcLps: number, groundSlope: number, minDnMm: numbe
         /* Дальше углублять бессмысленно: это начальный участок сети. */
         return {
           dnMm: dn, slope: Math.max(groundSlope, iMin), fill, velocity: v,
-          vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: true,
+          vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: true, fixed: false,
         };
       }
 
-      return { dnMm: dn, slope: i, fill, velocity: v, vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: false };
+      return { dnMm: dn, slope: i, fill, velocity: v, vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: false, fixed: false };
     }
   }
 
@@ -287,9 +364,9 @@ export function selectPipe(qCalcLps: number, groundSlope: number, minDnMm: numbe
   const dn = candidates[candidates.length - 1] ?? DN_ROW[DN_ROW.length - 1];
   const t = table16(dn);
   const i = 0.05;
-  const fill = Math.min(normalFill(dn, q, i), 1);
+  const fill = Math.min(normalFill(dn, q, i, n), 1);
   const g = flowGeometry(dn, fill);
-  return { dnMm: dn, slope: i, fill, velocity: q / g.area, vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: false };
+  return { dnMm: dn, slope: i, fill, velocity: q / g.area, vMin: t.vMin, fillMax: t.fill, inTable: t.inTable, startingReach: false, fixed: false };
 }
 
 /* ------------------------------------------------------------------
@@ -344,12 +421,25 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
     warnings.push("В схеме есть замкнутый контур: самотёчная сеть не может иметь колец, проверьте направления участков.");
   }
 
-  /* --- накопление жителей и сосредоточенных расходов --- */
+  /* --- накопление по узлам ---
+     Жители: заданные прямо плюс посчитанные по площади квартала и
+     плотности застройки — проектировщик обычно знает второе, а не
+     первое. Транзит из существующей сети идёт отдельной величиной: он
+     уже максимальный секундный, и умножать его на K нельзя. */
+  const density = Math.max(0, input.densityPerHa ?? 0);
   const cumPeople = new Map<string, number>();
   const cumConc = new Map<string, number>();
+  const cumTransit = new Map<string, number>();
+  const cumLength = new Map<string, number>();
   input.nodes.forEach((n) => {
-    cumPeople.set(n.id, n.people ?? 0);
+    const byArea = n.areaHa && density > 0 ? n.areaHa * density : 0;
+    if (n.areaHa && density <= 0) {
+      warnings.push(`Колодец ${n.id}: задана площадь квартала, но не задана плотность населения — расход по площади не посчитан.`);
+    }
+    cumPeople.set(n.id, (n.people ?? 0) + byArea);
     cumConc.set(n.id, n.qConcentratedM3Day ?? 0);
+    cumTransit.set(n.id, n.qTransitLps ?? 0);
+    cumLength.set(n.id, 0);
   });
 
   const linkOf = new Map(input.links.map((l) => [l.from, l]));
@@ -370,29 +460,52 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
 
     const people = cumPeople.get(a.id) ?? 0;
     const conc = cumConc.get(a.id) ?? 0;
-
-    /* Расход участка. Хозбытовой — от накопленных жителей по удельному
-       водоотведению табл. 3; сосредоточенные сбросы прибавляются
-       отдельно, они уже заданы суточным объёмом. */
-    const qDomM3Day = (people * lpcd) / 1000;
-    const qAvgLps = ((qDomM3Day + conc) * 1000) / 86400;
-    const un = unevenness(qAvgLps);
-    const qCalcLps = qAvgLps * un.kMax;
+    const transit = cumTransit.get(a.id) ?? 0;
 
     const lengthM = link.lengthM ?? dist(a, b);
     if (!(lengthM > 0)) {
       warnings.push(`Участок ${a.id}–${b.id}: длина не задана и не считается по координатам.`);
     }
     const L = Math.max(lengthM, 1);
+    const netLenM = (cumLength.get(a.id) ?? 0) + L;
+
+    /* РАСХОД УЧАСТКА.
+       1. Хозбытовой — от накопленных жителей по удельному водоотведению
+          табл. 3; сосредоточенные сбросы уже заданы суточным объёмом.
+       2. Местная промышленность (п. 2.3) и неучтённые расходы
+          (табл. 3, прим. 5) — доли, заданные проектировщиком; по
+          умолчанию не начисляются: молча увеличивать чужой расход
+          нельзя.
+       3. K gen.max по табл. 2 — от СРЕДНЕГО расхода этого участка.
+       4. Дополнительный приток (инфильтрация) по ф. (1) п. 2.10 —
+          прибавляется ПОСЛЕ умножения на K: грунтовая вода поступает
+          равномерно и с суточной неравномерностью стока не связана.
+       5. Транзит из существующей сети — уже максимальный секундный,
+          на K не умножается. */
+    const qDomM3Day = (people * lpcd) / 1000;
+    const extra = 1 + Math.max(0, input.localIndustryShare ?? 0) + Math.max(0, input.unaccountedShare ?? 0);
+    const qAvgLps = (((qDomM3Day + conc) * extra) * 1000) / 86400;
+    const un = unevenness(qAvgLps);
+    const qInfLps = input.maxDailyRainMm ? infiltrationInflowLps(netLenM / 1000, input.maxDailyRainMm) : 0;
+    const qCalcLps = qAvgLps * un.kMax + qInfLps + transit;
 
     const groundSlope = (a.groundElev - b.groundElev) / L;
-    const pipe = selectPipe(qCalcLps, groundSlope, minDn);
+    const material = link.material ?? input.material ?? "concrete";
+    const pipe = selectPipe(qCalcLps, groundSlope, minDn, material, { dnMm: link.dnMm, slope: link.slope });
 
     /* --- отметки --- */
     let invStart = invertAt.get(a.id);
     let drop = 0;
-    if (invStart === undefined) {
-      invStart = a.groundElev - startDepth; // верховой колодец
+    const startHere = a.startDepthM ?? startDepth;
+    if (a.fixedInvert !== undefined) {
+      /* Отметка лотка задана: примыкание к существующему колодцу или
+         точка, согласованная с водоканалом. Она главнее расчёта. */
+      if (invStart !== undefined && invStart - a.fixedInvert > NETWORK_LIMITS.dropWellFrom.value) {
+        drop = invStart - a.fixedInvert;
+      }
+      invStart = a.fixedInvert;
+    } else if (invStart === undefined) {
+      invStart = a.groundElev - startHere; // верховой колодец
     } else {
       /* ПЕРЕПАДНОЙ КОЛОДЕЦ.
          На крутом рельефе труба уложена положе местности (круче нельзя —
@@ -401,7 +514,7 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
          поверхности. Поднимать её нельзя — промерзание и нагрузка от
          транспорта. Поэтому в колодце делают перепад: следующий участок
          начинается ниже пришедшего лотка на величину перепада. */
-      const wantedInvert = a.groundElev - startDepth;
+      const wantedInvert = a.groundElev - startHere;
       const need = invStart - wantedInvert; // > 0, если труба слишком высоко
       if (need > NETWORK_LIMITS.dropWellFrom.value) {
         drop = need;
@@ -430,13 +543,42 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
     if (depthEnd > NETWORK_LIMITS.maxDepth.value) {
       segWarn.push(`Глубина ${depthEnd.toFixed(2)} м превышает принятый предел ${NETWORK_LIMITS.maxDepth.value} м: нужна насосная станция или другая трассировка.`);
     }
+    if (pipe.fixed) {
+      segWarn.push("Диаметр и уклон приняты по заданию проектировщика, а не подобраны расчётом; выше — проверка этого решения по нормам.");
+    }
     if (depthEnd < 1.0) {
       segWarn.push(`Глубина ${depthEnd.toFixed(2)} м мала: проверить промерзание и нагрузку от транспорта.`);
     }
 
-    invertAt.set(b.id, invEnd);
+    /* СЛИЯНИЕ ВЕТВЕЙ.
+       В узел может прийти несколько участков с разными отметками лотка.
+       Дальше вода пойдёт от САМОЙ НИЗКОЙ из них — выше неё труба не
+       потечёт. Если просто запомнить последний посчитанный участок,
+       коллектор ниже узла окажется выше пришедшей ветки, и на бумаге
+       получится вода, текущая вверх. Поэтому берём минимум, а ветку,
+       пришедшую выше, отмечаем перепадом в колодце. */
+    const known = invertAt.get(b.id);
+    if (known === undefined) {
+      invertAt.set(b.id, invEnd);
+    } else if (invEnd < known) {
+      invertAt.set(b.id, invEnd);
+      const diff = known - invEnd;
+      if (diff > NETWORK_LIMITS.dropWellFrom.value) {
+        warnings.push(
+          `Колодец ${b.id}: ветки приходят с разницей отметок лотка ${diff.toFixed(2)} м — предусмотреть перепадной колодец или пересчитать уклоны верхней ветки.`,
+        );
+      }
+    } else if (invEnd - known > NETWORK_LIMITS.dropWellFrom.value) {
+      warnings.push(
+        `Колодец ${b.id}: участок ${a.id}–${b.id} приходит на ${(invEnd - known).toFixed(2)} м выше лотка другой ветки — предусмотреть перепад.`,
+      );
+    }
     cumPeople.set(b.id, (cumPeople.get(b.id) ?? 0) + people);
     cumConc.set(b.id, (cumConc.get(b.id) ?? 0) + conc);
+    cumTransit.set(b.id, (cumTransit.get(b.id) ?? 0) + transit);
+    /* длина сети выше по течению — в неё войдёт дополнительный приток
+       следующего участка (ф. (1) считается по длине коллектора) */
+    cumLength.set(b.id, Math.max(cumLength.get(b.id) ?? 0, netLenM));
 
     segments.push({
       from: a.id,
@@ -446,6 +588,10 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
       qAvgLps: r(qAvgLps, 3),
       kMax: r(un.kMax, 2),
       qCalcLps: r(qCalcLps, 2),
+      qInfiltrationLps: r(qInfLps, 2),
+      qTransitLps: r(transit, 2),
+      material,
+      fixed: pipe.fixed,
       dnMm: pipe.dnMm,
       slope: r(pipe.slope, 5),
       velocity: r(pipe.velocity, 2),
@@ -463,9 +609,13 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
 
   const totalPeople = cumPeople.get(input.outfallId) ?? 0;
   const totalConc = cumConc.get(input.outfallId) ?? 0;
-  const totalM3Day = (totalPeople * lpcd) / 1000 + totalConc;
+  const totalTransit = cumTransit.get(input.outfallId) ?? 0;
+  const extraTotal = 1 + Math.max(0, input.localIndustryShare ?? 0) + Math.max(0, input.unaccountedShare ?? 0);
+  const totalM3Day = ((totalPeople * lpcd) / 1000 + totalConc) * extraTotal;
   const totalAvgLps = (totalM3Day * 1000) / 86400;
-  const totalCalcLps = totalAvgLps * unevenness(totalAvgLps).kMax;
+  const lastSeg = segments[segments.length - 1];
+  const totalCalcLps =
+    totalAvgLps * unevenness(totalAvgLps).kMax + (lastSeg?.qInfiltrationLps ?? 0) + totalTransit;
 
   let maxDepthM = 0;
   let maxDepthAt = "";
@@ -484,6 +634,16 @@ export function calculateNetwork(input: NetworkInput): NetworkResult {
     `Наименьший диаметр уличной сети ${SEWER_NETWORK.minDiameterMm.street} мм (${SEWER_NETWORK.minDiameterMm.ref}); внутриквартальная — ${SEWER_NETWORK.minDiameterMm.inBlock} мм.`,
     `Наибольшая расчётная скорость ${SEWER_NETWORK.maxVelocity.nonMetal} м/с для неметаллических труб (${SEWER_NETWORK.maxVelocity.ref}); для металлических норма допускает ${SEWER_NETWORK.maxVelocity.metal} м/с.`,
     `Гидравлика — формула Шези с шероховатостью n = ${NETWORK_LIMITS.manningN.value}; ${NETWORK_LIMITS.manningN.note}.`,
+    `Материал труб по умолчанию — ${MATERIALS[input.material ?? "concrete"].label}, шероховатость n = ${MATERIALS[input.material ?? "concrete"].n}. ҚМҚ 2.04.03-19 шероховатость не табулирует; значения приняты по практике.`,
+    input.densityPerHa
+      ? `Плотность населения ${input.densityPerHa} чел/га — задана проектировщиком; по ней посчитаны узлы, где указана площадь квартала.`
+      : "Расход задан жителями и сосредоточенными сбросами по узлам; плотность населения не применялась.",
+    input.localIndustryShare
+      ? `Местная промышленность и неучтённые расходы: +${((input.localIndustryShare + (input.unaccountedShare ?? 0)) * 100).toFixed(0)} % к среднесуточному (${kmkRef("2.3")}; табл. 3, прим. 5).`
+      : `Надбавки на местную промышленность (${kmkRef("2.3")} — до 5 %) и неучтённые расходы (табл. 3, прим. 5 — 10–15 %) НЕ начислялись: их включает проектировщик осознанно.`,
+    input.maxDailyRainMm
+      ? `Дополнительный приток (инфильтрация) по ф. (1) ${kmkRef("2.10")}: q_ad = 0,15·L·√${input.maxDailyRainMm}, где L — длина сети выше расчётного створа, км.`
+      : `Дополнительный приток от грунтовых вод по ф. (1) ${kmkRef("2.10")} не учитывался: не заданы максимальные суточные осадки (КМК 2.01.01-94).`,
     elevNote(input.elevSource),
   ];
 

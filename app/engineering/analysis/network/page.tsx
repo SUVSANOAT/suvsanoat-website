@@ -17,22 +17,27 @@
 import { CSSProperties, useMemo, useRef, useState } from "react";
 import {
   calculateNetwork,
+  MATERIALS,
   type ElevSource,
   type NetworkInput,
   type NetworkLink,
   type NetworkNode,
+  type PipeMaterial,
 } from "../../../../calculations/network";
 import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
 import RequireAuth from "../../RequireAuth";
 
-const SAMPLE = `Колодец;Отметка земли;Жители;Течёт в
-К-1;100.0;300;К-2
-К-2;98.2;300;К-3
-К-3;96.4;300;К-4
-К-4;94.6;300;К-5
-К-5;92.8;300;К-6
-К-6;91.0;300;К-7
-К-7;89.2;0;`;
+/* Пример намеренно показывает ВСЕ столбцы, которые страница умеет
+   читать, и разветвление: колодцы Б-1, Б-2 — боковая ветка, впадающая
+   в К-3. Числа условные, объекта такого нет. */
+const SAMPLE = `Колодец;Отметка земли;Жители;Площадь, га;Сосредоточенный расход, м³/сут;Транзит, л/с;Длина, м;Диаметр, мм;Уклон;Материал;Течёт в
+К-1;100.0;300;;;;240;;;бетон;К-2
+К-2;99.1;;2,5;;;310;;;бетон;К-3
+К-3;98.0;;;;;280;;;бетон;К-4
+К-4;96.9;;;120;;190;;;ПНД;К-5
+К-5;95.5;;;;;;;;;
+Б-1;101.2;450;;;;150;;;бетон;Б-2
+Б-2;99.4;450;;;3;220;;;бетон;К-3`;
 
 type Mode = "table" | "kml";
 
@@ -53,6 +58,11 @@ function NetworkPageContent() {
   const [elevSource, setElevSource] = useState<ElevSource>("survey");
   const [category, setCategory] = useState<NetworkInput["category"]>("town-under-50k");
   const [startDepth, setStartDepth] = useState("1.5");
+  const [material, setMaterial] = useState<PipeMaterial>("concrete");
+  const [density, setDensity] = useState("");
+  const [industry, setIndustry] = useState("0");
+  const [unaccounted, setUnaccounted] = useState("0");
+  const [rain, setRain] = useState("");
   const [busy, setBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false);
   const [object, setObject] = useState("Канализационная сеть");
@@ -70,8 +80,13 @@ function NetworkPageContent() {
       category,
       elevSource,
       startDepthM: Number(startDepth.replace(",", ".")) || undefined,
+      material,
+      densityPerHa: Number(density.replace(",", ".")) || undefined,
+      localIndustryShare: (Number(industry.replace(",", ".")) || 0) / 100,
+      unaccountedShare: (Number(unaccounted.replace(",", ".")) || 0) / 100,
+      maxDailyRainMm: Number(rain.replace(",", ".")) || undefined,
     };
-  }, [nodes, links, outfallId, category, elevSource, startDepth]);
+  }, [nodes, links, outfallId, category, elevSource, startDepth, material, density, industry, unaccounted, rain]);
 
   const result = useMemo(() => (input ? calculateNetwork(input) : null), [input]);
 
@@ -187,9 +202,14 @@ function NetworkPageContent() {
           {mode === "table" ? (
             <>
               <p style={hint}>
-                Вставьте таблицу прямо из Excel. Нужны столбцы «Колодец» и «Отметка земли»;
-                «Жители», «Сосредоточенный расход», «X», «Y» и «Течёт в» — по желанию. Если столбца
-                «Течёт в» нет, участки строятся по порядку строк, сверху вниз по трассе.
+                Вставьте таблицу прямо из Excel. Обязательны два столбца: «Колодец» и «Отметка
+                земли». Остальные — по мере наличия: «Жители», «Площадь, га», «Сосредоточенный
+                расход, м³/сут», «Транзит, л/с», «Отметка лотка», «Начальная глубина», «X», «Y»,
+                «Длина, м», «Диаметр, мм», «Уклон», «Материал», «Течёт в». Длина, диаметр, уклон и
+                материал относятся к участку от этого колодца к следующему; заданные диаметр и
+                уклон не подбираются заново, а проверяются. Если столбца «Течёт в» нет, участки
+                строятся по порядку строк. Кнопка ниже подставляет пример со всеми столбцами и
+                боковой веткой — числа в нём условные.
               </p>
               <textarea
                 value={text}
@@ -200,7 +220,7 @@ function NetworkPageContent() {
                 style={textarea}
               />
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button type="button" style={ghost} onClick={() => { setText(SAMPLE); loadText(SAMPLE, "table"); }}>
+                <button type="button" style={ghost} onClick={() => { setText(SAMPLE); loadText(SAMPLE, "table"); setDensity("180"); }}>
                   Подставить пример
                 </button>
                 <button type="button" style={ghost} onClick={() => text.trim() && loadText(text, "table")}>
@@ -269,6 +289,37 @@ function NetworkPageContent() {
             <label style={field}>
               <span style={fieldLabel}>Начальная глубина лотка, м</span>
               <input value={startDepth} onChange={(e) => setStartDepth(e.target.value)} inputMode="decimal" style={inputStyle} />
+              <span style={fieldHint}>в верховых колодцах; в таблице можно задать по каждому</span>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Материал труб по умолчанию</span>
+              <select value={material} onChange={(e) => setMaterial(e.target.value as PipeMaterial)} style={inputStyle}>
+                {(Object.keys(MATERIALS) as PipeMaterial[]).map((m) => (
+                  <option key={m} value={m}>
+                    {MATERIALS[m].label} (n = {MATERIALS[m].n})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Плотность населения, чел/га</span>
+              <input value={density} onChange={(e) => setDensity(e.target.value)} inputMode="decimal" placeholder="не задана" style={inputStyle} />
+              <span style={fieldHint}>нужна для узлов, где указана площадь квартала</span>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Местная промышленность, %</span>
+              <input value={industry} onChange={(e) => setIndustry(e.target.value)} inputMode="decimal" style={inputStyle} />
+              <span style={fieldHint}>п. 2.3 — до 5 %; 0 = не начислять</span>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Неучтённые расходы, %</span>
+              <input value={unaccounted} onChange={(e) => setUnaccounted(e.target.value)} inputMode="decimal" style={inputStyle} />
+              <span style={fieldHint}>табл. 3, прим. 5 — 10–15 %; 0 = не начислять</span>
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Максимальные суточные осадки, мм</span>
+              <input value={rain} onChange={(e) => setRain(e.target.value)} inputMode="decimal" placeholder="не задано" style={inputStyle} />
+              <span style={fieldHint}>КМК 2.01.01-94 — для притока по ф. (1) п. 2.10</span>
             </label>
           </div>
         </section>
@@ -288,7 +339,7 @@ function NetworkPageContent() {
                 <table style={table}>
                   <thead>
                     <tr>
-                      {["Участок", "L, м", "Q расч, л/с", "K", "DN, мм", "i", "v, м/с", "H/D", "Лоток н, м", "Лоток к, м", "Глубина к, м", "Перепад, м"].map((h) => (
+                      {["Участок", "L, м", "Q расч, л/с", "в т.ч. инф.", "K", "DN, мм", "i", "v, м/с", "H/D", "Лоток н, м", "Лоток к, м", "Глубина к, м", "Перепад, м"].map((h) => (
                         <th key={h} style={th}>
                           {h}
                         </th>
@@ -304,8 +355,9 @@ function NetworkPageContent() {
                         </td>
                         <td style={td}>{s.lengthM}</td>
                         <td style={td}>{s.qCalcLps}</td>
+                        <td style={{ ...td, color: "#8ca4ad" }}>{s.qInfiltrationLps > 0 ? s.qInfiltrationLps : "—"}</td>
                         <td style={td}>{s.kMax}</td>
-                        <td style={td}>{s.dnMm}</td>
+                        <td style={{ ...td, color: s.fixed ? "#9fd0ff" : "#e7eef1" }}>{s.dnMm}</td>
                         <td style={td}>{s.slope.toFixed(4)}</td>
                         <td style={{ ...td, color: s.velocity < s.vMinRequired ? "#ffcf8a" : "#e7eef1" }}>
                           {s.velocity.toFixed(2)}
@@ -382,6 +434,7 @@ const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a
 const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
 const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12 };
+const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11, lineHeight: 1.4 };
 const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
 const table: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
 const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
