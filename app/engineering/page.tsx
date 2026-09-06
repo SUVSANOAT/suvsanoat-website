@@ -14,6 +14,7 @@ type EngineeringText = {
   lead: string;
   startButton: string;
   noteRight: string;
+  tools: { href: string; label: string }[];
   trustLabel: string;
   cards: { title: string; text: string }[];
   industryHint: string;
@@ -27,6 +28,10 @@ const T: Record<Language, EngineeringText> = {
     lead: "Вы даёте исходные данные об объекте. Мы помогаем определить производительность, технологическую схему и состав оборудования ещё до начала полноценного проектирования.",
     startButton: "Начать расчёт",
     noteRight: "Предварительное инженерное решение",
+    tools: [
+      { href: "/engineering/analysis/network", label: "Гидравлический расчёт наружной сети" },
+      { href: "/engineering/analysis/audit", label: "Проверка чужого проекта по ҚМҚ" },
+    ],
     trustLabel: "ЧТО ПОЛУЧАЕТ ПРОЕКТИРОВЩИК",
     cards: [
       {
@@ -54,6 +59,10 @@ const T: Record<Language, EngineeringText> = {
     lead: "Siz obyekt bo‘yicha dastlabki ma’lumotlarni berasiz. Biz to‘liq loyihalash boshlanmasidan oldin unumdorlik, texnologik sxema va uskunalar tarkibini aniqlashga yordam beramiz.",
     startButton: "Hisobni boshlash",
     noteRight: "Dastlabki muhandislik yechimi",
+    tools: [
+      { href: "/engineering/analysis/network", label: "Tashqi tarmoqning gidravlik hisobi" },
+      { href: "/engineering/analysis/audit", label: "Boshqa loyihani ҚМҚ bo'yicha tekshirish" },
+    ],
     trustLabel: "LOYIHACHI NIMA OLADI",
     cards: [
       {
@@ -81,6 +90,10 @@ const T: Record<Language, EngineeringText> = {
     lead: "You provide the input data for your site. We help determine the capacity, the process flow diagram and the equipment list before full design work begins.",
     startButton: "Start calculation",
     noteRight: "Preliminary engineering solution",
+    tools: [
+      { href: "/engineering/analysis/network", label: "Sewer network hydraulic calculation" },
+      { href: "/engineering/analysis/audit", label: "Third-party design check to ҚМҚ" },
+    ],
     trustLabel: "WHAT THE DESIGNER GETS",
     cards: [
       {
@@ -108,6 +121,10 @@ const T: Record<Language, EngineeringText> = {
     lead: "您提供项目的原始数据。我们在正式设计开始之前，帮助确定处理能力、工艺流程和设备配置。",
     startButton: "开始计算",
     noteRight: "初步工程方案",
+    tools: [
+      { href: "/engineering/analysis/network", label: "室外管网水力计算" },
+      { href: "/engineering/analysis/audit", label: "按 ҚМҚ 审核他方设计" },
+    ],
     trustLabel: "设计人员将获得什么",
     cards: [
       {
@@ -203,6 +220,18 @@ export default function EngineeringPage() {
 
 
           <AccountNote className={styles.note} />
+
+          {/* Отдельные инструменты проектировщика. Раньше их не было видно
+              ниоткуда: страницы работали, но попасть на них можно было
+              только по прямой ссылке. Инструмент, о котором не знают,
+              всё равно что не сделан. */}
+          <div className={styles.tools}>
+            {t.tools.map((x) => (
+              <a key={x.href} href={x.href} className={styles.toolLink}>
+                {x.label}
+              </a>
+            ))}
+          </div>
 
           <div className={styles.note}>
             <span>AI + ENGINEERING</span>
