@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateOpex } from "../../../../calculations/opex";
+import { buildPid } from "../../../../calculations/pid";
 
 import { MODELS, type Model } from "../../../products/data";
 import {
@@ -2037,6 +2038,70 @@ function ProResultContent() {
               </p>
               {opex.warnings.map((w) => (
                 <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ================= АВТОМАТИЗАЦИЯ =================
+            Перечень приборов написать легко; ценность здесь в
+            блокировках — что чему запрещает работать. Насос без воды,
+            воздуходувка на закрытую задвижку, дозатор в стоящую воду —
+            это не «неоптимальный режим», а сгоревшее оборудование в
+            первые сутки после пуска. Поэтому у каждой блокировки
+            написано, что будет, если её нет. */}
+        {(() => {
+          const pid = buildPid({
+            stages: calc.chain,
+            inletPump: calc.chain.includes("pump") || calc.chain.includes("avg"),
+            uv: true,
+            blowers: 2,
+            dosing: calc.chain.includes("physchem") || calc.chain.includes("neutral"),
+          });
+          return (
+            <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+              <b style={{ fontSize: 16 }}>Автоматизация: приборы, сигналы, блокировки</b>
+              <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                Сигналов в щите: {pid.counts.AI} аналоговых входов, {pid.counts.AO} аналоговых выходов,{" "}
+                {pid.counts.DI} дискретных входов, {pid.counts.DO} дискретных выходов. {pid.controller}
+              </p>
+
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                  <thead>
+                    <tr>
+                      {["Поз.", "Сигнал", "Место", "Назначение", "Зачем это нужно"].map((h) => (
+                        <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pid.instruments.map((it) => (
+                      <tr key={it.tag}>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{it.tag}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.signal}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.place}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{it.purpose}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>{it.why}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <b style={{ fontSize: 14, display: "block", margin: "18px 0 8px" }}>Блокировки</b>
+              {pid.interlocks.map((l) => (
+                <div key={l.name} style={{ borderLeft: `2px solid ${ACCENT}`, paddingLeft: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{l.name}</div>
+                  <div style={{ fontSize: 12.5, color: "#cfdde3", lineHeight: 1.6 }}>
+                    Когда: {l.when}. Что: {l.action}.
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "#ffb74d", lineHeight: 1.6 }}>Без неё: {l.ifAbsent}</div>
+                </div>
+              ))}
+
+              {pid.assumptions.map((a) => (
+                <p key={a} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{a}</p>
               ))}
             </div>
           );
