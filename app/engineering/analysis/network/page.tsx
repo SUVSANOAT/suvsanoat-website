@@ -23,6 +23,7 @@ import {
   type NetworkNode,
 } from "../../../../calculations/network";
 import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
+import RequireAuth from "../../RequireAuth";
 
 const SAMPLE = `Колодец;Отметка земли;Жители;Течёт в
 К-1;100.0;300;К-2
@@ -36,6 +37,14 @@ const SAMPLE = `Колодец;Отметка земли;Жители;Течёт
 type Mode = "table" | "kml";
 
 export default function NetworkPage() {
+  return (
+    <RequireAuth>
+      <NetworkPageContent />
+    </RequireAuth>
+  );
+}
+
+function NetworkPageContent() {
   const [mode, setMode] = useState<Mode>("table");
   const [text, setText] = useState("");
   const [nodes, setNodes] = useState<NetworkNode[]>([]);

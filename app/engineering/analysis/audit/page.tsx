@@ -16,6 +16,7 @@
 
 import { CSSProperties, useMemo, useState } from "react";
 import { auditProject, type AuditInput, type FindingLevel } from "../../../../calculations/audit";
+import RequireAuth from "../../RequireAuth";
 
 type FieldDef = {
   key: keyof AuditInput;
@@ -94,6 +95,14 @@ const LEVELS: Record<FindingLevel, { title: string; color: string; back: string 
 const ORDER: FindingLevel[] = ["fail", "norm", "doubt", "nodata", "ok"];
 
 export default function AuditPage() {
+  return (
+    <RequireAuth>
+      <AuditPageContent />
+    </RequireAuth>
+  );
+}
+
+function AuditPageContent() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [plantKind, setPlantKind] = useState<string>("");
   const [sludgeBeds, setSludgeBeds] = useState(false);
