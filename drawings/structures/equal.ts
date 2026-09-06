@@ -23,7 +23,7 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { EQUALIZATION, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { dnFor } from "./mbr";
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
@@ -227,8 +227,9 @@ export function equalModel(input: DrawingInput, overrides: Partial<EqualParams> 
       `Насосы подачи на биологию ${g.pumpsWork}+1 с частотным приводом: подача ${g.pumpQ} м³/ч = ${(input.q / input.hours).toFixed(1)} м³/ч × ${p.pumpFactor} (запас — практика), напор ${p.pumpHeadM} м (практика). Усреднитель — точка выравнивания расхода: далее по цепочке расход постоянный.`,
       `Отметки: верх ${fmtE(g.top)}, вода (макс.) ${fmtE(g.water)}, дно ${fmtE(g.bottom)}, дно приямков ${fmtE(g.sumpBottom)}; вход самотёком выше уровня воды на 0,2 м — потери 0,3 м (свободное истечение, практика); выход — напорный.`,
     ],
+    calc: equalCalc(input, p, g),
     headLoss: 0.3,
-    draw: (sheet) => drawEqual(sheet, input, p, g),
+    draw: (sheet) => drawEqual(sheet, input, p, g, model),
   };
   return model;
 }
@@ -245,10 +246,186 @@ function fmtE(v: number): string {
 }
 
 /* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+const f2 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+
+function equalCalc(input: DrawingInput, p: EqualParams, g: EqualGeometry): CalcStep[] {
+  const qAvgH = input.q / Math.max(1, input.hours);
+  const area = g.vSection / p.waterDepthM;
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Расчётный расход сточных вод", symbol: "Q", value: f0(input.q), unit: "м³/сут", ref: "анкета объекта" },
+    { kind: "input", what: "Максимальный часовой расход", symbol: "q max", value: f1(input.qMaxH), unit: "м³/ч", ref: kmkRef("2.7", "табл. 2") },
+    { kind: "input", what: "Взвешенные вещества на входе", symbol: "ВВ", value: f0(input.ss), unit: "мг/л", ref: "анкета / табл. 25 п. 6.4" },
+    { kind: "input", what: "Объём усреднителя из расчёта технологии", symbol: "W ср", value: f0(input.vAvg), unit: "м³", ref: "расчёт усреднения притока" },
+    { kind: "input", what: "Рабочая глубина воды", symbol: "H", value: f1(p.waterDepthM), unit: "м", ref: "коэффициенты расчёта SUVSANOAT (drawings/core/construction.ts)" },
+    { kind: "input", what: "Соотношение сторон секции L:B", symbol: "k", value: f0(p.ratio), unit: "", ref: "ҚМҚ 2.04.03-19 не нормирует, принято по практике SUVSANOAT" },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc",
+      what: "Число секций",
+      symbol: "n",
+      formula: "n ≥ 2, обе секции рабочие",
+      substitution: "принято n = 2",
+      value: String(g.n),
+      unit: "шт.",
+      ref: EQUALIZATION.minSections.ref,
+    },
+    {
+      kind: "calc",
+      what: "Объём одной секции",
+      symbol: "W",
+      formula: "W = W ср / n",
+      substitution: `W = ${f0(input.vAvg)} / ${g.n}`,
+      value: f1(g.vSection),
+      unit: "м³",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Площадь секции в плане",
+      symbol: "A",
+      formula: "A = W / H",
+      substitution: `A = ${f1(g.vSection)} / ${f1(p.waterDepthM)}`,
+      value: f1(area),
+      unit: "м²",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Ширина секции в свету",
+      symbol: "B",
+      formula: "B = √(A / k)",
+      substitution: `B = √(${f1(area)} / ${p.ratio}) · 1000`,
+      value: f0(g.B),
+      unit: "мм",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Длина секции в свету",
+      symbol: "L",
+      formula: "L = A / B",
+      substitution: `L = ${f1(area)} · 10⁶ / ${f0(g.B)}`,
+      value: f0(g.L),
+      unit: "мм",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Ширина распределительного лотка",
+      symbol: "B лот",
+      formula: "B лот = max(600; √(q max / 3600 / v)), v ≈ 0,4 м/с",
+      substitution: `B лот = max(600; √(${f1(input.qMaxH)} / 3600 / 0,4) · 1000)`,
+      value: f0(g.chan),
+      unit: "мм",
+      ref: "скорость в лотке 0,4 м/с — ҚМҚ 2.04.03-19 не нормирует, принято по практике",
+    },
+    {
+      kind: "calc",
+      what: "Способ перемешивания по концентрации ВВ",
+      formula: `ВВ ≤ ${EQUALIZATION.bubblingUpToSsMgL.value} мг/л — барботаж; иначе — механические мешалки`,
+      substitution: `ВВ = ${f0(input.ss)} мг/л`,
+      value: g.mixing === "bubbling" ? "барботаж" : "механическое перемешивание",
+      ref: g.mixing === "bubbling" ? EQUALIZATION.bubblingUpToSsMgL.ref : kmkRef("6.47"),
+    },
+    ...(g.mixing === "bubbling"
+      ? ([
+          {
+            kind: "calc",
+            what: "Число промежуточных нитей барботёра",
+            symbol: "m",
+            formula: "m = ⌈B / шаг⌉ − 1",
+            substitution: `m = ⌈${f0(g.B)} / ${p.bubblerSpacingM * 1000}⌉ − 1`,
+            value: String(g.bubblerMiddle),
+            unit: "нити",
+            ref: "шаг барботёров — ҚМҚ 2.04.03-19 не нормирует, принято по практике (норма задаёт только интенсивность на 1 м)",
+          },
+          {
+            kind: "calc",
+            what: "Расход воздуха на барботаж",
+            symbol: "q air",
+            formula: "q air = n · (L / 1000) · (2 · i прист + m · i пром)",
+            substitution: `q air = ${g.n} · ${f1(g.L / 1000)} · (2 · ${EQUALIZATION.bubblerIntensity.wall} + ${g.bubblerMiddle} · ${EQUALIZATION.bubblerIntensity.middle})`,
+            value: f0(g.airM3H),
+            unit: "м³/ч",
+            ref: EQUALIZATION.bubblerIntensity.ref,
+          },
+        ] as CalcStep[])
+      : [
+          {
+            kind: "calc",
+            what: "Мощность мешалки на секцию",
+            symbol: "N",
+            formula: "N = W · N уд / 100, округление до 0,1 кВт",
+            substitution: `N = ${f1(g.vSection)} · ${p.mixerWPerM3} / 100`,
+            value: f1(g.mixerKw),
+            unit: "кВт",
+            ref: `удельная мощность ${p.mixerWPerM3} Вт/м³ — ҚМҚ 2.04.03-19 не нормирует, принято по практике`,
+          } as CalcStep,
+        ]),
+    {
+      kind: "calc",
+      what: "Среднечасовой расход",
+      symbol: "q ср",
+      formula: "q ср = Q / T",
+      substitution: `q ср = ${f0(input.q)} / ${input.hours}`,
+      value: f1(qAvgH),
+      unit: "м³/ч",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Подача насосов подачи на биологию",
+      symbol: "q нас",
+      formula: "q нас = ⌈q ср · k зап⌉",
+      substitution: `q нас = ⌈${f1(qAvgH)} · ${p.pumpFactor}⌉`,
+      value: f0(g.pumpQ),
+      unit: "м³/ч",
+      ref: `запас ${p.pumpFactor} — ҚМҚ 2.04.03-19 не нормирует, принято по практике`,
+    },
+    {
+      kind: "calc",
+      what: "Полная высота стен",
+      symbol: "H ст",
+      formula: "H ст = H + h борт",
+      substitution: `H ст = ${f0(g.Hw)} + ${f0(p.freeboardM * 1000)}`,
+      value: f0(g.Htot),
+      unit: "мм",
+      ref: "борт — коэффициенты расчёта SUVSANOAT (drawings/core/construction.ts)",
+    },
+    {
+      kind: "calc",
+      what: "Габарит сооружения по наружным граням",
+      formula: "W = n·B + (n+1)·δ;  L габ = L + B лот + 3·δ",
+      substitution: `W = ${g.n}·${f0(g.B)} + ${g.n + 1}·${f0(g.wall)};  L = ${f0(g.L)} + ${f0(g.chan)} + 3·${f0(g.wall)}`,
+      value: `${f0(g.W)} × ${f0(g.Lout)}`,
+      unit: "мм",
+      ref: `толщина стен ${f0(g.wall)} мм — коэффициенты расчёта SUVSANOAT`,
+    },
+    {
+      kind: "calc",
+      what: "Отметки: дно / вода (макс.) / верх борта",
+      formula: "дно = верх − H ст;  вода = верх − h борт",
+      substitution: `верх +${g.top.toFixed(3)}`,
+      value: `${g.bottom.toFixed(3)} / ${g.water.toFixed(3)} / +${g.top.toFixed(3)}`,
+      unit: "м",
+      ref: "0.000 — планировочная отметка площадки",
+    },
+  ];
+  return steps;
+}
+
+/* ==================================================================
  * ЧЕРТЁЖ: план, разрез 1-1 (продольный), разрез 2-2 (поперечный), изометрия
  * ================================================================== */
 
-function drawEqual(sheet: Sheet, input: DrawingInput, p: EqualParams, g: EqualGeometry) {
+function drawEqual(sheet: Sheet, input: DrawingInput, p: EqualParams, g: EqualGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -365,6 +542,10 @@ function drawEqual(sheet: Sheet, input: DrawingInput, p: EqualParams, g: EqualGe
     : `Мешалки погружные ${g.n} шт. по ${g.mixerKw} кВт (ВВ ${input.ss.toFixed(0)} мг/л > 500, п. 6.47).`);
   sheet.note(`Насосы погружные 1+1 с ЧРП по ${g.pumpQ} м³/ч, H ${p.pumpHeadM} м — подача на биологию постоянным расходом; приямки ${p.sumpMm.l}×${p.sumpMm.w}×${p.sumpMm.h} мм.`);
   sheet.note(`Резервуар железобетонный монолитный: стены ${g.wall} мм, днище ${p.slabMm} мм, бетон ${construction().concreteGrade}. Отметки: верх ${fmtE(g.top)}, вода ${fmtE(g.water)}, дно ${fmtE(g.bottom)}; насосы, барботёры/мешалки, датчики — по спецификации; лоток, площадки и обвязка — изготовление SUVSANOAT.`);
+  /* ведомость расчёта — в свободном поле под разрезами */
+  const calcY = Math.min(sy, cy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стены и перегородки" },
     { layer: "HATCH", text: "железобетон" },

@@ -18,7 +18,8 @@
  *   └────────────────────────────────────────────┴──────────┘
  * ================================================================== */
 
-import { Dxf, type Pt } from "./dxf";
+import { Dxf, type Pt, type Prim } from "./dxf";
+import type { CalcStep } from "./types";
 
 export const A1 = { w: 841, h: 594 } as const;
 /** правая колонка: примечания + штамп, мм бумаги */
@@ -140,6 +141,108 @@ export class Sheet {
       this.d.text(x + this.p(15), y, this.ts, it.text, { align: "left" });
       y -= this.ts * 1.8;
     }
+  }
+
+  /* ---------------- ведомость расчёта ----------------
+   *
+   * Таблица «как получен каждый размер»: исходная величина или формула,
+   * подстановка с реальными числами, результат и основание. Печатается
+   * на самом листе, чтобы проектировщик мог проверить чертёж, не открывая
+   * ничего больше. Возвращает высоту, занятую таблицей (модельные мм).
+   */
+  calcTable(x: number, yTop: number, steps: CalcStep[], title = "ВЕДОМОСТЬ РАСЧЁТА"): number {
+    if (!steps.length) return 0;
+    const d = this.d;
+    const P = (v: number) => this.p(v);
+    /* ширины колонок, мм бумаги */
+    const col = [10, 78, 68, 82, 34, 74];
+    const W = col.reduce((a, b) => a + b, 0);
+    const th = this.ts * 0.95; // текст таблицы чуть меньше основного
+    const lineH = th * 1.85;
+
+    /* Разбивка текста по ячейкам считается один раз: сначала — чтобы узнать
+       полную высоту таблицы и вписать её в рабочее поле листа, потом — чтобы
+       нарисовать. Сооружение задаёт желаемое место, но выход за рамку
+       (влево, вправо или ниже нижнего поля) исправляется здесь: таблица
+       расчёта не должна зависеть от того, насколько удачно легли виды. */
+    const caps = col.map((c) => Math.floor((c - 2) / ((th * 0.55) / this.s)));
+    let n = 0;
+    const rowsData = steps.map((st) => {
+      const cells = [
+        st.kind === "input" ? "—" : String(++n),
+        st.what + (st.symbol ? `, ${st.symbol}` : ""),
+        st.formula ?? (st.kind === "input" ? "исходная величина" : ""),
+        st.substitution ?? "",
+        st.value + (st.unit ? ` ${st.unit}` : ""),
+        st.ref,
+      ];
+      const wrapped = cells.map((c, i) => wrap(c, Math.max(8, caps[i]), 4));
+      const rows = Math.max(...wrapped.map((w) => w.length));
+      return { st, wrapped, h: rows * lineH * 0.82 + lineH * 0.3 };
+    });
+    const bodyH = rowsData.reduce((a, r) => a + r.h, 0) + lineH;
+    const fullH = bodyH + this.p(9);
+
+    /* Размещение. Сооружение задаёт желаемое место — под видами. Если
+       таблица туда не помещается (виды заняли лист по высоте), она уходит
+       правее видов, к верхнему краю поля: наезжать на разрезы нельзя, а
+       правая половина листа у большинства сооружений свободна. Габариты
+       начерченного берём по рабочему полю, без рамки и правой колонки. */
+    const f = this.field;
+    const tw = P(W);
+    const gap = this.p(10);
+    const inField = (pr: Prim) => pr.layer !== "FRAME";
+    const fit = (cx: number, cy: number) => ({
+      x: Math.min(Math.max(cx, f.x0), f.x0 + f.w - tw),
+      y: Math.max(Math.min(cy, f.y0 + f.h), f.y0 + fullH),
+    });
+    const free = (c: { x: number; y: number }) =>
+      !this.d.hits({ x: c.x - gap / 2, y: c.y - fullH - gap / 2, w: tw + gap, h: fullH + gap }, inField);
+
+    /* Кандидаты по убыванию предпочтения: там, где просило сооружение;
+       ниже, у нижнего поля; правее видов сверху и снизу. Первый свободный
+       побеждает; если свободного нет — берём правый верхний угол поля,
+       наименее занятый на листах этой библиотеки. */
+    const drawn = this.d.extents(inField);
+    const right = drawn.maxX + gap;
+    const candidates = [
+      fit(x, yTop),
+      fit(x, f.y0 + fullH),
+      fit(right, f.y0 + f.h),
+      fit(right, f.y0 + fullH),
+      fit(f.x0 + f.w - tw, f.y0 + f.h),
+    ];
+    const chosen = candidates.find(free) ?? candidates[candidates.length - 1];
+    x = chosen.x;
+    yTop = chosen.y;
+
+    const xs: number[] = [x];
+    for (const c of col) xs.push(xs[xs.length - 1] + P(c));
+
+    this.viewTitle(x, yTop, title, "none");
+    let y = yTop - this.p(9);
+
+    const head = ["№", "Определяемая величина", "Формула", "Подстановка", "Результат", "Основание"];
+    d.rect(xs[0], y - lineH, P(W), lineH, "CONTOUR");
+    head.forEach((h, i) => d.text(xs[i] + th * 0.4, y - lineH * 0.72, th * 0.9, h, { align: "left" }));
+    y -= lineH;
+
+    for (const r of rowsData) {
+      d.rect(xs[0], y - r.h, P(W), r.h, "THIN");
+      r.wrapped.forEach((lines, i) =>
+        lines.forEach((line, k) =>
+          d.text(xs[i] + th * 0.4, y - lineH * 0.62 - k * lineH * 0.82, th * 0.9, line, {
+            align: "left",
+            layer: r.st.kind === "check" ? "DIM" : "TEXT",
+          })
+        )
+      );
+      y -= r.h;
+    }
+    /* вертикальные линии на всю высоту таблицы */
+    const total = yTop - this.p(9) - y;
+    for (let i = 0; i <= col.length; i++) d.line(xs[i], y, xs[i], yTop - this.p(9), "THIN");
+    return total + this.p(9);
   }
 
   /* ---------------- рамка и штамп ---------------- */

@@ -25,7 +25,7 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { AEROTANK, SLUDGE, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { thickenerDefaults, thickenerGeometry } from "./thickener";
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
@@ -225,10 +225,156 @@ export function stabilizerModel(input: DrawingInput, overrides: Partial<Stabiliz
       `Диффузоры ${g.diffuserRows === 2 ? "двумя группами пристенно" : "тремя группами: две пристенно, одна посредине"} (${kmkRef("6.373")}); индивидуальное регулирование воздуха по ячейкам.`,
       `Глубина ${p.waterDepthM} м (${AEROTANK.depthM.ref}: 3–6 м), коридор ${g.B} мм — отношение ширины к глубине ${(g.B / g.Hw).toFixed(2)}:1 в пределах 1:1…2:1 (${AEROTANK.depthM.ref}); минимальная длина ячейки ${p.minCellMm} мм и борт ${p.freeboardM} м — принято по практике.`,
     ],
+    calc: stabilizerCalc(input, p, g),
     headLoss: Math.round(g.cells * 0.05 * 100) / 100,
-    draw: (sheet) => drawStabilizer(sheet, input, p, g),
+    draw: (sheet) => drawStabilizer(sheet, input, p, g, model),
   };
   return model;
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function stabilizerCalc(input: DrawingInput, p: StabilizerParams, g: StabilizerGeometry): CalcStep[] {
+  const a = SLUDGE.aerobicStabilization;
+  const ratio = g.B / g.Hw;
+  const depthOk = p.waterDepthM >= 3 && p.waterDepthM <= 6;
+  const moistureOk = g.moistureIn <= a.inletMoistureMax;
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Уплотнённый ил из илоуплотнителя", symbol: "Q ил", value: f1(g.qIn), unit: "м³/сут", ref: "расчёт илоуплотнителя (thickenerGeometry), ф. (127)" },
+    { kind: "input", what: "Влажность поступающего ила", symbol: "P1", value: f1(g.moistureIn), unit: "%", ref: "расчёт илоуплотнителя (табл. 64)" },
+    { kind: "input", what: "Рабочая глубина", symbol: "H", value: f1(p.waterDepthM), unit: "м", ref: `construction() — принято SUVSANOAT; диапазон ${AEROTANK.depthM.ref}: 3–6 м` },
+    { kind: "input", what: "Удельный расход воздуха на объём", symbol: "q air", value: f1(p.airPerM3), unit: "м³/ч на м³", ref: `${kmkRef("6.375")}: 1–2` },
+    { kind: "input", what: "Число секций", symbol: "n", value: String(SLUDGE.aerobicStabilization.minUnits), unit: "шт., не менее", ref: kmkRef("6.373") },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "check", what: "Проверка влажности поступающего ила",
+      formula: "P1 ≤ 98,2 %",
+      substitution: `P1 = ${f1(g.moistureIn)} %`,
+      value: moistureOk ? "выполняется" : "НЕ выполняется",
+      ref: kmkRef("6.372"),
+    },
+    {
+      kind: "check", what: "Проверка рабочей глубины",
+      formula: "3 ≤ H ≤ 6 м",
+      substitution: `H = ${f1(p.waterDepthM)} м`,
+      value: depthOk ? "выполняется" : "НЕ выполняется",
+      ref: AEROTANK.depthM.ref,
+    },
+    {
+      kind: "calc", what: "Требуемый объём стабилизатора", symbol: "W",
+      formula: "W = Q ил · T",
+      substitution: `W = ${f1(g.qIn)} · ${p.days}`,
+      value: f1(g.vNeed), unit: "м³", ref: `${a.ref} (5,5 сут при 18 °C — «смесь первичного осадка и уплотнённого активного ила», принята как ближайшая)`,
+    },
+    {
+      kind: "calc", what: "Число секций (принято)", symbol: "n",
+      formula: "n ≥ 2",
+      substitution: "принято n = 2",
+      value: String(g.sections), unit: "шт.", ref: kmkRef("6.373"),
+    },
+    {
+      kind: "calc", what: "Объём одной секции по требованию", symbol: "W сек",
+      formula: "W сек = W / n",
+      substitution: `${f1(g.vNeed)} / ${g.sections}`,
+      value: f1(g.vNeed / g.sections), unit: "м³", ref: "",
+    },
+    {
+      kind: "calc", what: "Ширина коридора в свету", symbol: "B",
+      formula: "B = H (нижняя граница 1:1…2:1)",
+      substitution: `B = ${f1(p.waterDepthM)} · 1000`,
+      value: f0(g.B), unit: "мм", ref: `${AEROTANK.depthM.ref} — ширина коридора к рабочей глубине 1:1…2:1`,
+    },
+    {
+      kind: "check", what: "Проверка отношения ширины коридора к глубине",
+      formula: "1 ≤ B / H ≤ 2",
+      substitution: `${f0(g.B)} / ${f0(g.Hw)} = ${ratio.toFixed(2)}`,
+      value: ratio >= 1 - 1e-9 && ratio <= 2 + 1e-9 ? "выполняется" : "НЕ выполняется",
+      ref: AEROTANK.depthM.ref,
+    },
+    {
+      kind: "calc", what: "Число ячеек в секции", symbol: "m",
+      formula: "m = min(8, max(4, ⌊(W сек / (B·H)) / minCell⌋)) — табл. 68: 4–8",
+      substitution: `по длине секции при ширине ${f0(g.B)} мм и минимальной длине ячейки ${p.minCellMm} мм`,
+      value: String(g.cells), unit: "шт.", ref: `${kmkRef("6.373")}, табл. 68`,
+    },
+    {
+      kind: "calc", what: "Длина секции в свету", symbol: "L",
+      formula: "L = Σ длин ячеек, доли объёма по табл. 68, каждая ячейка ≥ minCell",
+      substitution: `доли объёма: ${g.volShare.map((s) => (s * 100).toFixed(0)).join("/")} %; минимальная длина ячейки ${p.minCellMm} мм`,
+      value: f0(g.L), unit: "мм", ref: `${kmkRef("6.373")}, табл. 68; минимальная длина ячейки — принято по практике`,
+    },
+    {
+      kind: "calc", what: "Фактический объём одной секции", symbol: "W ф",
+      formula: "W ф = B · L · H",
+      substitution: `W ф = ${f0(g.B)} · ${f0(g.L)} · ${f0(g.Hw)}`,
+      value: f1(g.vUnit), unit: "м³", ref: "",
+    },
+    {
+      kind: "check", what: "Проверка объёма стабилизатора",
+      formula: "n · W ф ≥ W",
+      substitution: `${g.sections} · ${f1(g.vUnit)} = ${f1(g.vUnit * g.sections)} и W = ${f1(g.vNeed)}`,
+      value: g.vUnit * g.sections >= g.vNeed - 1e-6 ? "выполняется" : "НЕ выполняется",
+      ref: a.ref,
+    },
+    {
+      kind: "calc", what: "Расход воздуха по удельному расходу на объём", symbol: "q air·W",
+      formula: "= q air · W ф",
+      substitution: `${f1(p.airPerM3)} · ${f1(g.vUnit)}`,
+      value: f0(p.airPerM3 * g.vUnit), unit: "м³/ч на секцию", ref: kmkRef("6.375"),
+    },
+    {
+      kind: "calc", what: "Расход воздуха по минимальной интенсивности", symbol: "q инт·A",
+      formula: "= q инт · (B·L)",
+      substitution: `${a.aerationIntensityMin} · (${f0(g.B)}·${f0(g.L)}/1e6)`,
+      value: f0(a.aerationIntensityMin * ((g.B * g.L) / 1e6)), unit: "м³/ч на секцию", ref: kmkRef("6.373"),
+    },
+    {
+      kind: "check", what: "Проверка интенсивности аэрации",
+      formula: "q инт ≥ 6 м³/(м²·ч)",
+      substitution: `q инт = ${g.airIntensity.toFixed(1)} м³/(м²·ч)`,
+      value: g.airIntensity >= a.aerationIntensityMin - 1e-6 ? "выполняется" : "НЕ выполняется",
+      ref: kmkRef("6.373"),
+    },
+    {
+      kind: "calc", what: "Расход воздуха на секцию (большее из двух)", symbol: "q возд",
+      formula: "q возд = max(q air·W, q инт·A)",
+      substitution: `max(${f0(p.airPerM3 * g.vUnit)}; ${f0(a.aerationIntensityMin * ((g.B * g.L) / 1e6))})`,
+      value: f0(g.air / g.sections), unit: "м³/ч", ref: "",
+    },
+    {
+      kind: "calc", what: "Расход воздуха на все секции", symbol: "Q возд",
+      formula: "Q возд = q возд · n",
+      substitution: `${f0(g.air / g.sections)} · ${g.sections}`,
+      value: f0(g.air), unit: "м³/ч", ref: "",
+    },
+    {
+      kind: "calc", what: "Полная высота стен", symbol: "H ст",
+      formula: "H ст = H + h борт",
+      substitution: `H ст = ${f0(g.Hw)} + ${f0(p.freeboardM * 1000)}`,
+      value: f0(g.Htot), unit: "мм", ref: "борт — коэффициенты расчёта SUVSANOAT (construction())",
+    },
+    {
+      kind: "calc", what: "Габарит сооружения по наружным граням",
+      formula: "W = n·B + (n+1)·δ; L габ = L + 2·δ",
+      substitution: `W = ${g.sections}·${f0(g.B)} + ${g.sections + 1}·${f0(g.wall)}; L = ${f0(g.L)} + 2·${f0(g.wall)}`,
+      value: `${f0(g.W)} × ${f0(g.Lout)}`, unit: "мм", ref: "толщина стен δ — construction()",
+    },
+    {
+      kind: "calc", what: "Отметки: дно / вода / верх борта",
+      formula: "дно = вода − H; вода = верх − h борт",
+      substitution: `верх = +${g.top.toFixed(3)}`,
+      value: `${g.bottom.toFixed(3)} / ${g.water.toFixed(3)} / +${g.top.toFixed(3)}`,
+      unit: "м", ref: "0.000 — планировочная отметка площадки",
+    },
+  ];
+  return steps;
 }
 
 function dnFor(qM3H: number): number {
@@ -252,7 +398,7 @@ function fmtE(v: number): string {
  * ЧЕРТЁЖ
  * ================================================================== */
 
-function drawStabilizer(sheet: Sheet, input: DrawingInput, p: StabilizerParams, g: StabilizerGeometry) {
+function drawStabilizer(sheet: Sheet, input: DrawingInput, p: StabilizerParams, g: StabilizerGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -363,6 +509,10 @@ function drawStabilizer(sheet: Sheet, input: DrawingInput, p: StabilizerParams, 
   sheet.note(`Воздух ${g.air.toFixed(0)} м³/ч (интенсивность ${g.airIntensity.toFixed(1)} м³/(м²·ч) ≥ 6 по п. 6.373; ${(g.air / (g.vUnit * g.sections)).toFixed(1)} м³/ч на м³ по п. 6.375) от общей воздуходувной станции; распределение по ячейкам ${g.airShare.map((s) => (s * 100).toFixed(0)).join("/")} %.`);
   sheet.note(`Отметки: дно ${fmtE(g.bottom)}, вода ${fmtE(g.water)}, верх борта ${fmtE(g.top)}. Иловая вода отводится декантером после остановки аэрации в голову биологической очистки.`);
   sheet.note(`Резервуар железобетонный монолитный: стены ${g.wall} мм, днище ${p.slabMm} мм, бетон ${construction(undefined, true).concreteGrade}; диффузоры, заслонки и насосы — покупное оборудование; декантеры, площадки и обвязка — изготовление SUVSANOAT.`);
+  /* ведомость расчёта — в свободном поле под разрезами и изометрией */
+  const calcY = Math.min(sy, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стены и перегородки" },
     { layer: "HATCH", text: "железобетон" },

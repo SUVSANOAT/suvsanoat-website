@@ -23,7 +23,7 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { SLUDGE, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { stabilizerDefaults, stabilizerGeometry } from "./stabilizer";
 
@@ -261,10 +261,164 @@ export function dewateringModel(input: DrawingInput, overrides: Partial<Dewateri
       `Фугат/фильтрат ${g.filtrateM3Day.toFixed(1)} м³/сут — в голову сооружений без обработки (${kmkRef("6.391")}); нагрузка +1 мг БПКполн на 1 мг остаточного СВ (${kmkRef("6.390")}). Аварийные иловые площадки на 20 % годового осадка (${kmkRef("6.393")}) — отдельный лист.`,
       `Габариты здания — по компоновке оборудования с проходами 1,2–1,5 м (практика; ${kmkRef("5.16")} для решёток — аналогия), высота ${p.clearHeightM} м, ворота 3,6×3,6 м под автомобиль-мультилифт.`,
     ],
+    calc: dewateringCalc(input, p, g),
     headLoss: 0,
-    draw: (sheet) => drawDewatering(sheet, input, p, g),
+    draw: (sheet) => drawDewatering(sheet, input, p, g, model),
   };
   return model;
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function dewateringCalc(input: DrawingInput, p: DewateringParams, g: DewateringGeometry): CalcStep[] {
+  const dw = SLUDGE.dewatering;
+  const cakeNeed = g.cakeM3Day * p.cakeDays;
+  const washM3Day = g.machine === "screw" ? 0.5 * p.hoursPerDay : 0.2 * p.hoursPerDay;
+  const flocOk = p.flocKgPerT >= dw.flocculantKgPerT[0] && p.flocKgPerT <= dw.flocculantKgPerT[1];
+  const reserveOk = g.machine === "centrifuge" ? (g.unitsWork <= 2 ? g.unitsReserve === 1 : g.unitsReserve === 2) : true;
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Ил после аэробной стабилизации", symbol: "Q ил", value: f1(g.qSludge), unit: "м³/сут", ref: "расчёт аэробного стабилизатора (stabilizerGeometry)" },
+    { kind: "input", what: "Влажность стабилизированного ила", symbol: "P1", value: f1(g.moistureIn), unit: "%", ref: "расчёт илоуплотнителя, ф. (127) — принято без изменения по стабилизации" },
+    { kind: "input", what: "Избыточный ил (сухое вещество)", symbol: "P ил", value: f0(input.dryKg), unit: "кг СВ/сут", ref: "расчёт биологической очистки (анкета объекта)" },
+    { kind: "input", what: "Продолжительность работы в сутки", symbol: "T", value: f0(p.hoursPerDay), unit: "ч/сут", ref: "принято по практике: 8 ч при ≤ 300 кг СВ/сут, иначе 16 ч" },
+    { kind: "input", what: "Доза катионного флокулянта", symbol: "d фл", value: f1(p.flocKgPerT), unit: "кг/т СВ", ref: `${kmkRef("6.391")}: ${dw.flocculantKgPerT[0]}–${dw.flocculantKgPerT[1]}` },
+    { kind: "input", what: "Сухое вещество кека", symbol: "P кек", value: f1(p.cakeDsPct), unit: "%", ref: `${dw.ref} (уплотнённый активный ил на фильтр-прессе 80–83 % влажности; для шнекового дегидратора принято по паспорту)` },
+    { kind: "input", what: "Запас контейнеров кека", symbol: "t конт", value: f1(p.cakeDays), unit: "сут", ref: "задание (3–4 сут по практике)" },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "check", what: "Проверка дозы флокулянта",
+      formula: `${dw.flocculantKgPerT[0]} ≤ d фл ≤ ${dw.flocculantKgPerT[1]} кг/т СВ`,
+      substitution: `d фл = ${f1(p.flocKgPerT)} кг/т СВ`,
+      value: flocOk ? "выполняется" : "НЕ выполняется",
+      ref: kmkRef("6.391"),
+    },
+    {
+      kind: "calc", what: "Часовая нагрузка по сухому веществу", symbol: "m ч",
+      formula: "m ч = P ил / T",
+      substitution: `m ч = ${f0(input.dryKg)} / ${f0(p.hoursPerDay)}`,
+      value: f1(g.dsKgH), unit: "кг СВ/ч", ref: "",
+    },
+    {
+      kind: "calc", what: "Часовая подача ила", symbol: "Q ч",
+      formula: "Q ч = Q ил / T",
+      substitution: `Q ч = ${f1(g.qSludge)} / ${f0(p.hoursPerDay)}`,
+      value: f1(g.qFeedH), unit: "м³/ч", ref: "",
+    },
+    {
+      kind: "calc", what: "Тип обезвоживающего агрегата",
+      formula: "шнековый дегидратор при P ил ≤ 800 кг СВ/сут, иначе центрифуга",
+      substitution: `P ил = ${f0(input.dryKg)} кг СВ/сут`,
+      value: g.machine === "screw" ? "шнековый дегидратор" : "центрифуга декантерная",
+      ref: `граница 800 кг СВ/сут — принято по аналогии с ${kmkRef("6.392")}, норма шнековые дегидраторы не описывает`,
+    },
+    g.machine === "screw"
+      ? {
+          kind: "calc", what: "Типоразмер и число агрегатов", symbol: "n раб",
+          formula: "ближайший типоразмер с производительностью ≥ m ч; n раб = ⌈m ч / kгН⌉",
+          substitution: `подобран типоразмер ${g.unitCap} кг СВ/ч (паспортный ряд SUVSANOAT); n раб = ⌈${f1(g.dsKgH)} / ${g.unitCap}⌉`,
+          value: `${g.unitLabel}, ${g.unitsWork} раб.`, ref: "паспортный ряд шнековых дегидраторов SUVSANOAT",
+        }
+      : {
+          kind: "calc", what: "Производительность ротора и число агрегатов", symbol: "q max",
+          formula: "q max = (15…20)·l·d / 2 (в 2 раза меньше при флокулянте); n раб = ⌈Q ч / q max⌉",
+          substitution: `q max = 17,5 · l · d / 2 = ${g.unitCap.toFixed(1)} м³/ч; n раб = ⌈${f1(g.qFeedH)} / ${g.unitCap.toFixed(1)}⌉`,
+          value: `${g.unitLabel}, ${g.unitsWork} раб.`, ref: `${kmkRef("6.388")}, ф. (136)`,
+        },
+    {
+      kind: "check", what: "Проверка числа резервных агрегатов",
+      formula: g.machine === "centrifuge" ? "до 2 рабочих — 1 резервная, 3 и более — 2" : "принято 1 резервный по аналогии",
+      substitution: `n раб = ${g.unitsWork}, n рез = ${g.unitsReserve}`,
+      value: reserveOk ? "выполняется" : "НЕ выполняется",
+      ref: g.machine === "centrifuge" ? kmkRef("6.392") : `по аналогии с ${kmkRef("6.392")}, норма шнековые дегидраторы не описывает`,
+    },
+    {
+      kind: "calc", what: "Расход товарного флокулянта", symbol: "G фл",
+      formula: "G фл = (P ил / 1000) · d фл",
+      substitution: `G фл = (${f0(input.dryKg)} / 1000) · ${f1(p.flocKgPerT)}`,
+      value: f1(g.flocKgDay), unit: "кг/сут", ref: kmkRef("6.391"),
+    },
+    {
+      kind: "calc", what: "Расход раствора флокулянта", symbol: "Q фл",
+      formula: "Q фл = G фл / (C фл · 10)",
+      substitution: `Q фл = ${f1(g.flocKgDay)} / (${p.flocSolutionPct} · 10)`,
+      value: f1(g.flocSolM3Day), unit: "м³/сут", ref: "концентрация рабочего раствора — принято по практике",
+    },
+    {
+      kind: "calc", what: "Ёмкость станции приготовления флокулянта", symbol: "V ст",
+      formula: "ближайшая типовая ёмкость ≥ (Q фл / T) · 3 ч запаса",
+      substitution: `(${f1(g.flocSolM3Day)} / ${f0(p.hoursPerDay)}) · 3 = ${((g.flocSolM3Day / p.hoursPerDay) * 3).toFixed(2)} м³`,
+      value: f1(g.flocStationM3), unit: "м³", ref: "типовой ряд станций — паспорт производителя",
+    },
+    {
+      kind: "calc", what: "Масса кека", symbol: "G кек",
+      formula: "G кек = P ил / (P кек / 100)",
+      substitution: `G кек = ${f0(input.dryKg)} / (${f1(p.cakeDsPct)} / 100)`,
+      value: f0(g.cakeKgDay), unit: "кг/сут", ref: "",
+    },
+    {
+      kind: "calc", what: "Объём кека", symbol: "V кек",
+      formula: "V кек = G кек / ρ",
+      substitution: `V кек = ${f0(g.cakeKgDay)} / 1050`,
+      value: f1(g.cakeM3Day), unit: "м³/сут", ref: "плотность кека ρ = 1050 кг/м³ — принято по практике",
+    },
+    {
+      kind: "calc", what: "Требуемая вместимость контейнеров", symbol: "V конт треб",
+      formula: "V конт треб = V кек · t конт",
+      substitution: `V конт треб = ${f1(g.cakeM3Day)} · ${f1(p.cakeDays)}`,
+      value: f1(cakeNeed), unit: "м³", ref: "",
+    },
+    {
+      kind: "calc", what: "Типоразмер и число контейнеров", symbol: "n конт",
+      formula: "ближайший типовой контейнер ≥ V конт треб / n конт; n конт = ⌈V конт треб / V конт⌉",
+      substitution: `подобран контейнер ${g.container.m3} м³; n конт = ⌈${f1(cakeNeed)} / ${g.container.m3}⌉`,
+      value: `${g.containers}×${g.container.m3} м³`, unit: "", ref: "типовой ряд контейнеров-мультилифтов — практика",
+    },
+    {
+      kind: "calc", what: "Расход фугата/фильтрата в голову сооружений", symbol: "Q фильтр",
+      formula: "Q фильтр = Q ил − V кек + Q промывки + Q фл",
+      substitution: `Q фильтр = ${f1(g.qSludge)} − ${f1(g.cakeM3Day)} + ${f1(washM3Day)} + ${f1(g.flocSolM3Day)}`,
+      value: f1(g.filtrateM3Day), unit: "м³/сут", ref: `${kmkRef("6.391")}; промывка — принято по практике`,
+    },
+    {
+      kind: "calc", what: "Ширина здания", symbol: "W",
+      formula: "W = (проезд + отсек контейнеров + проход + ряд агрегатов + проход), округление до 100 мм",
+      substitution: `1200 + (${g.container.W}+600) + 1500 + ${g.unit.W} + 1200`,
+      value: f0(g.W), unit: "мм", ref: "проходы и компоновка — практика SUVSANOAT",
+    },
+    {
+      kind: "calc", what: "Длина здания", symbol: "L",
+      formula: "L = (ряд агрегатов или ряд контейнеров, что длиннее) + узел флокулянта/насосы + проходы, округление до 100 мм",
+      substitution: `по числу агрегатов (${g.unitsWork + g.unitsReserve}), контейнеров (${g.containers}) и узла флокулянта ${g.flocStation.L}×${g.flocStation.W} мм`,
+      value: f0(g.L), unit: "мм", ref: "компоновка оборудования с проходами — практика SUVSANOAT",
+    },
+    {
+      kind: "calc", what: "Наружный габарит здания",
+      formula: "Lout = L + 2·δ; Wout = W + 2·δ",
+      substitution: `Lout = ${f0(g.L)} + 2·${g.wall}; Wout = ${f0(g.W)} + 2·${g.wall}`,
+      value: `${f0(g.Lout)} × ${f0(g.Wout)}`, unit: "мм", ref: "толщина сэндвич-панелей по каркасу — принято",
+    },
+    {
+      kind: "calc", what: "Высота конька кровли", symbol: "H конёк",
+      formula: "H конёк = H пом + 600 + уклон кровли (≈ 0,1·W)",
+      substitution: `H конёк = ${p.clearHeightM * 1000} + 600 + ${roundTo(g.W * 0.1, 100)}`,
+      value: f0(g.Hroof), unit: "мм", ref: "высота помещения и уклон кровли — принято по практике",
+    },
+    {
+      kind: "calc", what: "Отметка пола / верха здания",
+      formula: "верх = пол + H конёк",
+      substitution: `пол = +${g.floor.toFixed(3)} м`,
+      value: `${g.floor.toFixed(3)} / +${g.top.toFixed(3)}`,
+      unit: "м", ref: "0.000 — планировочная отметка площадки",
+    },
+  ];
+  return steps;
 }
 
 function dnFor(qM3H: number): number {
@@ -281,7 +435,7 @@ function fmtE(v: number): string {
  * ЧЕРТЁЖ
  * ================================================================== */
 
-function drawDewatering(sheet: Sheet, input: DrawingInput, p: DewateringParams, g: DewateringGeometry) {
+function drawDewatering(sheet: Sheet, input: DrawingInput, p: DewateringParams, g: DewateringGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -408,6 +562,10 @@ function drawDewatering(sheet: Sheet, input: DrawingInput, p: DewateringParams, 
   sheet.note(`${g.machine === "screw" ? "Дегидраторы шнековые" : "Центрифуги декантерные"} ${units} шт. (${g.unitsWork} раб. + ${g.unitsReserve} рез.), ${g.unitLabel}; ил ${g.qSludge.toFixed(1)} м³/сут, ${input.dryKg.toFixed(0)} кг СВ/сут, работа ${p.hoursPerDay} ч/сут.`);
   sheet.note(`Флокулянт ${p.flocKgPerT} кг/т СВ (п. 6.391) — ${g.flocKgDay.toFixed(1)} кг/сут; кек ${p.cakeDsPct} % СВ — ${g.cakeM3Day.toFixed(1)} м³/сут в контейнеры ${g.containers}×${g.container.m3} м³ (${p.cakeDays} сут); фильтрат ${g.filtrateM3Day.toFixed(1)} м³/сут — в голову сооружений.`);
   sheet.note(`${g.machine === "screw" ? "Корпус и рама дегидратора — SUVSANOAT, шнек-барабан — покупной; " : ""}станция флокулянта, насосы, контейнеры, здание — поставка.`);
+  /* ведомость расчёта — в свободном поле под разрезами и изометрией */
+  const calcY = Math.min(sy, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стены, колонны, фундаменты" },
     { layer: "HATCH", text: "ограждающие конструкции" },

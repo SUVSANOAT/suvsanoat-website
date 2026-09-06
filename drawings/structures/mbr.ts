@@ -24,8 +24,10 @@
 
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
-import { AEROTANK, kmkRef } from "../../norms/kmk-2-04-03-19";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
+import { AEROTANK, KMK_2_04_03_19_DOC, kmkRef } from "../../norms/kmk-2-04-03-19";
+
+const KMK_TABLE2 = `${KMK_2_04_03_19_DOC.code}, п. 2.7, табл. 2`;
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
 
 export type MbrParams = {
@@ -174,10 +176,163 @@ export function mbrModel(input: DrawingInput, overrides: Partial<MbrParams> = {}
       `Вторичный отстойник не предусмотрен: разделение иловой смеси на мембране. Требование обязательной мембранной очистки — см. записку.`,
       `Расход воздуха ${input.air.toFixed(0)} м³/ч — ${kmkRef("6.156", "ф. (70)")}.`,
     ],
+    calc: mbrCalc(input, p, g, c, vAnox, vAer, vMem),
     headLoss: 0.4,
-    draw: (sheet) => drawMbr(sheet, input, p, g),
+    draw: (sheet) => drawMbr(sheet, input, p, g, model),
   };
   return model;
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function mbrCalc(
+  input: DrawingInput,
+  p: MbrParams,
+  g: MbrGeometry,
+  c: ReturnType<typeof construction>,
+  vAnox: number,
+  vAer: number,
+  vMem: number,
+): CalcStep[] {
+  const qAvgH = input.q / 24;
+  const areaLine = ((input.vBio + vMem) / g.lines) / p.waterDepthM;
+  const ratio = g.B / g.Hw;
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Расчётный расход сточных вод", symbol: "Q", value: f0(input.q), unit: "м³/сут", ref: "анкета объекта" },
+    { kind: "input", what: "Средний часовой расход", symbol: "q ср", formula: "q ср = Q / 24", substitution: `q ср = ${f0(input.q)} / 24`, value: f1(qAvgH), unit: "м³/ч", ref: "" },
+    { kind: "input", what: "Максимальный часовой расход", symbol: "q max", value: f1(input.qMaxH), unit: "м³/ч", ref: `${KMK_TABLE2}` },
+    { kind: "input", what: "БПК₅ на входе", symbol: "L en", value: f0(input.bod), unit: "мг/л", ref: "анкета / табл. 25 п. 6.4" },
+    { kind: "input", what: "Азот общий на входе", symbol: "N", value: f0(input.tn), unit: "мг/л", ref: "анкета / табл. 25 п. 6.4" },
+    { kind: "input", what: "Объём биологической ступени из расчёта технологии", symbol: "W био", value: f0(input.vBio), unit: "м³", ref: "расчёт MBR; больший из объёма по времени пребывания и по органической нагрузке" },
+    { kind: "input", what: "Рабочая глубина воды", symbol: "H", value: f1(p.waterDepthM), unit: "м", ref: `${AEROTANK.depthM.ref}: 3–6 м` },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc",
+      what: "Число технологических линий",
+      symbol: "n",
+      formula: "n ≥ 2",
+      substitution: "принято n = 2",
+      value: String(g.lines),
+      unit: "шт.",
+      ref: AEROTANK.minSections.ref,
+    },
+    {
+      kind: "calc",
+      what: "Объём мембранного отсека",
+      symbol: "W мем",
+      formula: "W мем = F мем / k упак",
+      substitution: `W мем = ${f0(p.membraneAreaM2)} / ${p.packingM2PerM3}`,
+      value: f1(vMem),
+      unit: "м³",
+      ref: `плотность упаковки ${p.packingM2PerM3} м²/м³ — паспорт производителя, ҚМҚ 2.04.03-19 не нормирует`,
+    },
+    {
+      kind: "calc",
+      what: "Площадь линии в плане",
+      symbol: "A",
+      formula: "A = (W био + W мем) / (n · H)",
+      substitution: `A = (${f0(input.vBio)} + ${f1(vMem)}) / (${g.lines} · ${f1(p.waterDepthM)})`,
+      value: f1(areaLine),
+      unit: "м²",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Ширина коридора в свету",
+      symbol: "B",
+      formula: "B = √(A / 3), но H ≤ B ≤ 2H",
+      substitution: `B = √(${f1(areaLine)} / 3) = ${f1(Math.sqrt(areaLine / 3))} м; ограничение ${f1(p.waterDepthM)}…${f1(2 * p.waterDepthM)} м`,
+      value: f0(g.B),
+      unit: "мм",
+      ref: `${AEROTANK.depthM.ref} — ширина коридора к рабочей глубине 1:1…2:1`,
+    },
+    {
+      kind: "check",
+      what: "Проверка отношения ширины коридора к глубине",
+      formula: "1 ≤ B / H ≤ 2",
+      substitution: `${f0(g.B)} / ${f0(g.Hw)} = ${ratio.toFixed(2)}`,
+      value: ratio >= 1 && ratio <= 2 ? "выполняется" : "НЕ выполняется",
+      ref: AEROTANK.depthM.ref,
+    },
+    {
+      kind: "calc",
+      what: "Длина линии в свету",
+      symbol: "L",
+      formula: "L = A / B",
+      substitution: `L = ${f1(areaLine)} · 10⁶ / ${f0(g.B)}`,
+      value: f0(g.L),
+      unit: "мм",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Длина аноксидной зоны",
+      symbol: "L анокс",
+      formula: "L анокс = (L − L мем) · α",
+      substitution: `L анокс = (${f0(g.L)} − ${f0(g.Lmem)}) · ${p.anoxicShare}`,
+      value: f0(g.Lanox),
+      unit: "мм",
+      ref: `доля аноксидной зоны ${(p.anoxicShare * 100).toFixed(0)} % при азоте ${f0(input.tn)} мг/л — DWA-A 131, ҚМҚ 2.04.03-19 не нормирует`,
+    },
+    { kind: "calc", what: "Объём аноксидной зоны", symbol: "W анокс", formula: "W = n · B · L анокс · H", substitution: `W = ${g.lines} · ${f0(g.B)} · ${f0(g.Lanox)} · ${f0(g.Hw)}`, value: f1(vAnox), unit: "м³", ref: "" },
+    { kind: "calc", what: "Объём аэробной зоны", symbol: "W аэр", formula: "W = n · B · L аэр · H", substitution: `W = ${g.lines} · ${f0(g.B)} · ${f0(g.Laer)} · ${f0(g.Hw)}`, value: f1(vAer), unit: "м³", ref: "" },
+    {
+      kind: "calc",
+      what: "Площадь мембранных модулей",
+      symbol: "F мем",
+      formula: "F мем = q max / J",
+      substitution: `F мем = ${f1(input.qMaxH)} · 1000 / 15`,
+      value: f0(p.membraneAreaM2),
+      unit: "м²",
+      ref: "подбор по максимальному часовому расходу; поток J = 15 л/(м²·ч) — паспорт модулей",
+    },
+    {
+      kind: "calc",
+      what: "Расход технологического воздуха",
+      symbol: "q air",
+      formula: "q air = q O · (L en − L ex) / (K₁K₂K_T K₃ (C a − C O))",
+      substitution: "по расчёту технологии",
+      value: f0(input.air),
+      unit: "м³/ч",
+      ref: kmkRef("6.156", "ф. (70)"),
+    },
+    {
+      kind: "calc",
+      what: "Полная высота стен",
+      symbol: "H ст",
+      formula: "H ст = H + h борт",
+      substitution: `H ст = ${f0(g.Hw)} + ${f0(c.freeboardM * 1000)}`,
+      value: f0(g.Htot),
+      unit: "мм",
+      ref: `борт ${f1(c.freeboardM)} м — коэффициенты расчёта SUVSANOAT`,
+    },
+    {
+      kind: "calc",
+      what: "Габарит сооружения по наружным граням",
+      formula: "W = n·B + (n+1)·δ;  L габ = L + 2δ",
+      substitution: `W = ${g.lines}·${f0(g.B)} + ${g.lines + 1}·${f0(g.wall)};  L = ${f0(g.L)} + 2·${f0(g.wall)}`,
+      value: `${f0(g.W)} × ${f0(g.Lout)}`,
+      unit: "мм",
+      ref: `толщина стен ${f0(g.wall)} мм — ${c.concreteGrade}`,
+    },
+    {
+      kind: "calc",
+      what: "Отметки: дно / вода / верх борта",
+      formula: "дно = верх − H ст;  вода = верх − h борт",
+      substitution: `верх +${f1(g.top * 1000) === "0" ? "0" : (g.top).toFixed(3)}`,
+      value: `${g.bottom.toFixed(3)} / ${g.water.toFixed(3)} / +${g.top.toFixed(3)}`,
+      unit: "м",
+      ref: "0.000 — планировочная отметка площадки",
+    },
+  ];
+  return steps;
 }
 
 /** диаметр патрубка по расходу при 1,0–1,2 м/с, мм, ряд DN */
@@ -192,7 +347,7 @@ export function dnFor(qM3H: number): number {
  * ЧЕРТЁЖ: план, разрез 1-1 (продольный), разрез 2-2 (поперечный), изометрия
  * ================================================================== */
 
-function drawMbr(sheet: Sheet, input: DrawingInput, p: MbrParams, g: MbrGeometry) {
+function drawMbr(sheet: Sheet, input: DrawingInput, p: MbrParams, g: MbrGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th;
   const ts = sheet.ts;
@@ -303,6 +458,10 @@ function drawMbr(sheet: Sheet, input: DrawingInput, p: MbrParams, g: MbrGeometry
   sheet.note(`Мембранный биореактор: ${g.lines} линии ${g.B}×${g.L} мм в свету, рабочая глубина ${p.waterDepthM} м, борт ${p.freeboardM} м.`);
   sheet.note(`Отметки: дно ${fmtE(g.bottom)}, вода ${fmtE(g.water)}, верх борта ${fmtE(g.top)} (0.000 — планировочная отметка площадки).`);
   sheet.note(`Резервуар железобетонный монолитный: стены ${g.wall} мм, днище ${p.slabMm} мм, бетон ${construction(undefined, true).concreteGrade}. Мембранные модули, аэрация, насосы и CIP — покупное оборудование по паспорту производителя; площадки обслуживания, лотки и обвязка — изготовление SUVSANOAT.`);
+  /* ведомость расчёта — в свободном поле под разрезами */
+  const calcY = Math.min(sy, cy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стены и перегородки" },
     { layer: "HATCH", text: "железобетон" },

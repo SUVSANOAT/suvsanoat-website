@@ -56,7 +56,7 @@ export function isoPoint(x: number, y: number, z: number, ox = 0, oy = 0): [numb
 
 export type Pt = [number, number];
 
-type Prim =
+export type Prim =
   | { t: "line"; layer: Layer; x1: number; y1: number; x2: number; y2: number }
   | { t: "poly"; layer: Layer; pts: [number, number][]; closed: boolean }
   | { t: "circle"; layer: Layer; cx: number; cy: number; r: number }
@@ -356,7 +356,13 @@ export class Dxf {
 
   /* ---------------- границы чертежа ---------------- */
 
-  extents(): { minX: number; minY: number; maxX: number; maxY: number } {
+  /**
+   * Габариты начерченного. Необязательный фильтр позволяет считать границы
+   * только по части примитивов — например по содержимому рабочего поля, без
+   * рамки и правой колонки: это нужно, чтобы автоматически найти свободное
+   * место на листе под ведомость расчёта.
+   */
+  extents(filter?: (p: Prim) => boolean): { minX: number; minY: number; maxX: number; maxY: number } {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     const put = (x: number, y: number) => {
       if (x < minX) minX = x;
@@ -365,6 +371,7 @@ export class Dxf {
       if (y > maxY) maxY = y;
     };
     for (const p of this.prims) {
+      if (filter && !filter(p)) continue;
       switch (p.t) {
         case "line":
           put(p.x1, p.y1);
@@ -394,6 +401,47 @@ export class Dxf {
     }
     if (!isFinite(minX)) return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
     return { minX, minY, maxX, maxY };
+  }
+
+  /**
+   * Пересекается ли что-нибудь начерченное с прямоугольником. Нужно для
+   * автоматической расстановки ведомости расчёта: она ищет на листе место,
+   * где не наедет на виды. Примитивы берутся по своим габаритам — этого
+   * достаточно, чтобы не посадить таблицу поверх разреза.
+   */
+  hits(rect: { x: number; y: number; w: number; h: number }, filter?: (p: Prim) => boolean): boolean {
+    const rx2 = rect.x + rect.w;
+    const ry2 = rect.y + rect.h;
+    for (const p of this.prims) {
+      if (filter && !filter(p)) continue;
+      let x1: number, y1: number, x2: number, y2: number;
+      switch (p.t) {
+        case "line":
+          x1 = Math.min(p.x1, p.x2); x2 = Math.max(p.x1, p.x2);
+          y1 = Math.min(p.y1, p.y2); y2 = Math.max(p.y1, p.y2);
+          break;
+        case "poly": {
+          const xs = p.pts.map((q) => q[0]), ys = p.pts.map((q) => q[1]);
+          if (!xs.length) continue;
+          x1 = Math.min(...xs); x2 = Math.max(...xs);
+          y1 = Math.min(...ys); y2 = Math.max(...ys);
+          break;
+        }
+        case "circle":
+        case "arc":
+          x1 = p.cx - p.r; x2 = p.cx + p.r;
+          y1 = p.cy - p.r; y2 = p.cy + p.r;
+          break;
+        case "text": {
+          const w = p.v.length * p.h * 0.62;
+          x1 = p.align === "center" ? p.x - w / 2 : p.align === "right" ? p.x - w : p.x;
+          x2 = x1 + w; y1 = p.y; y2 = p.y + p.h;
+          break;
+        }
+      }
+      if (x2 > rect.x && x1 < rx2 && y2 > rect.y && y1 < ry2) return true;
+    }
+    return false;
   }
 
   /* ---------------- DXF ---------------- */

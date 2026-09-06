@@ -25,11 +25,14 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { DISINFECTION, PRIMARY_SETTLING, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { dnFor } from "./mbr";
 import { dnForAir } from "./equal";
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
 
 export type ContactParams = {
   /** контактный резервуар нужен (хлорирование); по умолчанию нет — УФ */
@@ -242,7 +245,8 @@ export function contactModel(input: DrawingInput, overrides: Partial<ContactPara
       `Отметки: верх ${fmtE(g.top)}, вода ${fmtE(g.water)}, дно ${fmtE(g.bottom)}; потери 0,15 м — водослив и перегородки (практика).`,
     ],
     headLoss: 0.15,
-    draw: (sheet) => drawContact(sheet, input, p, g),
+    calc: contactCalc(input, p, g),
+    draw: (sheet) => drawContact(sheet, input, p, g, model),
   };
   return model;
 }
@@ -252,10 +256,75 @@ function fmtE(v: number): string {
 }
 
 /* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+function contactCalc(input: DrawingInput, p: ContactParams, g: ContactGeometry): CalcStep[] {
+  const depthOk = p.waterDepthM >= PRIMARY_SETTLING.table31.horizontal.hSetM[0] && p.waterDepthM <= PRIMARY_SETTLING.table31.horizontal.hSetM[1];
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Расчётный расход сточных вод (среднесуточный)", symbol: "Q", value: f0(input.q), unit: "м³/сут", ref: "анкета объекта" },
+    { kind: "input", what: "Максимальный часовой расход", symbol: "q max", value: f1(input.qMaxH), unit: "м³/ч", ref: kmkRef("2.7", "табл. 2") },
+    { kind: "input", what: "Продолжительность контакта", symbol: "t", value: f0(p.contactMin), unit: "мин", ref: DISINFECTION.contactMinutes.ref },
+    { kind: "input", what: "Число секций (не менее двух)", symbol: "n min", value: f0(DISINFECTION.contactTanksMin.value), unit: "шт.", ref: DISINFECTION.contactTanksMin.ref },
+    { kind: "input", what: "Рабочая глубина воды", symbol: "H", value: f1(p.waterDepthM), unit: "м", ref: `${PRIMARY_SETTLING.table31.ref}: 1,5–4,0 м (резервуар — как отстойник, ${DISINFECTION.contactTanksMin.ref}); принято из construction(), ограничено верхом диапазона` },
+    { kind: "input", what: "Борт над водой", symbol: "h б", value: f1(p.freeboardM), unit: "м", ref: `не менее ${PRIMARY_SETTLING.freeboardM.value} м (${PRIMARY_SETTLING.freeboardM.ref})` },
+    { kind: "input", what: "Барботаж", symbol: "i возд", value: f1(p.aerationM3M2H), unit: "м³/(м²·ч)", ref: DISINFECTION.contactAeration.ref },
+    { kind: "input", what: "Доза активного хлора (после полной биологической очистки)", symbol: "Д", value: f0(p.doseGm3), unit: "г/м³", ref: DISINFECTION.chlorineDose.ref },
+    { kind: "input", what: "Запас производительности хлорного хозяйства", symbol: "k зап", value: f1(p.storageFactor), unit: "", ref: DISINFECTION.chlorineDose.ref },
+    { kind: "input", what: "Осадок при 98 % (после биологической очистки)", symbol: "q ос", value: f1(DISINFECTION.contactSludgeLPerM3.afterBio), unit: "л/м³", ref: DISINFECTION.contactSludgeLPerM3.ref },
+    { kind: "input", what: "Число коридоров в секции / отношение L:b", value: `${p.channels} / ${p.ratio}`, unit: "", ref: "продольная перегородка (змеевик против проскока) — практика" },
+    { kind: "input", what: "Концентрация товарного гипохлорита натрия", symbol: "c NaOCl", value: f0(p.naoclPct), unit: "%", ref: "паспорт реагента — практика" },
+    { kind: "input", what: "Запас реагента на складе", symbol: "T зап", value: f0(p.reagentDays), unit: "сут", ref: "практика" },
+
+    /* ---------- расчёт ---------- */
+    { kind: "calc", what: "Число секций", symbol: "n", formula: "n = max(n min; округл. заданного)", substitution: `n = max(${DISINFECTION.contactTanksMin.value}; ${p.sections})`, value: String(g.n), unit: "шт.", ref: DISINFECTION.contactTanksMin.ref },
+    { kind: "calc", what: "Требуемый объём", symbol: "W треб", formula: "W = q max · t / 60", substitution: `W = ${f1(input.qMaxH)} · ${p.contactMin} / 60`, value: f1(g.vRequired), unit: "м³", ref: DISINFECTION.contactMinutes.ref },
+    { kind: "calc", what: "Площадь секции в плане", symbol: "A", formula: "A = (W треб / n) / H", substitution: `A = (${f1(g.vRequired)} / ${g.n}) / ${f1(p.waterDepthM)}`, value: f1(g.areaM2 / g.n), unit: "м²", ref: "" },
+    {
+      kind: "calc",
+      what: "Ширина коридора в свету",
+      symbol: "b",
+      formula: "b = √(A / (m · L:b)), не менее 600 мм",
+      substitution: `b = √(${f1(g.areaM2 / g.n)} / (${p.channels} · ${p.ratio})) · 1000`,
+      value: f0(g.b),
+      unit: "мм",
+      ref: "соотношение длины к ширине коридора — практика",
+    },
+    { kind: "calc", what: "Длина коридора в свету", symbol: "L", formula: "L = A / (m · b)", substitution: `L = ${f1(g.areaM2 / g.n)} · 10⁶ / (${p.channels} · ${f0(g.b)})`, value: f0(g.L), unit: "мм", ref: "" },
+    { kind: "calc", what: "Ширина секции по коридорам", symbol: "B", formula: "B = m·b + (m−1)·δ", substitution: `B = ${p.channels}·${f0(g.b)} + ${p.channels - 1}·${f0(g.wall)}`, value: f0(g.B), unit: "мм", ref: `толщина стен ${f0(g.wall)} мм` },
+    { kind: "calc", what: "Полная высота стен", symbol: "H ст", formula: "H ст = H + h б", substitution: `H ст = ${f0(g.Hw)} + ${f0(p.freeboardM * 1000)}`, value: f0(g.Htot), unit: "мм", ref: PRIMARY_SETTLING.freeboardM.ref },
+    {
+      kind: "calc",
+      what: "Ширина распределительного лотка",
+      symbol: "b лот",
+      formula: "b лот = √(q max / (3600 · v)), v = 0,4 м/с, не менее 500 мм",
+      substitution: `b лот = √(${f1(input.qMaxH)} / (3600 · 0,4)) · 1000`,
+      value: f0(g.chan),
+      unit: "мм",
+      ref: "скорость в лотке 0,4 м/с — практика, ҚМҚ 2.04.03-19 не нормирует",
+    },
+    { kind: "calc", what: "Габарит по наружным граням", formula: "W = n·B + (n+1)·δ; L габ = L + b лот + 3·δ", substitution: `W = ${g.n}·${f0(g.B)} + ${g.n + 1}·${f0(g.wall)};  L = ${f0(g.L)} + ${f0(g.chan)} + 3·${f0(g.wall)}`, value: `${f0(g.W)} × ${f0(g.Lout)}`, unit: "мм", ref: "" },
+    { kind: "calc", what: "Фактический рабочий объём", symbol: "W факт", formula: "W = n · m · b · L · H", substitution: `W = ${g.n} · ${p.channels} · ${f0(g.b)} · ${f0(g.L)} · ${f0(g.Hw)}`, value: f1(g.vActual), unit: "м³", ref: "" },
+    { kind: "check", what: "Проверка фактического объёма против требуемого", formula: "W факт ≥ W треб", substitution: `${f1(g.vActual)} ≥ ${f1(g.vRequired)}`, value: g.vActual >= g.vRequired ? "выполняется" : "НЕ выполняется", ref: DISINFECTION.contactMinutes.ref },
+    { kind: "check", what: "Проверка глубины воды по табл. 31", formula: `${PRIMARY_SETTLING.table31.horizontal.hSetM[0]} ≤ H ≤ ${PRIMARY_SETTLING.table31.horizontal.hSetM[1]} м`, substitution: `H = ${f1(p.waterDepthM)} м`, value: depthOk ? "выполняется" : "НЕ выполняется", ref: PRIMARY_SETTLING.table31.ref },
+    { kind: "calc", what: "Площадь зеркала воды (все секции)", symbol: "A общ", formula: "A общ = n · m · b · L", substitution: `A общ = ${g.n} · ${p.channels} · ${f0(g.b)} · ${f0(g.L)}`, value: f1(g.areaM2), unit: "м²", ref: "" },
+    { kind: "calc", what: "Расход воздуха на барботаж", symbol: "q возд", formula: "q возд = A общ · i возд", substitution: `q возд = ${f1(g.areaM2)} · ${p.aerationM3M2H}`, value: f0(g.airM3H), unit: "м³/ч", ref: DISINFECTION.contactAeration.ref },
+    { kind: "calc", what: "Приямок осадка на входе секции", symbol: "L пр", formula: "L пр = min(1500; L / 5)", substitution: `L пр = min(1500; ${f0(g.L)} / 5)`, value: f0(g.hopperL), unit: "мм", ref: "практика" },
+    { kind: "calc", what: "Объём осадка", symbol: "q ос,сут", formula: "q ос,сут = Q · q ос / 1000", substitution: `q ос,сут = ${f0(input.q)} · ${DISINFECTION.contactSludgeLPerM3.afterBio} / 1000`, value: f1(g.sludgeM3Day), unit: "м³/сут", ref: DISINFECTION.contactSludgeLPerM3.ref },
+    { kind: "calc", what: "Расход активного хлора", symbol: "M Cl", formula: "M Cl = Q · Д / 1000", substitution: `M Cl = ${f0(input.q)} · ${p.doseGm3} / 1000`, value: f1(g.clKgDay), unit: "кг/сут", ref: DISINFECTION.chlorineDose.ref },
+    { kind: "calc", what: "Расчётная производительность хлорного хозяйства", symbol: "M Cl,расч", formula: "M Cl,расч = M Cl · k зап", substitution: `M Cl,расч = ${f1(g.clKgDay)} · ${p.storageFactor}`, value: f1(g.clKgDayDesign), unit: "кг/сут", ref: DISINFECTION.chlorineDose.ref },
+    { kind: "calc", what: "Расход товарного гипохлорита натрия", symbol: "V NaOCl", formula: "V = M Cl / (c NaOCl / 100) / ρ, ρ ≈ 1,2 кг/л", substitution: `V = ${f1(g.clKgDay)} / (${p.naoclPct} / 100) / 1,2`, value: f0(g.naoclLDay), unit: "л/сут", ref: "плотность товарного 12 % гипохлорита ≈ 1,2 кг/л — практика" },
+    { kind: "calc", what: "Объём бака-хранилища реагента", symbol: "V бак", formula: "V бак ≥ V NaOCl · T зап, ближайший типовой из ряда 0,5…20 м³", substitution: `V бак ≥ ${f0(g.naoclLDay)} · ${p.reagentDays} / 1000`, value: f0(g.reagentTankM3), unit: "м³", ref: "типовой ряд ёмкостей — практика" },
+  ];
+  return steps;
+}
+
+/* ==================================================================
  * ЧЕРТЁЖ
  * ================================================================== */
 
-function drawContact(sheet: Sheet, input: DrawingInput, p: ContactParams, g: ContactGeometry) {
+function drawContact(sheet: Sheet, input: DrawingInput, p: ContactParams, g: ContactGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -365,6 +434,10 @@ function drawContact(sheet: Sheet, input: DrawingInput, p: ContactParams, g: Con
   sheet.note(`Барботаж ${p.aerationM3M2H} м³/(м²·ч) (п. 6.236) — ${g.airM3H.toFixed(0)} м³/ч; осадок ${DISINFECTION.contactSludgeLPerM3.afterBio} л/м³ (п. 6.238) — ${g.sludgeM3Day.toFixed(2)} м³/сут, приямки на входе, иловая труба DN200 (п. 6.68).`);
   sheet.note(`Доза активного хлора ${p.doseGm3} г/м³ (п. 6.230) — ${g.clKgDay.toFixed(2)} кг/сут, хлорное хозяйство на ×${p.storageFactor}; гипохлорит ${p.naoclPct} % ${g.naoclLDay.toFixed(0)} л/сут, бак ${g.reagentTankM3} м³ (${p.reagentDays} сут — практика); ввод в подводящий трубопровод через смеситель.`);
   sheet.note(`Отметки: верх ${fmtE(g.top)}, вода ${fmtE(g.water)}, дно ${fmtE(g.bottom)}; резервуар железобетонный монолитный: стены ${g.wall} мм, днище ${p.slabMm} мм, бетон ${construction().concreteGrade}. ${g.required ? "" : "В базовой схеме с УФ резервуар не требуется — лист справочный."}`);
+  /* ведомость расчёта — в свободном поле под разрезами/изометрией */
+  const calcY = Math.min(sy, cy, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стены и перегородки" },
     { layer: "HATCH", text: "железобетон" },

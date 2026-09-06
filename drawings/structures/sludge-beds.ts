@@ -21,7 +21,7 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { SLUDGE, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { stabilizerDefaults, stabilizerGeometry } from "./stabilizer";
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
@@ -194,10 +194,149 @@ export function sludgeBedsModel(input: DrawingInput, overrides: Partial<SludgeBe
       `Валики на 0,3 м выше рабочего уровня, поверху ${p.bermTopM} м (${kmkRef("6.399")}), откосы 1:${p.bermSlope} (практика); дренаж через ${p.drainSpacingM} м, траншеи ${g.drainW} мм, щебень 2–6 мм, глубина 0,6 м, уклон 3 % (${kmkRef("6.400")}); иловая вода — на очистные сооружения (${kmkRef("6.401")}).`,
       `Ширина карты не более ${p.maxCardWidthM} м, отношение сторон 1,25 (${kmkRef("6.398")}); подача ила в лоток насосами стабилизатора; отметка дна карт 0.000 — принято (уточняется по УГВ: не менее 1,5 м при естественном основании, ${kmkRef("6.397")}).`,
     ],
+    calc: sludgeBedsCalc(input, p, g),
     headLoss: 0.4,
-    draw: (sheet) => drawBeds(sheet, input, p, g),
+    draw: (sheet) => drawBeds(sheet, input, p, g, model),
   };
   return model;
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function sludgeBedsCalc(input: DrawingInput, p: SludgeBedsParams, g: SludgeBedsGeometry): CalcStep[] {
+  const db = SLUDGE.dryingBeds;
+  const cardsOk = g.cards >= db.minCards;
+  const widthOk = g.cardB / 1000 <= p.maxCardWidthM + 1e-6;
+  const volGoverns = g.areaVol > g.areaF / g.cards;
+  const B = Math.max(3, Math.min(p.maxCardWidthM, Math.sqrt(Math.max(g.areaF / g.cards, g.areaVol) / 1.25)));
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Избыточный ил (сухое вещество)", symbol: "P ил", value: f0(input.dryKg), unit: "кг СВ/сут", ref: "расчёт биологической очистки (анкета объекта)" },
+    { kind: "input", what: "Полный поток ила из стабилизатора", symbol: "Q ил", value: f1(g.qIn), unit: "м³/сут", ref: "расчёт аэробного стабилизатора (stabilizerGeometry)" },
+    { kind: "input", what: "Режим площадок", value: p.mode === "emergency" ? "аварийные" : "основные", ref: p.mode === "emergency" ? kmkRef("6.393") : "механическое обезвоживание отсутствует — площадки основные" },
+    { kind: "input", what: "Рабочая глубина карты", symbol: "h", value: f1(p.workingDepthM), unit: "м", ref: `${kmkRef("6.399")}: ${db.workingDepthM[0]}–${db.workingDepthM[1]} м` },
+    { kind: "input", what: "Расстояние между дренами", symbol: "l др", value: f1(p.drainSpacingM), unit: "м", ref: `${kmkRef("6.400")}: 6–8 м` },
+    { kind: "input", what: "Предельная ширина карты", symbol: "B max", value: f1(p.maxCardWidthM), unit: "м", ref: `${kmkRef("6.398")}; граница по количеству осадка (300 кг СВ/сут) — принято по практике` },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc", what: "Расчётное сухое вещество на площадки", symbol: "P расч",
+      formula: p.mode === "emergency" ? "P расч = P ил · 0,2" : "P расч = P ил",
+      substitution: p.mode === "emergency" ? `P расч = ${f0(input.dryKg)} · ${g.share}` : `P расч = ${f0(input.dryKg)}`,
+      value: f0(g.dsKgDay), unit: "кг СВ/сут", ref: p.mode === "emergency" ? kmkRef("6.393") : "100 % годового осадка",
+    },
+    {
+      kind: "calc", what: "Нагрузка на 1 м² в год (базовая)", symbol: "q0",
+      formula: "по табл. 71 — аэробно стабилизированный ил, асфальтобетон с дренажем",
+      substitution: "9 °C, слой осадка до 500 мм",
+      value: f0(g.loadBase), unit: "кг/(м²·год)", ref: `${db.ref}, табл. 71`,
+    },
+    {
+      kind: "calc", what: "Климатический коэффициент", symbol: "k клим",
+      formula: "по черт. 3 (регион площадки)",
+      substitution: `регион: ${p.region === "tashkent" ? "Ташкент" : p.region}`,
+      value: f1(g.climate), unit: "", ref: `${db.ref}, черт. 3 (снят с карты приближённо)`,
+    },
+    {
+      kind: "calc", what: "Расчётная нагрузка", symbol: "q",
+      formula: "q = q0 · k клим",
+      substitution: `q = ${f0(g.loadBase)} · ${f1(g.climate)}`,
+      value: f0(g.load), unit: "кг/(м²·год)", ref: `${db.ref}, табл. 71; черт. 3`,
+    },
+    {
+      kind: "calc", what: "Требуемая площадь площадок", symbol: "F",
+      formula: "F = P расч · 365 / q",
+      substitution: `F = ${f0(g.dsKgDay)} · 365 / ${f0(g.load)}`,
+      value: f0(g.areaF), unit: "м²", ref: `${kmkRef("6.398")}, ф. (137)`,
+    },
+    {
+      kind: "calc", what: "Число карт (принято)", symbol: "n карт",
+      formula: "n карт ≥ 8",
+      substitution: "принято по расчётной площади, не менее 8",
+      value: String(g.cards), unit: "шт.", ref: kmkRef("6.399"),
+    },
+    {
+      kind: "check", what: "Проверка числа карт",
+      formula: "n карт ≥ 8",
+      substitution: `n карт = ${g.cards}`,
+      value: cardsOk ? "выполняется" : "НЕ выполняется",
+      ref: kmkRef("6.399"),
+    },
+    {
+      kind: "calc", what: "Площадь карты по нагрузке", symbol: "F/n",
+      formula: "= F / n карт",
+      substitution: `${f0(g.areaF)} / ${g.cards}`,
+      value: f0(g.areaF / g.cards), unit: "м²", ref: "",
+    },
+    {
+      kind: "calc", what: "Площадь карты по объёму осадка", symbol: "F об",
+      formula: "F об = 3 · Q ил / h (3-суточный объём при заливке не более 0,3–0,4 м)",
+      substitution: `F об = 3 · ${f1(g.qIn)} / ${f1(p.workingDepthM)}`,
+      value: f0(g.areaVol), unit: "м²", ref: kmkRef("6.399"),
+    },
+    {
+      kind: "calc", what: "Площадь одной карты (принятая)", symbol: "F карты",
+      formula: "F карты = max(F/n карт, F об)",
+      substitution: volGoverns ? `определяет объём осадка: ${f0(g.areaVol)} м²` : `определяет нагрузка: ${f0(g.areaF / g.cards)} м²`,
+      value: f0(Math.max(g.areaF / g.cards, g.areaVol)), unit: "м²", ref: "",
+    },
+    {
+      kind: "calc", what: "Ширина карты", symbol: "B",
+      formula: "B = min(B max, √(F карты / 1,25)), не менее 3 м",
+      substitution: `B = √(${f0(Math.max(g.areaF / g.cards, g.areaVol))} / 1,25) = ${B.toFixed(2)} м`,
+      value: f0(g.cardB), unit: "мм", ref: `${kmkRef("6.398")}: отношение сторон 1,25, ширина не более ${p.maxCardWidthM} м (принято по практике для крупных ОС); округление до 500 мм`,
+    },
+    {
+      kind: "check", what: "Проверка ширины карты",
+      formula: `B ≤ ${p.maxCardWidthM} м`,
+      substitution: `B = ${(g.cardB / 1000).toFixed(2)} м`,
+      value: widthOk ? "выполняется" : "НЕ выполняется",
+      ref: kmkRef("6.398"),
+    },
+    {
+      kind: "calc", what: "Длина карты", symbol: "L",
+      formula: "L = F карты / B",
+      substitution: `L = ${f0(Math.max(g.areaF / g.cards, g.areaVol))} / ${B.toFixed(2)}`,
+      value: f0(g.cardL), unit: "мм", ref: "округление до 500 мм",
+    },
+    {
+      kind: "calc", what: "Высота валика над дном карты", symbol: "H вал",
+      formula: "H вал = (h + 0,3) · 1000",
+      substitution: `H вал = (${f1(p.workingDepthM)} + 0,3) · 1000`,
+      value: f0(g.bermH), unit: "мм", ref: kmkRef("6.399"),
+    },
+    {
+      kind: "calc", what: "Ширина валика по подошве", symbol: "B осн",
+      formula: "B осн = B верх + 2 · m · H вал",
+      substitution: `B осн = ${g.bermTop} + 2 · ${p.bermSlope} · ${f0(g.bermH)}`,
+      value: f0(g.bermBase), unit: "мм", ref: `ширина поверху ${p.bermTopM} м — ${kmkRef("6.399")}; заложение откосов 1:${p.bermSlope} — принято по практике`,
+    },
+    {
+      kind: "calc", what: "Число дренажных траншей на карту", symbol: "n др",
+      formula: "n др = ⌈B / l др⌉",
+      substitution: `n др = ⌈${f0(g.cardB)} / (${f1(p.drainSpacingM)} · 1000)⌉`,
+      value: String(g.drains), unit: "шт.", ref: kmkRef("6.400"),
+    },
+    {
+      kind: "calc", what: "Габарит площадок по подошве валиков",
+      formula: "W = n стб · B + (n стб+1) · B осн; L габ = n ряд · L + (n ряд+1) · B осн + b лотка",
+      substitution: `W = ${g.cols} · ${f0(g.cardB)} + ${g.cols + 1} · ${f0(g.bermBase)}; L = ${g.rows} · ${f0(g.cardL)} + ${g.rows + 1} · ${f0(g.bermBase)} + ${g.channelW}`,
+      value: `${f0(g.W)} × ${f0(g.L)}`, unit: "мм", ref: "разводящий лоток 600 мм между рядами карт — принято по практике",
+    },
+    {
+      kind: "calc", what: "Отметки: дно карты / осадок / верх валика / дно лотка / выпуск дренажа",
+      formula: "осадок = дно + h; верх = дно + H вал; лоток = дно + h + 0,35; выпуск = дно − 0,6 − 0,03·L − 0,2",
+      substitution: `дно = ${g.bottom.toFixed(3)} м (0.000 — принято, уточняется по УГВ, ${kmkRef("6.397")})`,
+      value: `${g.bottom.toFixed(3)} / ${g.sludge.toFixed(3)} / +${g.top.toFixed(3)} / ${g.channel.toFixed(3)} / ${g.drainOut.toFixed(3)}`,
+      unit: "м", ref: "0.000 — планировочная отметка площадки",
+    },
+  ];
+  return steps;
 }
 
 function fmtE(v: number): string {
@@ -208,7 +347,7 @@ function fmtE(v: number): string {
  * ЧЕРТЁЖ
  * ================================================================== */
 
-function drawBeds(sheet: Sheet, input: DrawingInput, p: SludgeBedsParams, g: SludgeBedsGeometry) {
+function drawBeds(sheet: Sheet, input: DrawingInput, p: SludgeBedsParams, g: SludgeBedsGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -319,6 +458,10 @@ function drawBeds(sheet: Sheet, input: DrawingInput, p: SludgeBedsParams, g: Slu
   sheet.note(`Нагрузка ${g.loadBase}×${g.climate} = ${g.load.toFixed(0)} кг/(м²·год) (табл. 71, черт. 3 — Ташкент, принято); требуемая площадь ${g.areaF.toFixed(0)} м² по ф. (137); размер карты определён ${g.areaVol > g.areaF / g.cards ? "3-суточным объёмом ила" : "площадью по нагрузке"}.`);
   sheet.note(`Основание — асфальтобетон 50 мм по щебню 150 мм; дренаж — траншеи ${g.drainW} мм со щебнем 2–6 мм и трубами DN100, глубина 0,6 м, уклон 3 %, через ${p.drainSpacingM} м (п. 6.400); иловая вода — в голову сооружений (п. 6.401).`);
   sheet.note(`Отметки: дно карт ${fmtE(g.bottom)}, осадок ${fmtE(g.sludge)}, верх валиков ${fmtE(g.top)}, дно лотка ${fmtE(g.channel)}, выпуск дренажа ${fmtE(g.drainOut)}. УГВ и тип основания — по изысканиям (п. 6.397).`);
+  /* ведомость расчёта — в свободном поле под разрезами и изометрией */
+  const calcY = Math.min(sy2, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "дно карты, лоток" },
     { layer: "THIN", text: "бровки и подошва валиков" },

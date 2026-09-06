@@ -20,10 +20,13 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { DISINFECTION, TERTIARY_FILTERS, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { construction, constructionNote, TANK_SUPPLY } from "../core/construction";
 import { dnFor } from "./mbr";
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
 
 export type UvParams = {
   /** дисковые фильтры перед УФ: авто — нет при MBR */
@@ -197,13 +200,126 @@ export function uvModel(input: DrawingInput, overrides: Partial<UvParams> = {}):
       `Потери напора ${g.headLoss.toFixed(2)} м: УФ ${p.uvLossM} м${g.filters ? `, фильтр ${p.filterLossM} м` : ""}, обвязка 0,1 м — по паспортам/практике. Ось трубопроводов ${fmtE(g.pipe)}, плита ${fmtE(g.slab)}, мостик ${fmtE(g.slab + g.walkH / 1000)} (практика, по образцу NOD C-01008).`,
     ],
     headLoss: g.headLoss,
-    draw: (sheet) => drawUv(sheet, input, p, g),
+    calc: uvCalc(input, p, g),
+    draw: (sheet) => drawUv(sheet, input, p, g, model),
   };
   return model;
 }
 
 function fmtE(v: number): string {
   return (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(3);
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+function uvCalc(input: DrawingInput, p: UvParams, g: UvGeometry): CalcStep[] {
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Расчётный расход сточных вод (среднесуточный)", symbol: "Q", value: f0(input.q), unit: "м³/сут", ref: "анкета объекта" },
+    { kind: "input", what: "Максимальный часовой расход", symbol: "q max", value: f1(input.qMaxH), unit: "м³/ч", ref: kmkRef("2.7", "табл. 2") },
+    { kind: "input", what: "Доза УФ-облучения", symbol: "D", value: f0(p.doseMJcm2), unit: "мДж/см²", ref: `${DISINFECTION.uvAllowed.ref} допускает УФ, дозу не нормирует — принято по практике (lib/assumptions uvDose)` },
+    { kind: "input", what: "Резерв УФ-установок", symbol: "n рез", value: `${p.uvReserve}`, unit: "шт.", ref: "практика, ҚМҚ 2.04.03-19 не нормирует" },
+    ...(g.filters
+      ? [{ kind: "input" as const, what: "Тонкость фильтрации дисковых фильтров", symbol: "d ф", value: f0(p.filterMicron), unit: "мкм", ref: "практика (аналог барабанных сеток, ҚМҚ 2.04.03-19 не нормирует размер ячейки)" }]
+      : []),
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc",
+      what: "Подбор типоразмера УФ-установки",
+      symbol: "q УФ",
+      formula: "q УФ ≥ q max, ближайший больший из ряда 15/30/60/120/250/500/1000 м³/ч",
+      substitution: `q УФ ≥ ${f1(input.qMaxH)}`,
+      value: f0(g.uv.q),
+      unit: "м³/ч",
+      ref: "паспортный ряд поточных УФ-установок — практика, ҚМҚ 2.04.03-19 не нормирует",
+    },
+    ...(g.filters && g.filter
+      ? [{
+          kind: "calc" as const,
+          what: "Подбор типоразмера дискового фильтра",
+          symbol: "q ф",
+          formula: "q ф ≥ q max, ближайший больший из ряда 30/60/120/250/500 м³/ч",
+          substitution: `q ф ≥ ${f1(input.qMaxH)}`,
+          value: f0(g.filter.q),
+          unit: "м³/ч",
+          ref: "паспортный ряд дисковых фильтров — практика",
+        }]
+      : []),
+    {
+      kind: "calc",
+      what: "Число линий (1 рабочая + резерв)",
+      symbol: "n",
+      formula: "n = 1 + n рез",
+      substitution: `n = 1 + ${p.uvReserve}`,
+      value: String(g.lines),
+      unit: "шт.",
+      ref: "резерв и байпас — практика, ҚМҚ 2.04.03-19 не нормирует",
+    },
+    {
+      kind: "calc",
+      what: "Диаметр обвязки (вход/выход)",
+      symbol: "DN",
+      formula: "d = √(4·q max / (3600·v·π)), v = 1,0 м/с",
+      substitution: `d = √(4·${f1(input.qMaxH)} / (3600·1,0·π))`,
+      value: `DN${g.dn}`,
+      unit: "",
+      ref: "ряд DN по ГОСТ, скорость 1,0 м/с — практика",
+    },
+    {
+      kind: "calc",
+      what: "Длина плиты площадки",
+      symbol: "L",
+      formula: "L = x вход(800) + 600 + [L ф + 600] + L УФ + 600 + 800, округление вверх до 100 мм",
+      substitution: `L = 800 + 600${g.filter ? ` + ${g.filter.L} + 600` : ""} + ${g.uv.L} + 600 + 800`,
+      value: f0(g.L),
+      unit: "мм",
+      ref: "компоновка вдоль потока — практика",
+    },
+    {
+      kind: "calc",
+      what: "Шаг линий по ширине площадки",
+      symbol: "t",
+      formula: "t = max(1200; W ф + 600; DN УФ + 800)",
+      substitution: `t = max(1200; ${g.filter ? `${g.filter.W} + 600` : "—"}; ${g.uv.dn} + 800)`,
+      value: f0(Math.max(1200, (g.filter?.W ?? 0) + 600, g.uv.dn + 800)),
+      unit: "мм",
+      ref: "компоновка оборудования по ширине — практика",
+    },
+    {
+      kind: "calc",
+      what: "Ширина плиты площадки",
+      symbol: "W",
+      formula: "W = y мостик + b мостик + 300, округление вверх до 100 мм",
+      substitution: `W = ${f0(g.yWalk)} + ${p.walkwayMm} + 300`,
+      value: f0(g.W),
+      unit: "мм",
+      ref: "мостик обслуживания шириной 800 мм с ограждением — практика, по образцу NOD C-01008",
+    },
+    {
+      kind: "calc",
+      what: "Отметка оси трубопроводов",
+      symbol: "H тр",
+      formula: "H тр = H плиты + h ось",
+      substitution: `H тр = ${f1(g.slab)} + ${f1(p.pipeAxisM)}`,
+      value: fmtE(g.pipe),
+      unit: "м",
+      ref: "ось трубопроводов над плитой — практика",
+    },
+    {
+      kind: "calc",
+      what: "Потери напора на площадке",
+      symbol: "h пот",
+      formula: `h пот = h УФ${g.filters ? " + h ф" : ""} + h обв`,
+      substitution: `h пот = ${p.uvLossM}${g.filters ? ` + ${p.filterLossM}` : ""} + 0,1`,
+      value: f1(g.headLoss),
+      unit: "м",
+      ref: "паспорт оборудования (УФ, фильтр) + обвязка 0,1 м — практика",
+    },
+  ];
+  return steps;
 }
 
 /* ==================================================================
@@ -219,7 +335,7 @@ function valvePlan(sheet: Sheet, x: number, y: number, dn: number) {
   d.line(x - s * 0.5, y + s * 1.2, x + s * 0.5, y + s * 1.2, "EQUIP");
 }
 
-function drawUv(sheet: Sheet, input: DrawingInput, p: UvParams, g: UvGeometry) {
+function drawUv(sheet: Sheet, input: DrawingInput, p: UvParams, g: UvGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -326,6 +442,10 @@ function drawUv(sheet: Sheet, input: DrawingInput, p: UvParams, g: UvGeometry) {
     : `Доочистка фильтрами не требуется: на УФ поступает пермеат MBR без взвеси.`);
   sheet.note(`Обвязка DN${dn} на опорах, ось ${fmtE(g.pipe)}; плита ${g.L}×${g.W}×${g.slabMm} мм на отм. ${fmtE(g.slab)}; мостик ${p.walkwayMm} мм с ограждением 1100 и лестницей (по образцу NOD C-01008). Потери на площадке ${g.headLoss.toFixed(2)} м.`);
   sheet.note(`УФ-установки${g.filters ? ", фильтры" : ""}, арматура, расходомер, шкафы — поставка; обвязка, опоры, мостик — изготовление SUVSANOAT; плита — ж/б подрядчика.`);
+  /* ведомость расчёта — в свободном поле под разрезами/изометрией */
+  const calcY = Math.min(sy, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "плита, опоры" },
     { layer: "EQUIP", text: g.filters ? "УФ-установки, фильтры, арматура" : "УФ-установки, арматура" },

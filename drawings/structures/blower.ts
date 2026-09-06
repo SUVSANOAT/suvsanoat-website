@@ -22,8 +22,8 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
-import { PUMP_STATIONS, kmkRef } from "../../norms/kmk-2-04-03-19";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
+import { EQUALIZATION, PUMP_STATIONS, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { mbrDefaults } from "./mbr";
 import { equalDefaults, equalGeometry, dnForAir } from "./equal";
 
@@ -254,8 +254,9 @@ export function blowerModel(input: DrawingInput, overrides: Partial<BlowerParams
       `Фильтры всасывающие: ${g.filtersTotal} шт. — по одному на агрегат и 1 резервный (${kmkRef("5.32")}). Электроснабжение I категории — перерыв подачи воздуха не допускается (${PUMP_STATIONS.blowerStationCategory.ref}).`,
       `Компоновка: проходы между агрегатами и вдоль стен ${p.aisleMm} мм (задание ≥ 1 м; практика), ${g.housing === "building" ? `здание ${g.Lout}×${g.Wout} мм, h ${p.clearHeightM} м, ворота 2,4×2,4 м под вынос агрегата` : `${g.housing === "container" ? "утеплённый контейнер" : "навес"} ${g.Lout}×${g.Wout} мм на раме SUVSANOAT`}; агрегаты на фундаментных блоках 300 мм с виброопорами (паспорт). Типоразмеры агрегатов — по каталогам производителей (практика).`,
     ],
+    calc: blowerCalc(input, p, g),
     headLoss: 0,
-    draw: (sheet) => drawBlower(sheet, input, p, g),
+    draw: (sheet) => drawBlower(sheet, input, p, g, model),
   };
   return model;
 }
@@ -265,10 +266,187 @@ function fmtE(v: number): string {
 }
 
 /* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function blowerCalc(input: DrawingInput, p: BlowerParams, g: BlowerGeometry): CalcStep[] {
+  const mbr = /mbr|мембран/i.test(input.tech);
+  const eq = p.includeEqualization ? equalGeometry(input, equalDefaults(input)) : null;
+  const qTech = input.air + (eq?.airM3H ?? 0);
+  const techGroup = g.groups[0];
+  const scourGroup = g.groups[1];
+  const qTotal = g.groups.reduce((s, gr) => s + gr.qM3H, 0);
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Расход технологического воздуха на аэрацию", symbol: "q air", value: f0(input.air), unit: "м³/ч", ref: kmkRef("6.156", "ф. (70)") },
+    ...(eq
+      ? ([
+          { kind: "input", what: "Расход воздуха на барботаж усреднителя", symbol: "q барб", value: f0(eq.airM3H), unit: "м³/ч", ref: EQUALIZATION.bubblerIntensity.ref } as CalcStep,
+        ])
+      : []),
+    { kind: "input", what: "Глубина погружения аэраторов (= рабочая глубина биореактора)", symbol: "H", value: f1(p.diffuserDepthM), unit: "м", ref: "ҚМҚ 2.04.03-19 не нормирует, принято по расчёту биологической ступени" },
+    { kind: "input", what: "Потери давления в аэраторах", symbol: "Δp аэр", value: f1(p.diffuserLossKPa), unit: "кПа", ref: `${PUMP_STATIONS.diffuserLossKPa.ref}: мелкопузырчатые ≤ 7` },
+    { kind: "input", what: "Потери давления в воздуховодах и арматуре", symbol: "Δp тр", value: f1(p.pipingLossKPa), unit: "кПа", ref: "ҚМҚ 2.04.03-19 не нормирует, принято по практике" },
+    { kind: "input", what: "Скорость воздуха в коллекторе", symbol: "v", value: f1(p.ductVelocity), unit: "м/с", ref: `${kmkRef("5.33")}: не более 40 м/с (принято 10–15, практика)` },
+    { kind: "input", what: "КПД воздуходувного агрегата", symbol: "η", value: p.efficiency.toFixed(2), unit: "", ref: "ҚМҚ 2.04.03-19 не нормирует, принято по практике" },
+    ...(mbr
+      ? ([
+          { kind: "input", what: "Площадь мембран", symbol: "F мем", value: f0(mbrDefaults(input).membraneAreaM2), unit: "м²", ref: "расчёт MBR (см. лист «Мембранный биореактор»)" },
+          { kind: "input", what: "Удельный расход воздуха на продувку мембран", symbol: "q уд", value: p.scourM3PerM2H.toFixed(2), unit: "м³/(м²·ч)", ref: "паспорт производителя мембран, ҚМҚ 2.04.03-19 не нормирует" },
+        ] as CalcStep[])
+      : []),
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc",
+      what: "Расход технологического воздуха (аэрация + барботаж усреднителя)",
+      symbol: "q тех",
+      formula: eq ? "q тех = q air + q барб" : "q тех = q air",
+      substitution: eq ? `q тех = ${f0(input.air)} + ${f0(eq.airM3H)}` : `q тех = ${f0(input.air)}`,
+      value: f0(qTech),
+      unit: "м³/ч",
+      ref: "",
+    },
+    {
+      kind: "calc",
+      what: "Давление технологической группы",
+      symbol: "p тех",
+      formula: "p тех = 9,81 · H + Δp аэр + Δp тр",
+      substitution: `p тех = 9,81 · ${f1(p.diffuserDepthM)} + ${f1(p.diffuserLossKPa)} + ${f1(p.pipingLossKPa)}`,
+      value: f1(techGroup.pressureKPa),
+      unit: "кПа",
+      ref: "",
+    },
+    ...(mbr && scourGroup
+      ? ([
+          {
+            kind: "calc",
+            what: "Расход воздуха на продувку мембран",
+            symbol: "q скор",
+            formula: "q скор = ⌈F мем · q уд⌉",
+            substitution: `q скор = ⌈${f0(mbrDefaults(input).membraneAreaM2)} · ${p.scourM3PerM2H}⌉`,
+            value: f0(scourGroup.qM3H),
+            unit: "м³/ч",
+            ref: "",
+          },
+          {
+            kind: "calc",
+            what: "Давление группы продувки мембран",
+            symbol: "p скор",
+            formula: "p скор = 9,81 · H + Δp аэр(средн.) + Δp тр",
+            substitution: `p скор = 9,81 · ${f1(p.diffuserDepthM)} + ${PUMP_STATIONS.diffuserLossKPa.medium} + ${f1(p.pipingLossKPa)}`,
+            value: f1(scourGroup.pressureKPa),
+            unit: "кПа",
+            ref: `${PUMP_STATIONS.diffuserLossKPa.ref} — среднепузырчатые аэраторы продувки`,
+          },
+        ] as CalcStep[])
+      : []),
+    {
+      kind: "calc",
+      what: "Суммарная подача станции",
+      symbol: "Q ст",
+      formula: mbr ? "Q ст = q тех + q скор" : "Q ст = q тех",
+      substitution: mbr && scourGroup ? `Q ст = ${f0(qTech)} + ${f0(scourGroup.qM3H)}` : `Q ст = ${f0(qTech)}`,
+      value: f0(qTotal),
+      unit: "м³/ч",
+      ref: "",
+    },
+    {
+      kind: "check",
+      what: "Число рабочих агрегатов в группе не менее 2 при подаче станции > 5000 м³/ч",
+      formula: "n раб ≥ 2 при Q ст > 5000 м³/ч",
+      substitution: `Q ст = ${f0(qTotal)} м³/ч`,
+      value: qTotal > 5000 && techGroup.work < 2 ? `НЕ выполняется (n раб = ${techGroup.work})` : `выполняется (n раб = ${techGroup.work}${qTotal > 5000 ? "" : ", требование не наступает"})`,
+      ref: kmkRef("5.29"),
+    },
+    ...g.groups.map(
+      (gr): CalcStep => ({
+        kind: "calc",
+        what: `Резерв агрегатов группы «${gr.name}»`,
+        symbol: "n рез",
+        formula: "n рез = 1 при n раб ≤ 3, иначе 2",
+        substitution: `n раб = ${gr.work}`,
+        value: String(gr.reserve),
+        unit: "шт.",
+        ref: `${PUMP_STATIONS.blowerReserve.ref}: ${PUMP_STATIONS.blowerReserve.rule}`,
+      }),
+    ),
+    ...g.groups.map(
+      (gr): CalcStep => ({
+        kind: "calc",
+        what: `Подача одного агрегата группы «${gr.name}»`,
+        symbol: "q аг",
+        formula: "q аг = q группы / n раб",
+        substitution: `q аг = ${f0(gr.qM3H)} / ${gr.work}`,
+        value: f0(gr.qM3H / gr.work),
+        unit: "м³/ч",
+        ref: "типоразмер — по каталогу производителя, практика",
+      }),
+    ),
+    ...g.groups.map(
+      (gr): CalcStep => ({
+        kind: "calc",
+        what: `Потребляемая мощность агрегата группы «${gr.name}»`,
+        symbol: "N",
+        formula: "N = (q аг / 3600) · p / η",
+        substitution: `N = (${f0(gr.qM3H / gr.work)} / 3600) · ${f1(gr.pressureKPa)} / ${p.efficiency.toFixed(2)}`,
+        value: gr.unitKw.toFixed(1),
+        unit: "кВт",
+        ref: "",
+      }),
+    ),
+    {
+      kind: "calc",
+      what: "Диаметр общего напорного коллектора",
+      symbol: "DN",
+      formula: "DN по Q ст при скорости v",
+      substitution: `d = √(4 · ${f0(qTotal)} / 3600 / ${p.ductVelocity} / π) · 1000`,
+      value: `DN${g.headerDn}`,
+      unit: "мм",
+      ref: `ряд DN по ГОСТ; скорость ${p.ductVelocity} м/с — практика`,
+    },
+    ...g.groups.map(
+      (gr): CalcStep => ({
+        kind: "check",
+        what: `Скорость в отводе группы «${gr.name}» не более 40 м/с`,
+        formula: "v = q / (3600 · π · (DN/2000)²) ≤ 40 м/с",
+        substitution: `v = ${f0(gr.qM3H)} / (3600 · π · (${gr.dn}/2000)²) = ${gr.velocity.toFixed(1)} м/с`,
+        value: gr.velocity <= 40 ? "выполняется" : "НЕ выполняется",
+        ref: kmkRef("5.33"),
+      }),
+    ),
+    {
+      kind: "calc",
+      what: "Число фильтров всасывающих",
+      symbol: "n ф",
+      formula: "n ф = n агрегатов + 1 резервный",
+      substitution: `n ф = ${g.units.length} + 1`,
+      value: String(g.filtersTotal),
+      unit: "шт.",
+      ref: kmkRef("5.32"),
+    },
+    {
+      kind: "calc",
+      what: "Суммарная мощность рабочих агрегатов",
+      symbol: "ΣN",
+      formula: "ΣN = Σ (n раб · N агрегата)",
+      substitution: g.groups.map((gr) => `${gr.work}·${gr.unitKw.toFixed(1)}`).join(" + "),
+      value: g.totalKw.toFixed(1),
+      unit: "кВт",
+      ref: `электроснабжение категории ${PUMP_STATIONS.blowerStationCategory.value} — ${PUMP_STATIONS.blowerStationCategory.ref}`,
+    },
+  ];
+  return steps;
+}
+
+/* ==================================================================
  * ЧЕРТЁЖ
  * ================================================================== */
 
-function drawBlower(sheet: Sheet, input: DrawingInput, p: BlowerParams, g: BlowerGeometry) {
+function drawBlower(sheet: Sheet, input: DrawingInput, p: BlowerParams, g: BlowerGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -390,6 +568,10 @@ function drawBlower(sheet: Sheet, input: DrawingInput, p: BlowerParams, g: Blowe
   sheet.note(`Коллектор DN${g.headerDn}, скорость ${p.ductVelocity} м/с (п. 5.33 — до 40 м/с); фильтры всасывающие ${g.filtersTotal} шт. с резервом (п. 5.32); потери в аэраторах ${p.diffuserLossKPa} кПа (п. 5.34).`);
   sheet.note(`${building ? `Здание ${g.Lout}×${g.Wout} мм, h ${p.clearHeightM} м, каркас, сэндвич-панели, ворота ${g.gate.w}×${g.gate.h}` : `${g.housing === "container" ? "Контейнер" : "Навес"} ${g.Lout}×${g.Wout} мм на раме SUVSANOAT`}; проходы ≥ ${p.aisleMm} мм; агрегаты на фундаментных блоках с виброопорами. Электроснабжение I категории (табл. 20).`);
   sheet.note(`Агрегаты, фильтры, шкаф ЧРП, вентиляция — поставка; коллектор и ${building ? "" : "рама/навес, "}обвязка — изготовление SUVSANOAT. Типоразмеры — по каталогу производителя (практика).`);
+  /* ведомость расчёта — в свободном поле под разрезами */
+  const calcY = Math.min(sy, cy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: building ? "стены, колонны, фундаменты" : "рама, колонны навеса" },
     { layer: "EQUIP", text: "воздуходувки, фильтры, арматура" },

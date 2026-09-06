@@ -28,7 +28,7 @@
 import { isoPoint, type Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { AEROTANK, PRIMARY_SETTLING, SLUDGE, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
 
@@ -253,10 +253,172 @@ export function thickenerModel(input: DrawingInput, overrides: Partial<Thickener
       `Угол конуса днища ${p.coneAngleDeg}° (${PRIMARY_SETTLING.hopperWallAngleDeg.ref}: не менее 50°); выпуск ила под гидростатическим напором ${p.sludgeHeadM} м (${kmkRef("6.350")}); иловая труба DN${dnSludge} (${PRIMARY_SETTLING.sludgePipeMinMm.ref}).`,
       `Глубина зоны отстаивания ${g.settlingDepthM} м — рабочая глубина ёмкостей ${construction().waterDepthM} м (construction()), ограниченная сверху диапазоном ${PRIMARY_SETTLING.table31.ref} для ${g.kind === "vertical" ? "вертикальных отстойников (2,7–3,8 м)" : "радиальных отстойников (1,5–5 м)"}; борт ${p.freeboardM} м (${PRIMARY_SETTLING.freeboardM.ref}), минимальный внутренний диаметр ${p.minDiameterMm} мм (опалубка и доступ для обслуживания монолитного резервуара), центральная труба DN${g.dCenter} — принято по практике.`,
     ],
+    calc: thickenerCalc(input, p, g),
     headLoss: 0.3,
-    draw: (sheet) => drawThickener(sheet, input, p, g),
+    draw: (sheet) => drawThickener(sheet, input, p, g, model),
   };
   return model;
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
+
+function thickenerCalc(input: DrawingInput, p: ThickenerParams, g: ThickenerGeometry): CalcStep[] {
+  const t = SLUDGE.thickener;
+  const tanA = Math.tan((p.coneAngleDeg * Math.PI) / 180);
+  const hRange = g.kind === "vertical" ? PRIMARY_SETTLING.table31.vertical.hSetM : PRIMARY_SETTLING.table31.radial.hSetM;
+  const inRange = g.settlingDepthM >= hRange[0] - 1e-6 && g.settlingDepthM <= hRange[1] + 1e-6;
+  const R = g.D / 2 / 1000, r0 = g.d0 / 2 / 1000;
+  const vUnit = g.vCyl + g.vCone;
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Избыточный активный ил (сухое вещество)", symbol: "P ил", value: f0(input.dryKg), unit: "кг СВ/сут", ref: "расчёт биологической очистки (анкета объекта)" },
+    { kind: "input", what: "Влажность поступающего ила", symbol: "P1", value: f1(p.moistureIn), unit: "%", ref: AEROTANK.extendedAeration.ref },
+    { kind: "input", what: "Рабочая глубина зоны отстаивания (принята)", symbol: "H", value: f1(p.settlingDepthM), unit: "м", ref: "construction() — принято SUVSANOAT (единая глубина ёмкостных сооружений)" },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc", what: "Расход жидкого ила", symbol: "Q ил",
+      formula: "Q ил = P ил / (10 · (100 − P1))",
+      substitution: `Q ил = ${f0(input.dryKg)} / (10 · (100 − ${f1(p.moistureIn)}))`,
+      value: f1(g.qMud), unit: "м³/сут", ref: "перевод массы сухого вещества в объём по влажности",
+    },
+    {
+      kind: "calc", what: "Расчётный расход ила", symbol: "Q расч",
+      formula: "Q расч = Q ил · k",
+      substitution: `Q расч = ${f1(g.qMud)} · ${t.designFactor}`,
+      value: f1(g.qDesign), unit: "м³/сут", ref: kmkRef("6.352"),
+    },
+    {
+      kind: "calc", what: "Тип уплотнителя",
+      formula: "вертикальный при Q ил < 50 м³/сут, иначе радиальный",
+      substitution: `Q ил = ${f1(g.qMud)} м³/сут`,
+      value: g.kind === "vertical" ? "вертикальный" : "радиальный",
+      ref: "граница 50 м³/сут — принято по практике, ҚМҚ 2.04.03-19 не нормирует",
+    },
+    {
+      kind: "calc", what: "Продолжительность уплотнения", symbol: "T",
+      formula: g.kind === "vertical" ? "T = 6…8 ч (табл. 64)" : "T = 10…12 ч (табл. 64)",
+      substitution: "принята середина диапазона",
+      value: f1(g.hours), unit: "ч", ref: t.ref,
+    },
+    {
+      kind: "calc", what: "Влажность уплотнённого ила", symbol: "P2",
+      formula: "по табл. 64",
+      substitution: g.kind === "vertical" ? "вертикальный уплотнитель — 98,2 %" : "радиальный уплотнитель — 97,3 %",
+      value: f1(g.moistureOut), unit: "%", ref: t.ref,
+    },
+    {
+      kind: "calc", what: "Число уплотнителей", symbol: "n",
+      formula: "n ≥ 2 (оба рабочие)",
+      substitution: "принято n = 2",
+      value: String(g.units), unit: "шт.", ref: kmkRef("6.350"),
+    },
+    {
+      kind: "calc", what: "Требуемый объём уплотнителей", symbol: "W",
+      formula: "W = Q расч · T / 24",
+      substitution: `W = ${f1(g.qDesign)} · ${f1(g.hours)} / 24`,
+      value: f1(g.vNeed * g.units), unit: "м³", ref: `${kmkRef("6.352")}, ф. (125)`,
+    },
+    {
+      kind: "calc", what: "Требуемый объём одного уплотнителя", symbol: "W/n",
+      formula: "= W / n",
+      substitution: `${f1(g.vNeed * g.units)} / ${g.units}`,
+      value: f1(g.vNeed), unit: "м³", ref: "",
+    },
+    {
+      kind: "check", what: "Проверка глубины зоны отстаивания по табл. 31",
+      formula: `${hRange[0]} ≤ H ≤ ${hRange[1]} м`,
+      substitution: `H = ${f1(g.settlingDepthM)} м`,
+      value: inRange ? "выполняется" : "НЕ выполняется",
+      ref: PRIMARY_SETTLING.table31.ref,
+    },
+    {
+      kind: "check", what: "Проверка угла конуса днища",
+      formula: "α ≥ 50°",
+      substitution: `α = ${p.coneAngleDeg}°`,
+      value: p.coneAngleDeg >= 50 ? "выполняется" : "НЕ выполняется",
+      ref: PRIMARY_SETTLING.hopperWallAngleDeg.ref,
+    },
+    {
+      kind: "calc", what: "Внутренний диаметр корпуса (подбор по ряду 100/500 мм)",
+      symbol: "D",
+      formula: "наименьший D, при котором V цил + V кон ≥ W/n",
+      substitution: `при D = ${f0(g.D)} мм: ${f1(g.vCyl)} + ${f1(g.vCone)} = ${f1(vUnit)} ≥ ${f1(g.vNeed)}`,
+      value: f0(g.D), unit: "мм", ref: `не менее ${p.minDiameterMm} мм — принято по практике (доступ для обслуживания монолитного резервуара)`,
+    },
+    {
+      kind: "calc", what: "Объём цилиндрической зоны отстаивания", symbol: "V цил",
+      formula: "V = π · (D/2)² · H",
+      substitution: `V = π · ${f1(R)}² · ${f1(g.Hw / 1000)}`,
+      value: f1(g.vCyl), unit: "м³", ref: "",
+    },
+    g.kind === "vertical"
+      ? {
+          kind: "calc", what: "Объём зоны уплотнения (усечённый конус)", symbol: "V кон",
+          formula: "V = (π·h/3) · (R² + R·r0 + r0²), h = (D−d0)/2 · tg α",
+          substitution: `h = (${f0(g.D)}−${g.d0})/2 · tg${p.coneAngleDeg}° = ${f0(g.Hcone)} мм`,
+          value: f1(g.vCone), unit: "м³", ref: `d0 = ${g.d0} мм — под иловую трубу DN200 (${PRIMARY_SETTLING.sludgePipeMinMm.ref}) с запасом, принято`,
+        }
+      : {
+          kind: "calc", what: "Объём зоны уплотнения (уклон днища 0,05 + приямок)", symbol: "V кон",
+          formula: "V = V уклона (D→d приямка) + V приямка (d приямка→d0)",
+          substitution: `d приямка = ${g.dHopper} мм; h уклона = ${g.Hslope} мм; h приямка = ${g.Hcone} мм`,
+          value: f1(g.vCone), unit: "м³", ref: `уклон днища 0,05 к приямку — принято по практике; угол приямка ${p.coneAngleDeg}° (${PRIMARY_SETTLING.hopperWallAngleDeg.ref})`,
+        },
+    {
+      kind: "check", what: "Проверка объёма уплотнителей",
+      formula: "n · (V цил + V кон) ≥ W",
+      substitution: `${g.units} · ${f1(vUnit)} = ${f1(vUnit * g.units)} и W = ${f1(g.vNeed * g.units)}`,
+      value: vUnit * g.units >= g.vNeed * g.units - 1e-6 ? "выполняется" : "НЕ выполняется",
+      ref: `${kmkRef("6.352")}, ф. (125)`,
+    },
+    {
+      kind: "calc", what: "Наружный габарит корпуса", symbol: "Dout",
+      formula: "Dout = D + 2 · δ",
+      substitution: `Dout = ${f0(g.D)} + 2 · ${f0(g.wall)}`,
+      value: f0(g.Dout), unit: "мм", ref: "толщина стены δ — construction()",
+    },
+    {
+      kind: "calc", what: "Полная высота корпуса (от низа зоны уплотнения до верха борта)", symbol: "H полн",
+      formula: g.kind === "vertical" ? "H = H кон + H + h борт" : "H = H укл + H кон + H + h борт",
+      substitution: g.kind === "vertical"
+        ? `H = ${f0(g.Hcone)} + ${f0(g.Hw)} + ${f0(p.freeboardM * 1000)}`
+        : `H = ${f0(g.Hslope)} + ${f0(g.Hcone)} + ${f0(g.Hw)} + ${f0(p.freeboardM * 1000)}`,
+      value: f0(g.Htot), unit: "мм", ref: `борт ${f1(p.freeboardM)} м — ${PRIMARY_SETTLING.freeboardM.ref}`,
+    },
+    {
+      kind: "calc", what: "Уплотнённый ил (по ф. 127, в норме опечатка «100·P», применено 100−P)", symbol: "Q уп",
+      formula: "Q уп = (P ил/1000) · 100 · k / (100 − P2)",
+      substitution: `Q уп = (${f0(input.dryKg)}/1000) · 100 · ${t.designFactor} / (100 − ${f1(g.moistureOut)})`,
+      value: f1(g.qUp), unit: "м³/сут", ref: `${kmkRef("6.352")}, ф. (127)`,
+    },
+    {
+      kind: "calc", what: "Иловая вода (по ф. 128)", symbol: "Q св",
+      formula: "Q св = Q расч − Q уп",
+      substitution: `Q св = ${f1(g.qDesign)} − ${f1(g.qUp)}`,
+      value: f1(g.qSi), unit: "м³/сут", ref: `${kmkRef("6.350")}, ф. (128)`,
+    },
+    {
+      kind: "check", what: "Проверка напора выпуска уплотнённого ила",
+      formula: "h ≥ 1,0 м",
+      substitution: `h = ${p.sludgeHeadM.toFixed(2)} м`,
+      value: p.sludgeHeadM >= 1.0 - 1e-9 ? "выполняется" : "НЕ выполняется",
+      ref: kmkRef("6.350"),
+    },
+    {
+      kind: "calc", what: "Отметки: низ конуса / верх конуса / вода / верх борта / выпуск ила",
+      formula: "верх − H полн; верх − h борт; верх − h борт − h выпуска",
+      substitution: `верх = +${g.top.toFixed(3)}`,
+      value: `${g.bottom.toFixed(3)} / ${g.coneTop.toFixed(3)} / ${g.water.toFixed(3)} / +${g.top.toFixed(3)} / ${g.sludgeOut.toFixed(3)}`,
+      unit: "м", ref: "0.000 — планировочная отметка площадки",
+    },
+  ];
+  return steps;
 }
 
 /** диаметр патрубка по расходу при 1,0 м/с, мм, ряд DN */
@@ -275,7 +437,7 @@ function fmtE(v: number): string {
  * разрез 2-2 (по отводу иловой воды), изометрия
  * ================================================================== */
 
-function drawThickener(sheet: Sheet, input: DrawingInput, p: ThickenerParams, g: ThickenerGeometry) {
+function drawThickener(sheet: Sheet, input: DrawingInput, p: ThickenerParams, g: ThickenerGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -380,6 +542,10 @@ function drawThickener(sheet: Sheet, input: DrawingInput, p: ThickenerParams, g:
   sheet.note(`Расход ила ${g.qMud.toFixed(1)} м³/сут (${input.dryKg.toFixed(0)} кг СВ/сут при ${p.moistureIn} %), расчётный ×1,3 = ${g.qDesign.toFixed(1)} м³/сут; уплотнённый ил ${g.moistureOut} % — ${g.qUp.toFixed(1)} м³/сут, иловая вода ${g.qSi.toFixed(1)} м³/сут.`);
   sheet.note(`Отметки: низ конуса ${fmtE(g.bottom)}, верх конуса ${fmtE(g.coneTop)}, вода ${fmtE(g.water)}, борт ${fmtE(g.top)}; выпуск ила из камеры на отм. ${fmtE(g.sludgeOut)} — напор ${p.sludgeHeadM} м (п. 6.350).`);
   sheet.note(`Резервуар железобетонный монолитный: стены ${g.wall} мм, днище ${p.slabMm} мм, бетон ${construction().concreteGrade}; илоскрёб и задвижки — покупное оборудование; лотки, площадки и обвязка — изготовление SUVSANOAT.`);
+  /* ведомость расчёта — в свободном поле под разрезами и изометрией */
+  const calcY = Math.min(sy, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стены и днище" },
     { layer: "HATCH", text: "железобетон" },

@@ -30,9 +30,12 @@
 import type { Pt } from "../core/dxf";
 import type { Sheet } from "../core/sheet";
 import { pickScale } from "../core/sheet";
-import { roundTo, type DrawingInput, type StructureModel } from "../core/types";
+import { roundTo, type CalcStep, type DrawingInput, type StructureModel } from "../core/types";
 import { PUMP_STATIONS, TABLE_3_WATER_USE, kmkRef } from "../../norms/kmk-2-04-03-19";
 import { concreteVolume, construction, constructionNote, TANK_MATERIAL, TANK_SUPPLY } from "../core/construction";
+
+const f1 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+const f0 = (v: number) => v.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
 
 export type PumpStationParams = {
   /** станция требуется (иначе — самотёк); при отсутствии флага — по наличию "pump" в цепочке */
@@ -220,13 +223,77 @@ export function pumpStationModel(input: DrawingInput, overrides: Partial<PumpSta
       `Диаметр шахты по числу насосов и DN (практика), минимальное погружение ${p.minSubmergenceM} м — по паспорту насосов; шахта и колодец задвижек — монолитный железобетон подрядчика, насосы, решётка и автоматика — поставка; лестницы, стояк вентиляции и обвязка — изготовление SUVSANOAT.`,
     ],
     headLoss: 0,
-    draw: (sheet) => drawPumpStation(sheet, input, p, g),
+    calc: pumpStationCalc(input, p, g),
+    draw: (sheet) => drawPumpStation(sheet, input, p, g, model),
   };
   return model;
 }
 
 function lpcdRef(): string {
   return `${kmkRef("2.9", "табл. 3")}, ${TABLE_3_WATER_USE["town-under-50k"].lps[2035]} л/(чел·сут)`;
+}
+
+/* ==================================================================
+ * ВЕДОМОСТЬ РАСЧЁТА — печатается таблицей на листе
+ * ================================================================== */
+
+function pumpStationCalc(input: DrawingInput, p: PumpStationParams, g: PumpStationGeometry): CalcStep[] {
+  const lpcd = TABLE_3_WATER_USE["town-under-50k"].lps[2035];
+  const people = (input.q * 1000) / lpcd;
+  const reserveRuleOk =
+    (g.pumpsWork <= 2 && g.pumpsReserve === 1) || (g.pumpsWork >= 3 && g.pumpsReserve === (p.category === "III" ? 1 : 2));
+  const wetWellOk = g.vWork >= g.vMin5;
+  const screenBasketOk = g.screen === "basket" ? g.screeningsM3Day < 0.1 : g.screeningsM3Day >= 0.1;
+  const steps: CalcStep[] = [
+    /* ---------- исходные данные ---------- */
+    { kind: "input", what: "Расчётный расход сточных вод (среднесуточный)", symbol: "Q", value: f0(input.q), unit: "м³/сут", ref: "анкета объекта" },
+    { kind: "input", what: "Максимальный часовой расход (расчётный приток)", symbol: "q max", value: f1(g.qMaxH), unit: "м³/ч", ref: kmkRef("2.7", "табл. 2") },
+    { kind: "input", what: "Число рабочих насосов", symbol: "n раб", value: String(p.workingPumps), unit: "шт.", ref: "принято по расходу — практика" },
+    { kind: "input", what: "Категория надёжности", value: p.category, unit: "", ref: `бытовые СВ, ${p.category === "I" ? "Q > 5000 м³/сут" : "Q ≤ 5000 м³/сут"} — практика` },
+    { kind: "input", what: "Отметка лотка подводящего коллектора", symbol: "z вх", value: fmtE(p.inletInvertM), unit: "м", ref: p.inletInvertM === -2 ? "принято при отсутствии данных — практика" : "по заданию" },
+    { kind: "input", what: "Предельная частота включений насоса", symbol: "z", value: f0(p.startsPerHour), unit: "1/ч", ref: "практика, ҚМҚ 2.04.03-19 не нормирует" },
+    { kind: "input", what: "Минимальное погружение насоса", symbol: "h з", value: f1(p.minSubmergenceM), unit: "м", ref: "паспорт насоса — практика" },
+    { kind: "input", what: "Удельное водоотведение (2035 г.)", symbol: "q₀", value: f0(lpcd), unit: "л/(чел·сут)", ref: lpcdRef() },
+
+    /* ---------- расчёт ---------- */
+    {
+      kind: "calc",
+      what: "Резерв насосов",
+      symbol: "n рез",
+      formula: "n раб ≤ 2 → 1 резервный; n раб ≥ 3 → 2 (I/II кат.) или 1 (III кат.)",
+      substitution: `n раб = ${g.pumpsWork}, категория ${p.category}`,
+      value: String(g.pumpsReserve),
+      unit: "шт.",
+      ref: kmkRef("5.4", "табл. 21"),
+    },
+    { kind: "check", what: "Проверка резерва насосов по табл. 21", formula: "n рез — по правилу табл. 21", substitution: `n раб=${g.pumpsWork}, n рез=${g.pumpsReserve}, кат. ${p.category}${g.pumpsStore ? `, +${g.pumpsStore} на складе` : ""}`, value: reserveRuleOk ? "выполняется" : "НЕ выполняется", ref: kmkRef("5.4", "табл. 21") },
+    { kind: "calc", what: "Подача одного насоса", symbol: "q нас", formula: "q нас = q max / n раб", substitution: `q нас = ${f1(g.qMaxH)} / ${g.pumpsWork}`, value: f1(g.qPump), unit: "м³/ч", ref: "" },
+    { kind: "calc", what: "Напорный патрубок насоса", symbol: "DN нас", formula: "d = √(4·q нас / (3600·v·π)), v = 1,5 м/с, не менее DN80", substitution: `d = √(4·${f1(g.qPump)} / (3600·1,5·π))`, value: `DN${g.dnPump}`, unit: "", ref: "паспорт насоса, скорость 1,5 м/с — практика" },
+    { kind: "calc", what: "Диаметр напорной линии", symbol: "DN напор", formula: "d = √(4·q max / (3600·v·π)), v = 1,2 м/с, не менее DN100; линия — на 100 % расхода", substitution: `d = √(4·${f1(g.qMaxH)} / (3600·1,2·π))`, value: `DN${g.dnPress}`, unit: "", ref: kmkRef("5.8") },
+    { kind: "calc", what: "Диаметр подводящего коллектора", symbol: "DN вх", formula: "d = √(4·q max·1,4 / (3600·v·π)), v = 0,8 м/с, не менее DN150", substitution: `d = √(4·${f1(g.qMaxH)}·1,4 / (3600·0,8·π))`, value: `DN${g.dnInlet}`, unit: "", ref: kmkRef("6.14") },
+    { kind: "calc", what: "Объём резервуара по 5-минутной подаче насоса", symbol: "W₅", formula: "W₅ = (t₅ / 60) · q нас", substitution: `W₅ = (${PUMP_STATIONS.wetWellMinMinutes.value} / 60) · ${f1(g.qPump)}`, value: f1(g.vMin5), unit: "м³", ref: PUMP_STATIONS.wetWellMinMinutes.ref },
+    { kind: "calc", what: "Объём резервуара по частоте включений", symbol: "W z", formula: "W z = q нас / (4·z)", substitution: `W z = ${f1(g.qPump)} / (4·${p.startsPerHour})`, value: f1(g.vStarts), unit: "м³", ref: "практика, ҚМҚ 2.04.03-19 не нормирует" },
+    { kind: "calc", what: "Расчётный рабочий объём", symbol: "W раб", formula: "W раб = max(W₅; W z)", substitution: `W раб = max(${f1(g.vMin5)}; ${f1(g.vStarts)})`, value: f1(g.vWork), unit: "м³", ref: PUMP_STATIONS.wetWellMinMinutes.ref },
+    { kind: "check", what: "Проверка объёма приёмного резервуара по п. 5.18", formula: "W раб ≥ W₅", substitution: `${f1(g.vWork)} ≥ ${f1(g.vMin5)}`, value: wetWellOk ? "выполняется" : "НЕ выполняется", ref: PUMP_STATIONS.wetWellMinMinutes.ref },
+    { kind: "calc", what: "Внутренний диаметр шахты", symbol: "D", formula: "D = max(2000; округл. вверх n·(600 + 4·DN нас) до 500)", substitution: `D = ${g.pumpsWork + g.pumpsReserve}·(600 + 4·${g.dnPump})`, value: f0(g.D), unit: "мм", ref: "компоновка насосов по окружности — практика" },
+    { kind: "calc", what: "Рабочий слой воды (между уровнями)", symbol: "h раб", formula: "h раб = W раб / (π·D²/4), не менее 500 мм", substitution: `h раб = ${f1(g.vWork)} / (π·${f0(g.D)}²/4/10⁶)`, value: f0(g.hWork), unit: "мм", ref: "" },
+    { kind: "calc", what: "Отметка включения насоса", symbol: "z вкл", formula: "z вкл = z вх − 0,2", substitution: `z вкл = ${f1(p.inletInvertM)} − 0,2`, value: fmtE(g.start), unit: "м", ref: "практика" },
+    { kind: "calc", what: "Отметка отключения насоса", symbol: "z откл", formula: "z откл = z вкл − h раб", substitution: `z откл = ${f1(g.start)} − ${f1(g.hWork / 1000)}`, value: fmtE(g.stop), unit: "м", ref: "" },
+    { kind: "calc", what: "Отметка дна приямка", symbol: "z дно", formula: "z дно = z откл − h з", substitution: `z дно = ${f1(g.stop)} − ${p.minSubmergenceM}`, value: fmtE(g.bottom), unit: "м", ref: "минимальное погружение насоса — паспорт" },
+    { kind: "calc", what: "Отметка дна у стенки (уклон 0,1 к приямку)", symbol: "z дно,кр", formula: "z дно,кр = z дно + 0,1 · (D/2)", substitution: `z дно,кр = ${f1(g.bottom)} + 0,1 · ${f1(g.D / 2 / 1000)}`, value: fmtE(g.bottomEdge), unit: "м", ref: kmkRef("5.20") },
+    { kind: "calc", what: "Полная глубина шахты (от дна приямка до низа перекрытия)", symbol: "H шахты", formula: "H шахты = (z верх − z дно) · 1000", substitution: `H шахты = (${f1(p.topAboveGroundM)} − (${f1(g.bottom)})) · 1000`, value: f0(g.Htot), unit: "мм", ref: "" },
+    { kind: "calc", what: "Население расчётное", symbol: "N", formula: "N = Q · 1000 / q₀", substitution: `N = ${f0(input.q)} · 1000 / ${f0(lpcd)}`, value: f0(people), unit: "чел.", ref: lpcdRef() },
+    { kind: "calc", what: "Отбросы с решётки (прозоры 16–20 мм)", symbol: "W отбр", formula: "W отбр = N · a отбр / 365 / 1000", substitution: `W отбр = ${f0(people)} · ${PUMP_STATIONS.screeningsPerCapita[0].lPerPersonYear} / 365 / 1000`, value: f1(g.screeningsM3Day), unit: "м³/сут", ref: kmkRef("5.13", "табл. 23") },
+    {
+      kind: "check",
+      what: "Выбор типа задерживающего устройства по объёму отбросов",
+      formula: "< 0,1 м³/сут → корзина с ручной очисткой; ≥ 0,1 м³/сут → решётка-дробилка 1+1",
+      substitution: `W отбр = ${f1(g.screeningsM3Day)} м³/сут → принято «${g.screen === "basket" ? "корзина" : "дробилка"}»`,
+      value: screenBasketOk ? "выполняется" : "НЕ выполняется",
+      ref: PUMP_STATIONS.screenReserve.ref,
+    },
+  ];
+  return steps;
 }
 
 function dnFor(qM3H: number, v = 1.0): number {
@@ -243,7 +310,7 @@ function fmtE(v: number): string {
  * ЧЕРТЁЖ
  * ================================================================== */
 
-function drawPumpStation(sheet: Sheet, input: DrawingInput, p: PumpStationParams, g: PumpStationGeometry) {
+function drawPumpStation(sheet: Sheet, input: DrawingInput, p: PumpStationParams, g: PumpStationGeometry, model: StructureModel) {
   const d = sheet.d;
   const th = sheet.th, ts = sheet.ts;
   const f = sheet.field;
@@ -354,6 +421,10 @@ function drawPumpStation(sheet: Sheet, input: DrawingInput, p: PumpStationParams
   sheet.note(`Отметки: лоток коллектора ${fmtE(g.inletInvert)}, включение ${fmtE(g.start)}, отключение ${fmtE(g.stop)}, дно приямка ${fmtE(g.bottom)}, перекрытие ${fmtE(g.top)}; напорные линии 2×DN${g.dnPress} на глубине ${p.pressurePipeDepthM} м.`);
   sheet.note(`${g.screen === "basket" ? "Приёмная корзина с ручной очисткой (отбросы < 0,1 м³/сут, п. 5.12)" : "Решётка-дробилка 1+1 на подводящем трубопроводе (табл. 22)"}; вентиляция — стояк DN100; управление по уровню без постоянного персонала (п. 7.17).`);
   sheet.note(`Шахта и колодец задвижек — монолитный железобетон: стены ${p.wallMm} мм, днище ${p.slabMm} мм, перекрытие ${p.coverMm} мм, бетон ${construction().concreteGrade}. Насосы, решётка и автоматика — поставка; лестницы, стояк вентиляции и обвязка — изготовление SUVSANOAT. Напор насосов — по гидравлическому профилю площадки.`);
+  /* ведомость расчёта — в свободном поле под разрезами/изометрией */
+  const calcY = Math.min(sy, iy) - sheet.p(30);
+  if (model.calc) sheet.calcTable(px, calcY, model.calc);
+
   sheet.legend([
     { layer: "CONTOUR", text: "стенки шахты и колодца" },
     { layer: "HATCH", text: "железобетон, грунт" },
