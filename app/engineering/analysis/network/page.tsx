@@ -86,6 +86,7 @@ function NetworkPageContent() {
   const [pumpDn, setPumpDn] = useState("");
   const [busy, setBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false);
+  const [docBusy, setDocBusy] = useState(false);
   const [object, setObject] = useState("Канализационная сеть");
   const [fileError, setFileError] = useState("");
 
@@ -230,6 +231,32 @@ function NetworkPageContent() {
     } finally {
       setFlag(false);
     }
+  }
+
+  /** Записка включает раздел о напорном участке, только если он посчитан:
+   *  раздела «насосная станция» в записке к самотёчной сети быть не должно,
+   *  когда никакой станции нет. */
+  async function downloadNote() {
+    if (!input) return;
+    await download(
+      "/api/network-docx",
+      {
+        input,
+        object,
+        pump: pump
+          ? {
+              qLps: pumpFlow,
+              geoLiftM: Number(pumpLift.replace(",", ".")) || 0,
+              lengthM: Number(pumpLen.replace(",", ".")) || 0,
+              lines: Number(pumpLines) || 2,
+              kind: pumpKind,
+              dnMm: Number(pumpDn.replace(",", ".")) || undefined,
+            }
+          : null,
+      },
+      "SUVSANOAT_zapiska_set.docx",
+      setDocBusy,
+    );
   }
 
   async function downloadDxf() {
@@ -529,6 +556,9 @@ function NetworkPageContent() {
                 </button>
                 <button type="button" style={secondary} onClick={downloadDxf} disabled={dxfBusy}>
                   {dxfBusy ? "Строю чертежи…" : "Скачать чертежи DXF (план и профили)"}
+                </button>
+                <button type="button" style={secondary} onClick={downloadNote} disabled={docBusy}>
+                  {docBusy ? "Пишу записку…" : "Скачать пояснительную записку (Word)"}
                 </button>
                 <input
                   value={object}
