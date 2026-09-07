@@ -8,6 +8,8 @@ import { calculateReagents } from "../../../../calculations/reagents";
 import { checkOutage, groupsFromChain } from "../../../../calculations/outage";
 import { checkStructure } from "../../../../calculations/structural";
 import { calculateHvac, roomsFromChain } from "../../../../calculations/hvac";
+import { calculateSeismic, SOIL_CATEGORY } from "../../../../calculations/seismic";
+import { calculateDischarge, OUTLET_KIND, type OutletKind } from "../../../../calculations/discharge";
 import { pidSheet } from "../../../../drawings/site/pid";
 
 import { MODELS, type Model } from "../../../products/data";
@@ -696,6 +698,21 @@ function ProResultContent() {
      любого числа — расчёт всплытия тогда прямо пишет, что не выполнен,
      и это лучше, чем «проходит» при выдуманном УГВ 5 м. */
   const [gwl, setGwl] = useState<string>("");
+  /* Сейсмичность площадки. Умолчание восемь баллов — это Ташкент и
+     большая часть равнинного Узбекистана; для конкретной площадки
+     берётся по карте сейсмического районирования. */
+  const [seismic, setSeismic] = useState<7 | 8 | 9>(8);
+  const [soilCat, setSoilCat] = useState<"I" | "II" | "III">("II");
+
+  /* Данные водотока и ПДК. Умолчаний нет намеренно: расход реки берут
+     с гидропоста, ПДК — из норм для категории водоёма, фон — из
+     наблюдений. Подставить сюда «типовые» числа значит выдать
+     выдуманное условие сброса за расчётное. */
+  const [river, setRiver] = useState({ q: "", depth: "", vel: "", dist: "500", sinuosity: "1.0" });
+  const [outletKind, setOutletKind] = useState<OutletKind>("bank");
+  const [noDil, setNoDil] = useState(false);
+  const [pdk, setPdk] = useState<Record<string, string>>({});
+  const [bg, setBg] = useState<Record<string, string>>({});
   const [tOut, setTOut] = useState<string>("-12");
 
   /* Расчётная температура сточной воды из анкеты. Два разных числа:
@@ -1224,6 +1241,7 @@ function ProResultContent() {
 
   const [zipBusy, setZipBusy] = useState(false);
   const [docBusy, setDocBusy] = useState(false);
+  const [manBusy, setManBusy] = useState(false);
   const [xlsBusy, setXlsBusy] = useState(false);
   const [fileError, setFileError] = useState("");
   const [zipError, setZipError] = useState("");
@@ -1356,6 +1374,29 @@ function ProResultContent() {
       },
       `SUVSANOAT_zapiska_${Math.round(Q)}m3.docx`,
       setDocBusy,
+    );
+  }
+
+  /** Руководство по эксплуатации: записка отвечает «почему так
+   *  спроектировано», руководство — «что делать оператору в понедельник
+   *  утром». Сервер досчитывает приборы, блокировки, пуск, реагенты и
+   *  показатели сам, из тех же чисел. */
+  async function downloadManualDocx() {
+    const input = noteInput();
+    if (!input || manBusy) return;
+    await downloadBinary(
+      "/api/manual-docx",
+      {
+        note: input,
+        bod5: c.bod ?? 0,
+        ss: c.ss ?? 0,
+        ph,
+        uv: true,
+        yearKWh: calc?.power.yearly,
+        date: new Date().toLocaleDateString("ru-RU"),
+      },
+      `SUVSANOAT_rukovodstvo_${Math.round(Q)}m3.docx`,
+      setManBusy,
     );
   }
 
@@ -2361,6 +2402,252 @@ function ProResultContent() {
             );
           })()}
 
+        {/* ================= ВЫПУСК В ВОДОЁМ =================
+            Раньше программа доводила до чертежей, а на согласовании
+            человек оставался один. Требуемое качество очистки не равно
+            ПДК: сток в реке разбавляется, и во сколько раз — это
+            расчёт. Показывается только при сбросе в водоём: при сбросе
+            в канализацию условия задаёт водоканал, а не река. */}
+        {discharge?.id === "water" &&
+          (() => {
+            const num = (v: string) => {
+              const x = parseFloat(v.replace(",", "."));
+              return Number.isFinite(x) ? x : 0;
+            };
+            const ready = num(river.q) > 0 && num(river.depth) > 0 && num(river.vel) > 0;
+            const subs = KEY_ORDER.filter((k) => TARGET[k] !== undefined && num(pdk[k] ?? "") > 0).map((k) => ({
+              name: t(POLLUTANT_LABELS[k].label, language),
+              effluentMgL: TARGET[k] as number,
+              pdkMgL: num(pdk[k] ?? ""),
+              backgroundMgL: num(bg[k] ?? ""),
+            }));
+            const dc = ready
+              ? calculateDischarge({
+                  flowM3Day: Q,
+                  riverQM3s: num(river.q),
+                  riverDepthM: num(river.depth),
+                  riverVelocityMs: num(river.vel),
+                  distanceM: num(river.dist) || 500,
+                  sinuosity: num(river.sinuosity) || 1,
+                  outlet: outletKind,
+                  substances: subs,
+                  noDilutionAllowed: noDil,
+                })
+              : null;
+            const inp: React.CSSProperties = {
+              width: "100%", padding: "7px 10px", borderRadius: 8, border: `1px solid ${LINE}`,
+              background: "rgba(255,255,255,0.04)", color: "inherit", fontSize: 13,
+            };
+            const fields: [keyof typeof river, string, string][] = [
+              ["q", "Расход реки, м³/с", "95 % обеспеченности"],
+              ["depth", "Средняя глубина, м", "в расчётном створе"],
+              ["vel", "Скорость течения, м/с", "средняя"],
+              ["dist", "До расчётного створа, м", "по фарватеру"],
+              ["sinuosity", "Коэффициент извилистости", "фарватер / прямая"],
+            ];
+            return (
+              <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+                <b style={{ fontSize: 16 }}>Условия сброса в водоём</b>
+                <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 14px", lineHeight: 1.6 }}>
+                  Разбавление по методу Фролова — Родзиллера. Данные водотока берутся с гидрологического поста,
+                  ПДК — по категории водоёма, фон — по наблюдениям выше выпуска. Ничего из этого в программу
+                  не заложено: ошибка в одной цифре ПДК меняет технологию станции целиком.
+                </p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
+                  {fields.map(([key, label, hint]) => (
+                    <label key={key} style={{ fontSize: 12.5 }}>
+                      <div style={{ color: FAINT, marginBottom: 4 }}>{label}</div>
+                      <input
+                        value={river[key]}
+                        onChange={(e) => setRiver((r) => ({ ...r, [key]: e.target.value }))}
+                        inputMode="decimal"
+                        placeholder={hint}
+                        style={inp}
+                      />
+                    </label>
+                  ))}
+                  <label style={{ fontSize: 12.5 }}>
+                    <div style={{ color: FAINT, marginBottom: 4 }}>Тип выпуска</div>
+                    <select value={outletKind} onChange={(e) => setOutletKind(e.target.value as OutletKind)} style={inp}>
+                      {(Object.keys(OUTLET_KIND) as OutletKind[]).map((k) => (
+                        <option key={k} value={k}>{OUTLET_KIND[k].label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, marginBottom: 16, cursor: "pointer" }}>
+                  <input type="checkbox" checked={noDil} onChange={(e) => setNoDil(e.target.checked)} />
+                  <span>ПДК должны выполняться без учёта разбавления (рыбохозяйственный водоём, черта населённого пункта)</span>
+                </label>
+
+                <div style={{ overflowX: "auto", marginBottom: 14 }}>
+                  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                    <thead>
+                      <tr>
+                        {["Вещество", "Станция даёт", "ПДК водоёма", "Фон выше выпуска", "Допустимо на выпуске", "Вывод"].map((h) => (
+                          <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {KEY_ORDER.filter((k) => TARGET[k] !== undefined).map((k) => {
+                        const chk = dc?.substances.find((x) => x.name === t(POLLUTANT_LABELS[k].label, language));
+                        return (
+                          <tr key={k}>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{t(POLLUTANT_LABELS[k].label, language)}</td>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>{TARGET[k]} мг/л</td>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                              <input value={pdk[k] ?? ""} onChange={(e) => setPdk((m) => ({ ...m, [k]: e.target.value }))} inputMode="decimal" placeholder="—" style={{ ...inp, width: 90 }} />
+                            </td>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                              <input value={bg[k] ?? ""} onChange={(e) => setBg((m) => ({ ...m, [k]: e.target.value }))} inputMode="decimal" placeholder="—" style={{ ...inp, width: 90 }} />
+                            </td>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>{chk ? `${chk.allowedMgL} мг/л` : "—"}</td>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", color: chk ? (chk.ok ? "#9ccc65" : "#ffb74d") : FAINT, lineHeight: 1.5 }}>
+                              {chk ? chk.comment : "введите ПДК"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {dc ? (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12, marginBottom: 12 }}>
+                      {[
+                        ["Расход стока", `${dc.qM3s} м³/с`],
+                        ["Коэффициент смешения γ", `${dc.gamma}`],
+                        ["Кратность разбавления", `${dc.dilution}`],
+                        ["Оголовок", `DN ${dc.outletDnMm}, ${dc.outletVelocityMs} м/с`],
+                      ].map(([k, v]) => (
+                        <div key={k} style={{ fontSize: 13 }}>
+                          <div style={{ color: FAINT, fontSize: 11 }}>{k}</div>
+                          <b style={{ fontSize: 16 }}>{v}</b>
+                        </div>
+                      ))}
+                    </div>
+                    {dc.warnings.map((w) => (
+                      <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+                    ))}
+                    {dc.assumptions.map((s) => (
+                      <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
+                    ))}
+                  </>
+                ) : (
+                  <p style={{ fontSize: 12.5, color: "#ffb74d", margin: 0, lineHeight: 1.6 }}>
+                    Расход, глубина и скорость водотока не заданы — разбавление не посчитано. Эти три числа берутся
+                    с гидрологического поста по расчётному водотоку; без них условие сброса определить нельзя, и
+                    подставлять вместо них правдоподобные значения я не буду.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+        {/* ================= СЕЙСМИКА =================
+            Узбекистан — сейсмический район, и до сих пор во всём
+            расчёте слово «сейсмичность» стояло только в перечне
+            исходных данных. Вода в ёмкости при толчке ведёт себя не
+            как груз: нижний слой бьёт вместе со стеной, верхний
+            качается сам. Это две разные нагрузки, а не коэффициент. */}
+        {calc.civil.basins.length > 0 &&
+          (() => {
+            const big = [...calc.civil.basins].sort((x, y) => y.volume - x.volume)[0];
+            const sq = calculateSeismic({
+              intensity: seismic,
+              soil: soilCat,
+              L: Math.max(big.L, big.B),
+              B: Math.min(big.L, big.B),
+              hWater: big.Hwork,
+              hWall: big.Hfull,
+              wallMm: a.wallThickness,
+              equipmentKg: 1200,
+              equipmentCgM: 0.9,
+              equipmentBaseM: 1.0,
+            });
+            const sel: React.CSSProperties = {
+              padding: "7px 10px", borderRadius: 8, border: `1px solid ${LINE}`,
+              background: "rgba(255,255,255,0.04)", color: "inherit", fontSize: 13,
+            };
+            return (
+              <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+                <b style={{ fontSize: 16 }}>Сейсмика</b>
+                <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                  Проверяется та же ёмкость — «{big.name}». Вода разделена на импульсную и конвективную части
+                  по Хаузнеру: первая бьёт вместе со стеной, вторая качается с периодом{" "}
+                  {sq.sloshPeriodS} с и приходит в стену уже после толчка.
+                </p>
+
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
+                  <label style={{ display: "inline-flex", flexDirection: "column", gap: 4, fontSize: 12.5 }}>
+                    <span style={{ color: FAINT }}>Сейсмичность площадки</span>
+                    <select value={seismic} onChange={(e) => setSeismic(Number(e.target.value) as 7 | 8 | 9)} style={sel}>
+                      <option value={7}>7 баллов</option>
+                      <option value={8}>8 баллов</option>
+                      <option value={9}>9 баллов</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "inline-flex", flexDirection: "column", gap: 4, fontSize: 12.5 }}>
+                    <span style={{ color: FAINT }}>Категория грунта</span>
+                    <select value={soilCat} onChange={(e) => setSoilCat(e.target.value as "I" | "II" | "III")} style={{ ...sel, maxWidth: 420 }}>
+                      {(["I", "II", "III"] as const).map((k) => (
+                        <option key={k} value={k}>{SOIL_CATEGORY[k].label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
+                  {[
+                    ["Расчётное ускорение", `${sq.accelG} g`],
+                    ["Вода всего", `${sq.waterT} т`],
+                    ["Импульсная часть", `${sq.impulsiveT} т, плечо ${sq.hImpulsiveM} м`],
+                    ["Конвективная часть", `${sq.convectiveT} т, плечо ${sq.hConvectiveM} м`],
+                    ["Период волны", `${sq.sloshPeriodS} с`],
+                    ["Высота волны", `${sq.waveM} м`],
+                    ["Сила от воды", `${sq.waterForceKN} кН`],
+                    ["Момент на 1 м стены", `${sq.wallMomentKNmPerM} кН·м/м`],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ fontSize: 13 }}>
+                      <div style={{ color: FAINT, fontSize: 11 }}>{k}</div>
+                      <b style={{ fontSize: 15 }}>{v}</b>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ border: `1px solid ${sq.freeboardOk ? "rgba(156,204,101,0.4)" : "rgba(255,183,77,0.45)"}`, background: sq.freeboardOk ? "rgba(156,204,101,0.06)" : "rgba(255,183,77,0.07)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 4 }}>Свободный борт против волны</div>
+                  <div style={{ fontSize: 12.5, color: sq.freeboardOk ? "#9ccc65" : "#ffb74d", lineHeight: 1.6 }}>
+                    Волна {sq.waveM} м, борт {sq.freeboardM} м —{" "}
+                    {sq.freeboardOk ? "перелива не будет." : "воду перельёт через стену."}
+                  </div>
+                </div>
+
+                {sq.anchors && (
+                  <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 12px", lineHeight: 1.6 }}>
+                    <b>Закрепление оборудования</b> (пример на 1200 кг): {sq.anchors.comment}
+                  </p>
+                )}
+
+                <b style={{ fontSize: 14, display: "block", margin: "6px 0 8px" }}>Что должно быть в проекте</b>
+                {sq.measures.map((m) => (
+                  <p key={m} style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 8px", paddingLeft: 12, borderLeft: `2px solid ${ACCENT}`, lineHeight: 1.6 }}>{m}</p>
+                ))}
+
+                {sq.warnings.map((w) => (
+                  <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+                ))}
+                {sq.assumptions.map((s) => (
+                  <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
+                ))}
+              </div>
+            );
+          })()}
+
         {/* ================= ОТОПЛЕНИЕ И ВЕНТИЛЯЦИЯ =================
             Про здания вспоминают последними, а портят они именно
             пусковой период: воздуходувная без вытяжки уходит в тепловую
@@ -2575,6 +2862,10 @@ function ProResultContent() {
           <button type="button" onClick={downloadNoteDocx} disabled={docBusy}
             style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: docBusy ? "wait" : "pointer", background: docBusy ? "#2a6d80" : "#7fb1e0", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
             {docBusy ? U.btnNoteDocxBusy : U.btnNoteDocx}
+          </button>
+          <button type="button" onClick={downloadManualDocx} disabled={manBusy}
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: manBusy ? "wait" : "pointer", background: manBusy ? "#2a6d80" : "#c9b6e8", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            {manBusy ? U.btnManualDocxBusy : U.btnManualDocx}
           </button>
           <button type="button" onClick={downloadSpecXlsx} disabled={xlsBusy}
             style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: xlsBusy ? "wait" : "pointer", background: xlsBusy ? "#2a6d80" : "#8fce9a", color: "#06232e", fontSize: 15, fontWeight: 700 }}>

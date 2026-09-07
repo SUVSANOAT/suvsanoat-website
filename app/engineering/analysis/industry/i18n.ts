@@ -72,6 +72,8 @@ export const UI = {
   backToInput: L("Назад к исходным данным", "Boshlang‘ich ma’lumotlarga qaytish", "Back to input data", "返回原始数据"),
   btnNoteDocx: L("Записка в Word", "Izohnoma Word’da", "Design note in Word", "Word 说明书"),
   btnNoteDocxBusy: L("Собираю документ…", "Hujjat tayyorlanmoqda…", "Assembling the document…", "正在生成文件…"),
+  btnManualDocx: L("Руководство по эксплуатации", "Foydalanish bo‘yicha qo‘llanma", "Operating manual in Word", "Word 运行手册"),
+  btnManualDocxBusy: L("Собираю руководство…", "Qo‘llanma tayyorlanmoqda…", "Assembling the manual…", "正在生成手册…"),
   btnSpecXlsx: L("Спецификация и объёмы в Excel", "Spetsifikatsiya va hajmlar Excel’da", "Schedule and quantities in Excel", "Excel 清单与工程量"),
   btnSpecXlsxBusy: L("Собираю книгу…", "Kitob tayyorlanmoqda…", "Building the workbook…", "正在生成工作簿…"),
   tzSection: L("ТЕХНИЧЕСКОЕ ЗАДАНИЕ ИЛИ ТЕХНИЧЕСКИЕ УСЛОВИЯ", "TEXNIK TOPSHIRIQ YOKI TEXNIK SHARTLAR", "DESIGN BRIEF OR UTILITY CONDITIONS", "设计任务书或接管技术条件"),

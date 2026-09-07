@@ -26,6 +26,7 @@ import {
 } from "../../../../calculations/network";
 import { parseKml, parseNodeTable, traceLength } from "../../../../calculations/network-input";
 import { calculatePumpMain, type PipeKind } from "../../../../calculations/pump-main";
+import { waterHammer, pumpCycling, type PipeMaterialKind } from "../../../../calculations/pump-station";
 import {
   dwgInfo,
   nodesFromPolyline,
@@ -84,6 +85,12 @@ function NetworkPageContent() {
   const [pumpKind, setPumpKind] = useState<PipeKind>("steel");
   const [pumpLines, setPumpLines] = useState("2");
   const [pumpDn, setPumpDn] = useState("");
+  /* гидроудар и число включений: то, что в pump-main оставлено с
+     пометкой «отдельная задача» */
+  const [pumpPn, setPumpPn] = useState("100");
+  const [pumpHigh, setPumpHigh] = useState("");
+  const [pumpWorkVol, setPumpWorkVol] = useState("");
+  const [pumpCount, setPumpCount] = useState("2");
   const [busy, setBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false);
   const [docBusy, setDocBusy] = useState(false);
@@ -125,6 +132,34 @@ function NetworkPageContent() {
       dnMm: Number(pumpDn.replace(",", ".")) || undefined,
     });
   }, [pumpOpen, pumpFlow, pumpLift, pumpLen, pumpKind, pumpLines, pumpDn]);
+
+  const hammer = useMemo(() => {
+    if (!pump) return null;
+    const mat: PipeMaterialKind = pumpKind === "plastic" ? "pe" : pumpKind === "castIron" ? "castIron" : "steel";
+    const high = Number(pumpHigh.replace(",", "."));
+    return waterHammer({
+      velocityMs: pump.velocity,
+      lengthM: Number(pumpLen.replace(",", ".")) || 0,
+      dnMm: pump.dnMm,
+      material: mat,
+      staticHeadM: Number(pumpLift.replace(",", ".")) || 0,
+      pumpHeadM: pump.headM,
+      pipePnM: Number(pumpPn.replace(",", ".")) || 100,
+      highPointM: Number.isFinite(high) && pumpHigh.trim() !== "" ? high : undefined,
+    });
+  }, [pump, pumpKind, pumpLen, pumpLift, pumpPn, pumpHigh]);
+
+  const cycling = useMemo(() => {
+    if (!pump) return null;
+    const wv = Number(pumpWorkVol.replace(",", "."));
+    return pumpCycling({
+      pumpM3h: pump.flowM3H,
+      motorKW: pump.motorKW,
+      workingVolumeM3: pumpWorkVol.trim() !== "" && wv > 0 ? wv : pump.wetWellM3,
+      totalVolumeM3: pump.wetWellM3,
+      pumps: Number(pumpCount) || 1,
+    });
+  }, [pump, pumpWorkVol, pumpCount]);
 
   function loadText(raw: string, kind: Mode) {
     const parsed = kind === "kml" ? parseKml(raw) : parseNodeTable(raw);
@@ -666,6 +701,77 @@ function NetworkPageContent() {
                             </table>
                           </div>
                         </>
+                      )}
+
+                      {/* ГИДРОУДАР. Напорный коллектор рвётся не от
+                          рабочего давления, а в момент, когда пропадает
+                          электричество. */}
+                      {hammer && cycling && (
+                        <div style={{ marginTop: 18, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 16 }}>
+                          <div style={{ ...sectionTitle, fontSize: 12, marginBottom: 10 }}>ГИДРАВЛИЧЕСКИЙ УДАР ПРИ ОСТАНОВКЕ НАСОСА</div>
+                          <div style={grid}>
+                            <label style={field}>
+                              <span style={fieldLabel}>Давление трубы PN, м вод. ст.</span>
+                              <input value={pumpPn} onChange={(e) => setPumpPn(e.target.value)} inputMode="decimal" style={inputStyle} />
+                              <span style={fieldHint}>PN10 = 100 м, PN16 = 160 м</span>
+                            </label>
+                            <label style={field}>
+                              <span style={fieldLabel}>Высокая точка трассы над насосом, м</span>
+                              <input value={pumpHigh} onChange={(e) => setPumpHigh(e.target.value)} inputMode="decimal" placeholder="нет" style={inputStyle} />
+                              <span style={fieldHint}>перелом профиля, где при остановке рвётся столб</span>
+                            </label>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, marginTop: 10 }}>
+                            <span>Скорость волны: <b>{hammer.waveSpeedMs} м/с</b>, фаза удара <b>{hammer.phaseS} с</b></span>
+                            <span>Прибавка по Жуковскому: <b>{hammer.joukowskyM} м</b> → наибольший напор <b style={{ color: hammer.overPressure ? "#ffb74d" : "#7ee0a1" }}>{hammer.maxHeadM} м</b> при PN {pumpPn} м</span>
+                            <span>
+                              При остановке напор у насоса падает до{" "}
+                              <b style={{ color: hammer.columnSeparation ? "#ff9d8a" : "#7ee0a1" }}>{hammer.minHeadM} м</b>
+                              {hammer.minHeadHighPointM !== undefined ? <>, в высокой точке до <b style={{ color: hammer.columnSeparation ? "#ff9d8a" : "#7ee0a1" }}>{hammer.minHeadHighPointM} м</b></> : null}
+                            </span>
+                          </div>
+                          <div style={{ marginTop: 10 }}>
+                            {hammer.protection.map((p) => (
+                              <div key={p} style={{ fontSize: 13, color: "#cfdde3", lineHeight: 1.55, paddingLeft: 10, borderLeft: "2px solid #5fb6c9", marginBottom: 8 }}>{p}</div>
+                            ))}
+                          </div>
+                          {hammer.warnings.map((w) => (
+                            <div key={w} style={{ ...warnBox, marginTop: 10 }}>{w}</div>
+                          ))}
+                          <ul style={{ ...notes, marginTop: 10 }}>
+                            {hammer.assumptions.map((a) => (
+                              <li key={a} style={{ marginBottom: 4 }}>{a}</li>
+                            ))}
+                          </ul>
+
+                          <div style={{ ...sectionTitle, fontSize: 12, margin: "18px 0 10px" }}>ЧИСЛО ВКЛЮЧЕНИЙ НАСОСА</div>
+                          <div style={grid}>
+                            <label style={field}>
+                              <span style={fieldLabel}>Рабочий объём между уровнями, м³</span>
+                              <input value={pumpWorkVol} onChange={(e) => setPumpWorkVol(e.target.value)} inputMode="decimal" placeholder={String(pump.wetWellM3)} style={inputStyle} />
+                              <span style={fieldHint}>пусто — весь объём по п. 5.18 принят рабочим</span>
+                            </label>
+                            <label style={field}>
+                              <span style={fieldLabel}>Насосов с чередованием</span>
+                              <input value={pumpCount} onChange={(e) => setPumpCount(e.target.value)} inputMode="numeric" style={inputStyle} />
+                            </label>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, marginTop: 10 }}>
+                            <span>
+                              Пусков в час при худшем притоке: <b style={{ color: cycling.ok ? "#7ee0a1" : "#ffb74d" }}>{cycling.startsPerPump}</b> на насос
+                              {" "}при допустимых <b>{cycling.allowedStarts}</b> для двигателя {pump.motorKW} кВт; цикл не короче <b>{cycling.minCycleMin} мин</b>
+                            </span>
+                            <span>Требуемый рабочий объём: <b>{cycling.requiredWorkingM3} м³</b></span>
+                          </div>
+                          {cycling.warnings.map((w) => (
+                            <div key={w} style={{ ...warnBox, marginTop: 10 }}>{w}</div>
+                          ))}
+                          <ul style={{ ...notes, marginTop: 10 }}>
+                            {cycling.assumptions.map((a) => (
+                              <li key={a} style={{ marginBottom: 4 }}>{a}</li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
 
                       {pump.warnings.map((w) => (
