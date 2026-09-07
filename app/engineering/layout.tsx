@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import EngineeringLang from "./EngineeringLang";
 
 export const metadata: Metadata = {
   title: "Инженерный подбор системы очистки сточных вод",
@@ -23,5 +24,10 @@ export default function EngineeringLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <EngineeringLang />
+      {children}
+    </>
+  );
 }

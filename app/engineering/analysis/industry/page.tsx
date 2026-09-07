@@ -21,7 +21,6 @@ import type { TechnologyCode } from "../../../../calculations/technology";
 import { BIO_TECHNOLOGIES, L, t, ui } from "./i18n";
 import type { L10n, UiStrings } from "./i18n";
 import { useLanguage } from "../../../LanguageContext";
-import LanguageSwitcher from "../../../components/LanguageSwitcher";
 import {
   DEFAULT_WATER_USE_HORIZON,
   KMK_2_04_03_19_DOC,
@@ -717,7 +716,6 @@ function IndustryContent() {
           >
             ← {U.back}
           </button>
-          <LanguageSwitcher />
         </div>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>

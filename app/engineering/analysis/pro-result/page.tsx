@@ -24,7 +24,6 @@ import { L, t, tempRegimeLine, tempWinterWarning, ui } from "../industry/i18n";
 import type { L10n, UiStrings } from "../industry/i18n";
 import type { Language } from "../../../translations";
 import { useLanguage } from "../../../LanguageContext";
-import LanguageSwitcher from "../../../components/LanguageSwitcher";
 import {
   SCALE_LABEL,
   TECHNOLOGY_CHOICES,
@@ -1584,7 +1583,6 @@ function ProResultContent() {
             style={{ border: 0, background: "transparent", color: FAINT, fontSize: 15, cursor: "pointer" }}>
             ← {U.backToInput}
           </button>
-          <LanguageSwitcher />
         </div>
 
         <div style={{ fontSize: 13, letterSpacing: "0.14em", color: ACCENT, marginBottom: 10 }}>
