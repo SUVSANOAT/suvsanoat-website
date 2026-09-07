@@ -4,6 +4,10 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { calculateOpex } from "../../../../calculations/opex";
 import { buildPid } from "../../../../calculations/pid";
+import { calculateReagents } from "../../../../calculations/reagents";
+import { checkOutage, groupsFromChain } from "../../../../calculations/outage";
+import { checkStructure } from "../../../../calculations/structural";
+import { calculateHvac, roomsFromChain } from "../../../../calculations/hvac";
 import { pidSheet } from "../../../../drawings/site/pid";
 
 import { MODELS, type Model } from "../../../products/data";
@@ -687,6 +691,13 @@ function ProResultContent() {
   const Q = parseFloat(sp.get("flow") || "0") || 0;
   const hours = Math.min(24, Math.max(1, parseFloat(sp.get("hours") || "16") || 16));
   const ph = parseFloat(sp.get("ph") || "7") || 7;
+
+  /* Отметка грунтовых вод. Умолчания у неё нет и быть не может: она
+     берётся из изысканий, а не из здравого смысла. Пустое поле честнее
+     любого числа — расчёт всплытия тогда прямо пишет, что не выполнен,
+     и это лучше, чем «проходит» при выдуманном УГВ 5 м. */
+  const [gwl, setGwl] = useState<string>("");
+  const [tOut, setTOut] = useState<string>("-12");
 
   /* Расчётная температура сточной воды из анкеты. Два разных числа:
      среднегодовая задаёт объём биологии (время аэрации по ф. (51)/(54)
@@ -2127,6 +2138,297 @@ function ProResultContent() {
 
               {pid.assumptions.map((a) => (
                 <p key={a} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{a}</p>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ================= РЕАГЕНТНОЕ ХОЗЯЙСТВО =================
+            Блок появляется только там, где реагенты действительно есть:
+            реагентная обработка, нейтрализация или обезвоживание. На
+            станции без реагентов склад и дозаторы не нужны, и рисовать
+            их «на всякий случай» — значит закладывать в проект комнату,
+            которую никто не построит. */}
+        {(calc.chain.includes("physchem") || calc.chain.includes("neutral") || calc.chain.includes("daf")) &&
+          (() => {
+            const rg = calculateReagents({
+              flowM3Day: Q,
+              hoursPerDay: 24,
+              ph,
+              flocculant: "anionic",
+              after: calc.chain.includes("daf") ? "flotation" : "settling",
+              stockDays: 30,
+            });
+            return (
+              <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+                <b style={{ fontSize: 16 }}>Реагентное хозяйство</b>
+                <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                  Коагулянт выбран по pH {ph.toFixed(1)} (п. 6.270), дозы — по табл. 61 (п. 6.269).
+                  Количества нужны для двух вещей: размера помещения реагентного хозяйства и графика поставок.
+                </p>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                    <thead>
+                      <tr>
+                        {["Реагент", "Доза, мг/л", "кг/сут", "кг/год", "Раствор, м³/сут", "Основание"].map((h) => (
+                          <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rg.lines.map((l) => (
+                        <tr key={l.name}>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.name}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.doseMgL}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.kgPerDay}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.kgPerYear.toLocaleString("ru-RU")}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{l.solutionM3Day}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>{l.basis}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12, margin: "14px 0 0" }}>
+                  {[
+                    ["Расходный бак", `${rg.dailyTankM3} м³`],
+                    ["Склад на 30 суток", `${rg.stockT} т`],
+                    ["Насос-дозатор", `${rg.dosingPumpLh} л/ч`],
+                    ["Камера хлопьеобразования", `${rg.flocChamberM3} м³ / ${rg.flocMinutes} мин`],
+                    ["Градиент перемешивания", `${rg.gradientG} с⁻¹`],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ fontSize: 13 }}>
+                      <div style={{ color: FAINT, fontSize: 11 }}>{k}</div>
+                      <b style={{ fontSize: 16 }}>{v}</b>
+                    </div>
+                  ))}
+                </div>
+                {rg.warnings.map((w) => (
+                  <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+                ))}
+                {rg.assumptions.map((a) => (
+                  <p key={a} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{a}</p>
+                ))}
+              </div>
+            );
+          })()}
+
+        {/* ================= РЕМОНТ И ПУСК =================
+            Проект принимают в работающем виде, а живёт станция в двух
+            других состояниях: когда одно сооружение выключено и когда
+            биологии ещё нет. Оба состояния должны быть в проекте
+            записаны, иначе их выясняют на площадке. */}
+        {(() => {
+          const out = checkOutage(groupsFromChain(calc.chain));
+          return (
+            <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+              <b style={{ fontSize: 16 }}>Вывод сооружения в ремонт и пусковой период</b>
+              <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                Число единиц принято минимальным по нормам — это то, что обычно ставят на станции такого
+                размера. Если в проекте секций больше, поправьте: перегрузка при выводе одной единицы
+                считается как 1/(n−1) и от числа секций зависит напрямую.
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                  <thead>
+                    <tr>
+                      {["Сооружение", "Единиц", "Перегрузка при выводе одной", "Оценка"].map((h) => (
+                        <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {out.rows.map((r) => (
+                      <tr key={r.name}>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.name}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.units}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap", color: r.ok ? "#9ccc65" : "#ffb74d" }}>
+                          {r.units > 1 ? `${r.overloadPct} %` : "работа прекращается"}
+                        </td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>{r.comment}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {out.warnings.map((w) => (
+                <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+              ))}
+
+              <b style={{ fontSize: 14, display: "block", margin: "18px 0 8px" }}>Порядок пуска</b>
+              {out.startup.map((s) => (
+                <div key={s.step} style={{ borderLeft: `2px solid ${ACCENT}`, paddingLeft: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                    {s.step} — {s.howLong}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "#cfdde3", lineHeight: 1.6 }}>{s.what}</div>
+                </div>
+              ))}
+              {out.assumptions.map((a) => (
+                <p key={a} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{a}</p>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ================= КОНСТРУКТИВ =================
+            До сих пор толщины стен и днища были приняты по практике, и
+            в примечании было честно написано, что их надо проверить.
+            Здесь проверка и делается — прежде всего на всплытие, потому
+            что пустая заглублённая ёмкость при высокой воде это понтон,
+            а не сооружение. */}
+        {calc.civil.basins.length > 0 &&
+          (() => {
+            const big = [...calc.civil.basins].sort((x, y) => y.volume - x.volume)[0];
+            const gwlNum = gwl.trim() === "" ? undefined : parseFloat(gwl.replace(",", "."));
+            const st = checkStructure({
+              L: big.L,
+              B: big.B,
+              H: big.Hfull,
+              /* низ днища от планировки: полная высота плюс толщина
+                 днища — ёмкости приняты заглублёнными полностью */
+              buryM: big.Hfull + a.slabThickness / 1000,
+              gwlM: Number.isFinite(gwlNum as number) ? (gwlNum as number) : undefined,
+              wallMm: a.wallThickness,
+              slabMm: a.slabThickness,
+              /* класс из допущений — число, а справочник знает только
+                 те классы, для которых у нас есть расчётные
+                 сопротивления; чего нет — считаем как B25 */
+              concrete:
+                a.concreteGrade >= 35 ? "B35" : a.concreteGrade >= 30 ? "B30" : a.concreteGrade >= 25 ? "B25" : "B20",
+            });
+            return (
+              <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+                <b style={{ fontSize: 16 }}>Конструктив: проверка принятых толщин</b>
+                <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                  Проверяется самая большая ёмкость — «{big.name}», {big.L} × {big.B} × {big.Hfull} м. Толщины взяты
+                  из допущений: стена {a.wallThickness} мм, днище {a.slabThickness} мм.
+                </p>
+
+                <label style={{ display: "inline-flex", flexDirection: "column", gap: 4, fontSize: 12.5, marginBottom: 14 }}>
+                  <span style={{ color: FAINT }}>Уровень грунтовых вод от планировки, м (из изысканий)</span>
+                  <input
+                    value={gwl}
+                    onChange={(e) => setGwl(e.target.value)}
+                    placeholder="не задан"
+                    inputMode="decimal"
+                    style={{ width: 180, padding: "7px 10px", borderRadius: 8, border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.04)", color: "inherit", fontSize: 13 }}
+                  />
+                </label>
+
+                <div style={{ border: `1px solid ${st.uplift.ok ? "rgba(156,204,101,0.4)" : "rgba(255,183,77,0.45)"}`, background: st.uplift.ok ? "rgba(156,204,101,0.06)" : "rgba(255,183,77,0.07)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Проверка на всплытие</div>
+                  <div style={{ fontSize: 12.5, color: "#cfdde3", lineHeight: 1.6 }}>
+                    Выталкивающая сила {st.uplift.buoyancyT} т, вес конструкции {st.uplift.weightT} т
+                    {st.uplift.soilOnLedgeT > 0 ? `, грунт на выступе ${st.uplift.soilOnLedgeT} т` : ""}, коэффициент{" "}
+                    <b>{st.uplift.factor}</b>.
+                  </div>
+                  <div style={{ fontSize: 12.5, color: st.uplift.ok ? "#9ccc65" : "#ffb74d", lineHeight: 1.6, marginTop: 6 }}>{st.uplift.comment}</div>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                    <thead>
+                      <tr>
+                        {["Расчётный случай", "Момент, кН·м/м", "h₀ треб.", "h₀ принят", "Арматура", "Сетка"].map((h) => (
+                          <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {st.walls.map((w) => (
+                        <tr key={w.caseName}>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{w.caseName}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{w.momentKNm}</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: w.ok ? "#9ccc65" : "#ffb74d" }}>{w.h0RequiredMm} мм</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{w.h0Mm} мм</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{w.asCm2} см²/м</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT }}>{w.bars}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "12px 0 0", lineHeight: 1.6 }}>
+                  Минимальные толщины по практике для этой высоты: стена {st.minWallMm} мм, днище {st.minSlabMm} мм.
+                </p>
+                {st.warnings.map((w) => (
+                  <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+                ))}
+                {st.assumptions.map((s) => (
+                  <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
+                ))}
+              </div>
+            );
+          })()}
+
+        {/* ================= ОТОПЛЕНИЕ И ВЕНТИЛЯЦИЯ =================
+            Про здания вспоминают последними, а портят они именно
+            пусковой период: воздуходувная без вытяжки уходит в тепловую
+            защиту, решётчатое здание без вытяжки — это сероводород над
+            лотком, где стоит человек. */}
+        {(() => {
+          const blowerKW = calc.power.items.find((i) => i.name.toLowerCase().includes("воздуходув"))?.installed;
+          const tOutNum = parseFloat(tOut.replace(",", "."));
+          const hv = calculateHvac(
+            roomsFromChain(calc.chain, { blowerKW, areaScale: Q > 5000 ? 1.6 : Q > 1000 ? 1.2 : 1 }),
+            Number.isFinite(tOutNum) ? tOutNum : undefined,
+          );
+          return (
+            <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
+              <b style={{ fontSize: 16 }}>Отопление и вентиляция зданий</b>
+              <p style={{ fontSize: 12.5, color: FAINT, margin: "8px 0 12px", lineHeight: 1.6 }}>
+                Суммарно на отопление и подогрев приточного воздуха <b>{hv.heatKW} кВт</b>, вытяжка{" "}
+                <b>{hv.exhaustM3h.toLocaleString("ru-RU")} м³/ч</b>. Площади помещений приняты ориентировочно по
+                составу сооружений — подставьте свои, когда будет план зданий.
+              </p>
+
+              <label style={{ display: "inline-flex", flexDirection: "column", gap: 4, fontSize: 12.5, marginBottom: 14 }}>
+                <span style={{ color: FAINT }}>Расчётная зимняя температура, °C</span>
+                <input
+                  value={tOut}
+                  onChange={(e) => setTOut(e.target.value)}
+                  inputMode="decimal"
+                  style={{ width: 140, padding: "7px 10px", borderRadius: 8, border: `1px solid ${LINE}`, background: "rgba(255,255,255,0.04)", color: "inherit", fontSize: 13 }}
+                />
+              </label>
+
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+                  <thead>
+                    <tr>
+                      {["Помещение", "Объём, м³", "t, °C", "Приток", "Вытяжка", "Вентилятор", "Тепло, кВт", "По чему считалось"].map((h) => (
+                        <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hv.rooms.map((r) => (
+                      <tr key={r.label}>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.label}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.volumeM3}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.tInC}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{r.supplyM3h.toLocaleString("ru-RU")}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{r.exhaustM3h.toLocaleString("ru-RU")}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{r.fanM3h.toLocaleString("ru-RU")}</td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                          {r.heatTotalKW}
+                          <span style={{ color: FAINT }}> ({r.heatLossKW}+{r.heatAirKW})</span>
+                        </td>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>
+                          {r.basis}. {r.note}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {hv.warnings.map((w) => (
+                <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+              ))}
+              {hv.assumptions.map((s) => (
+                <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
               ))}
             </div>
           );
