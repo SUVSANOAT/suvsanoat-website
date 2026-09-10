@@ -36,6 +36,8 @@ function SegmentPageContent() {
   const [pipeLength, setPipeLength] = useState("");
   const [planLength, setPlanLength] = useState("");
   const [startElev, setStartElev] = useState("");
+  const [airValveDn, setAirValveDn] = useState("");
+  const [drainDn, setDrainDn] = useState("");
 
   /* дополнительно — свёрнуто */
   const [more, setMore] = useState(false);
@@ -62,6 +64,8 @@ function SegmentPageContent() {
           pipeLengthM: num(pipeLength),
           planLengthM: num(planLength) || undefined,
           startElevM: startElev ? num(startElev) : undefined,
+          airValveDnMm: num(airValveDn) || undefined,
+          drainDnMm: num(drainDn) || undefined,
           material,
           lining,
           outerMm: num(outer) || undefined,
@@ -75,7 +79,7 @@ function SegmentPageContent() {
     } catch (e) {
       return { res: null, error: e instanceof Error ? e.message : "Расчёт не выполнен." };
     }
-  }, [qM3H, geoLift, pipeLength, planLength, startElev, material, lining, outer, wall, freeHead, valveCount, pn]);
+  }, [qM3H, geoLift, pipeLength, planLength, startElev, airValveDn, drainDn, material, lining, outer, wall, freeHead, valveCount, pn]);
 
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
   const best = res?.materials.find((m) => m.suitable && m.note === "принят в расчёт") ?? res?.materials.find((m) => m.suitable);
@@ -119,6 +123,14 @@ function SegmentPageContent() {
             <label style={field}>
               <span style={fieldLabel}>Отметка насосной станции, м</span>
               <input value={startElev} onChange={(e) => setStartElev(e.target.value)} inputMode="decimal" placeholder="начало участка" style={inputStyle} />
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Вантуз, DN</span>
+              <input value={airValveDn} onChange={(e) => setAirValveDn(e.target.value)} inputMode="numeric" placeholder="пусто — подобрать" style={inputStyle} />
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Сбросный трубопровод, DN</span>
+              <input value={drainDn} onChange={(e) => setDrainDn(e.target.value)} inputMode="numeric" placeholder="пусто — подобрать" style={inputStyle} />
             </label>
           </div>
 
@@ -320,9 +332,14 @@ function SegmentPageContent() {
                       <td style={tdNote}>Kv не менее {p.requiredKv} м³/ч, открытие не более {p.openTimeS} с</td>
                     </tr>
                     <tr>
-                      <td style={tdLeft}>Дренажная линия</td>
-                      <td style={tdVal}>DN{p.drainDnMm}</td>
-                      <td style={tdNote}>сброс {p.dischargeVolumeM3} м³ за отключение, приёмная ёмкость от {p.receiverM3} м³</td>
+                      <td style={tdLeft}>Сбросный трубопровод</td>
+                      <td style={{ ...tdVal, color: p.drainDnMm < p.drainDnRequiredMm ? "#ffcf8a" : undefined }}>
+                        DN{p.drainDnMm}
+                        {p.drainDnMm !== p.drainDnRequiredMm ? ` → нужен DN${p.drainDnRequiredMm}` : ""}
+                      </td>
+                      <td style={tdNote}>
+                        скорость {p.drainVelocity} м/с; сброс {p.dischargeVolumeM3} м³ за отключение, приёмная ёмкость от {p.receiverM3} м³
+                      </td>
                     </tr>
                     <tr>
                       <td style={tdLeft}>Гидропневмобак</td>
@@ -331,8 +348,9 @@ function SegmentPageContent() {
                     </tr>
                     <tr>
                       <td style={tdLeft}>Вантузы двойного действия</td>
-                      <td style={tdVal}>
+                      <td style={{ ...tdVal, color: p.airValveDnMm < p.airValveDnRequiredMm ? "#ffcf8a" : undefined }}>
                         {p.airValveCount} шт. DN{p.airValveDnMm}
+                        {p.airValveDnMm < p.airValveDnRequiredMm ? ` → нужен DN${p.airValveDnRequiredMm}` : ""}
                       </td>
                       <td style={tdNote}>в верхних точках и через каждые 700 м</td>
                     </tr>

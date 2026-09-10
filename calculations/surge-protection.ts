@@ -139,6 +139,10 @@ export type SegmentInput = {
   freeHeadM?: number;
   /** число параллельных противоударных клапанов */
   valveCount?: number;
+  /** вантуз, задан проектировщиком — DN, мм; не задан — подбирается */
+  airValveDnMm?: number;
+  /** сбросный (дренажный) трубопровод, задан — DN, мм; не задан — подбирается */
+  drainDnMm?: number;
   /** класс давления, бар; не задан — подбирается */
   pnBar?: number;
 
@@ -226,8 +230,10 @@ export type SegmentResult = {
     valvePnBar: number;
     /** время полного открытия, с */
     openTimeS: number;
-    /** дренажная линия */
+    /** дренажная линия: принятый DN */
     drainDnMm: number;
+    /** дренажная линия: требуемый по скорости DN */
+    drainDnRequiredMm: number;
     drainVelocity: number;
     /** приёмная ёмкость, м³ */
     receiverM3: number;
@@ -235,9 +241,11 @@ export type SegmentResult = {
     vesselAirM3: number;
     /** гидропневмобак: полный объём сосуда, м³ */
     vesselTotalM3: number;
-    /** вантузы */
+    /** вантузы: принятый DN */
     airValveCount: number;
     airValveDnMm: number;
+    /** вантузы: требуемый по расходу воздуха DN */
+    airValveDnRequiredMm: number;
   };
 
   materials: MaterialCompare[];
@@ -432,7 +440,8 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
   /* Дренажная линия: диаметр по допустимой скорости при полном сбросе. */
   const drainArea = qM3s / SURGE.drainVelocity.value;
   const drainDnCalc = Math.sqrt((4 * drainArea) / Math.PI) * 1000;
-  const drainDn = VALVE_DN.find((dn) => dn >= drainDnCalc) ?? Math.ceil(drainDnCalc / 50) * 50;
+  const drainDnRequired = VALVE_DN.find((dn) => dn >= drainDnCalc) ?? Math.ceil(drainDnCalc / 50) * 50;
+  const drainDn = input.drainDnMm && input.drainDnMm > 0 ? input.drainDnMm : drainDnRequired;
   const drainVelocity = qM3s / ((Math.PI * (drainDn / 1000) ** 2) / 4);
 
   /* Гидропневмобак: кинетическая энергия столба поглощается работой
@@ -450,7 +459,8 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
   const vAir = Math.sqrt((2 * WATER_MAIN.airValveDropBar.value * 1e5) / 1.2);
   const aAirValve = qAir / (0.6 * vAir);
   const dAirCalc = Math.sqrt((4 * aAirValve) / Math.PI) * 1000;
-  const airValveDn = VALVE_DN.find((dn) => dn >= dAirCalc) ?? 250;
+  const airValveDnRequired = VALVE_DN.find((dn) => dn >= dAirCalc) ?? 250;
+  const airValveDn = input.airValveDnMm && input.airValveDnMm > 0 ? input.airValveDnMm : airValveDnRequired;
 
   /* ------------------------------------------------------------------
      СРАВНЕНИЕ МАТЕРИАЛОВ
@@ -507,7 +517,14 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
     warnings.push(`Критическое наружное давление ${r2(buckling)} бар с запасом ${WATER_MAIN.vacuumSafety.value} ниже атмосферного: при вакууме труба ${outerMm}×${wallMm} может смяться.`);
   }
   if (drainVelocity > SURGE.drainVelocity.value + 0.1) {
-    warnings.push(`Скорость в дренажной линии DN${drainDn} составит ${r1(drainVelocity)} м/с — выше ${SURGE.drainVelocity.value} м/с. Противодавление съест перепад на клапане, и сброс будет меньше расчётного. Нужен диаметр больше.`);
+    warnings.push(
+      `Сбросный трубопровод DN${drainDn}${input.drainDnMm ? " (задан)" : ""}: скорость ${r1(drainVelocity)} м/с при полном сбросе — выше ${SURGE.drainVelocity.value} м/с. Противодавление съест перепад на клапане, и сброс будет меньше расчётного. Нужен DN${drainDnRequired}.`,
+    );
+  }
+  if (input.airValveDnMm && input.airValveDnMm < airValveDnRequired) {
+    warnings.push(
+      `Вантуз DN${input.airValveDnMm} (задан) меньше требуемого DN${airValveDnRequired}: при опорожнении со скоростью ${WATER_MAIN.drainVelocity.value} м/с он не впустит ${(qAir * 1000).toFixed(0)} л/с воздуха при перепаде ${WATER_MAIN.airValveDropBar.value} бар, и в трубе образуется разрежение. Проверьте по графику впуска изготовителя или возьмите больший.`,
+    );
   }
   if (direct) {
     warnings.push(
@@ -535,9 +552,9 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
     `Пропускная способность клапана Kv = Q/√Δp при перепаде ${r1(dpValve)} бар (класс давления минус противодавление дренажа ${SURGE.drainBackPressureBar.value} бар). Обратный поток по величине сравним с рабочим расходом, поэтому в формулу подставлен полный расход.`,
     `Условный диаметр клапана по Kv: ${SURGE.valveCd.note}.`,
     `Время полного открытия не больше ${r2(openTime)} с: ${SURGE.openTimeFactor.note}.`,
-    `Дренажная линия DN${drainDn}: ${SURGE.drainVelocity.note}.`,
+    `Сбросный трубопровод DN${drainDn}${input.drainDnMm ? " задан проектировщиком" : " подобран"}; требуемый по скорости — DN${drainDnRequired}. ${SURGE.drainVelocity.note}.`,
     `Гидропневмобак ${r2(vesselTotal)} м³ — оценка энергетическим методом: кинетическая энергия столба ${Math.round(ke / 1000)} кДж поглощается изотермическим расширением воздуха от ${r1(workBar + ATM_BAR)} до ${SURGE.minAbsBar.value} бар абс. Окончательный объём — по номограммам или расчётом переходного процесса.`,
-    `Вантузы ${airValveCount} шт. DN${airValveDn}: расстановка по шагу ${WATER_MAIN.airValveSpacingM.value} м плюс один за станцией; диаметр по расходу воздуха при опорожнении.`,
+    `Вантузы ${airValveCount} шт. DN${airValveDn}${input.airValveDnMm ? " (задан проектировщиком)" : ""}; требуемый по расходу воздуха при опорожнении — DN${airValveDnRequired}. Расстановка по шагу ${WATER_MAIN.airValveSpacingM.value} м плюс один за станцией.`,
   );
 
   return {
@@ -584,12 +601,14 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
       valvePnBar: valvePn,
       openTimeS: r2(openTime),
       drainDnMm: drainDn,
+      drainDnRequiredMm: drainDnRequired,
       drainVelocity: r1(drainVelocity),
       receiverM3: r2(dischargeVolume * SURGE.vesselReserve.value),
       vesselAirM3: r2(vesselAir),
       vesselTotalM3: r2(vesselTotal),
       airValveCount,
       airValveDnMm: airValveDn,
+      airValveDnRequiredMm: airValveDnRequired,
     },
 
     materials,
