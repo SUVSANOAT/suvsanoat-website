@@ -33,6 +33,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/audit", label: "Проверка чужого проекта по ҚМҚ" },
       { href: "/engineering/analysis/storm", label: "Расчёт дождевой канализации" },
       { href: "/engineering/analysis/pipeline", label: "Напорный водовод и насосные станции" },
+      { href: "/engineering/analysis/segment", label: "Участок водовода: напор и защита от гидроудара" },
     ],
     trustLabel: "ЧТО ПОЛУЧАЕТ ПРОЕКТИРОВЩИК",
     cards: [
@@ -66,6 +67,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/audit", label: "Boshqa loyihani ҚМҚ bo'yicha tekshirish" },
       { href: "/engineering/analysis/storm", label: "Yomg'ir kanalizatsiyasi hisobi" },
       { href: "/engineering/analysis/pipeline", label: "Bosimli suv quvuri va nasos stansiyalari" },
+      { href: "/engineering/analysis/segment", label: "Suv quvuri uchastkasi: bosim va gidravlik zarbadan himoya" },
     ],
     trustLabel: "LOYIHACHI NIMA OLADI",
     cards: [
@@ -99,6 +101,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/audit", label: "Third-party design check to ҚМҚ" },
       { href: "/engineering/analysis/storm", label: "Storm drainage calculation" },
       { href: "/engineering/analysis/pipeline", label: "Pressure water main and pumping stations" },
+      { href: "/engineering/analysis/segment", label: "Water main segment: head and surge protection" },
     ],
     trustLabel: "WHAT THE DESIGNER GETS",
     cards: [
@@ -132,6 +135,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/audit", label: "按 ҚМҚ 审核他方设计" },
       { href: "/engineering/analysis/storm", label: "雨水管网计算" },
       { href: "/engineering/analysis/pipeline", label: "压力输水管与泵站" },
+      { href: "/engineering/analysis/segment", label: "输水管段：扬程与水锤防护" },
     ],
     trustLabel: "设计人员将获得什么",
     cards: [
