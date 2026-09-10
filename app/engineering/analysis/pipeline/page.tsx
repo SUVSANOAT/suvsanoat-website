@@ -41,6 +41,7 @@ import {
   synthesizeProfile,
   type ParsedProfile,
 } from "../../../../calculations/water-main-input";
+import { calculateSegment, type SegmentResult } from "../../../../calculations/surge-protection";
 import RequireAuth from "../../RequireAuth";
 
 export default function PipelinePage() {
@@ -73,9 +74,10 @@ function PipelinePageContent() {
   const [profileMode, setProfileMode] = useState<"table" | "simple">("table");
   const [profileText, setProfileText] = useState("");
   const [fileNote, setFileNote] = useState("");
-  const [startElev, setStartElev] = useState("");
-  const [endElev, setEndElev] = useState("");
-  const [simpleLength, setSimpleLength] = useState("");
+  const [segLift, setSegLift] = useState("");
+  const [segLength, setSegLength] = useState("");
+  const [segPlan, setSegPlan] = useState("");
+  const [segStart, setSegStart] = useState("");
   const [terrain, setTerrain] = useState<"flat" | "hills" | "mountain">("hills");
 
   /* --- труба --- */
@@ -111,17 +113,34 @@ function PipelinePageContent() {
      ------------------------------------------------------------------ */
   const parsed: ParsedProfile | null = useMemo(() => {
     if (profileMode === "simple") {
-      if (!(num(simpleLength) > 0) || !startElev || !endElev) return null;
-      return synthesizeProfile({
-        startElevM: num(startElev),
-        endElevM: num(endElev),
-        lengthM: num(simpleLength),
+      if (!(num(segLength) > 0) || !segLift) return null;
+      const start = num(segStart);
+      const out = synthesizeProfile({
+        startElevM: start,
+        endElevM: start + num(segLift),
+        lengthM: num(segLength),
         terrain,
       });
+      /* Геометрическая длина — проверка, а не расчёт: труба идёт по
+         склону и короче гипотенузы быть не может. */
+      if (num(segPlan) > 0) {
+        const minLen = Math.sqrt(num(segPlan) ** 2 + num(segLift) ** 2);
+        if (num(segLength) < minLen - 0.5) {
+          out.problems.unshift(
+            `Длина трубы ${Math.round(num(segLength))} м меньше минимально возможной ${Math.round(minLen)} м при проекции ${Math.round(num(segPlan))} м и перепаде ${num(segLift)} м. Труба не может быть короче гипотенузы — проверьте исходные данные.`,
+          );
+        }
+      }
+      if (!segStart) {
+        out.problems.push(
+          "Отметка начала не задана, принята 0 м. Она нужна только для атмосферного давления в расчёте кавитационного запаса: на 1500 м оно на 17 % ниже, чем на уровне моря.",
+        );
+      }
+      return out;
     }
     if (!profileText.trim()) return null;
     return profileText.includes("<coordinates>") ? parseProfileKml(profileText) : parseProfileTable(profileText);
-  }, [profileMode, profileText, startElev, endElev, simpleLength, terrain]);
+  }, [profileMode, profileText, segLift, segLength, segPlan, segStart, terrain]);
 
   async function onFile(file: File | null) {
     if (!file) return;
@@ -189,6 +208,44 @@ function PipelinePageContent() {
     parsed, qM3Day, hours, days, lines, material, lining, outer, wall, sourceLevel, freeEnd,
     minSuction, minLine, maxStage, bury, pn, maxStations, pumpEff, motorEff, tariff, pipePrice, horizon,
   ]);
+
+  /* ------------------------------------------------------------------
+     ЗАЩИТА ОТ ГИДРОУДАРА ПО КАЖДОЙ СТУПЕНИ
+
+     После расстановки станций каждый участок известен: длина, перепад,
+     труба. Значит, клапан, дренаж, бак и вантузы считаются сразу для
+     всех ступеней — отдельной страницы и повторного ввода не нужно.
+     ------------------------------------------------------------------ */
+  const stageProtection = useMemo((): { name: string; to: string; lengthM: number; liftM: number; seg: SegmentResult }[] => {
+    if (!res) return [];
+    const last = res.nodes[res.nodes.length - 1];
+    return res.stations.map((s, i) => {
+      const next = res.stations[i + 1];
+      const endM = next ? next.stationM : last.stationM;
+      const endGround = next ? next.groundM : last.groundM;
+      const lengthM = Math.max(1, endM - s.stationM);
+      const liftM = Math.max(0, endGround - s.groundM);
+      const seg = calculateSegment({
+        qM3H: res.qM3H,
+        geoLiftM: liftM,
+        pipeLengthM: lengthM,
+        material,
+        lining,
+        outerMm: res.outerMm,
+        wallMm: res.wallMm,
+        freeHeadM: next ? num(minSuction) || undefined : num(freeEnd) || undefined,
+        pnBar: res.pnBar,
+        pumpEff: num(pumpEff) || undefined,
+        motorEff: num(motorEff) || undefined,
+      });
+      return { name: s.name, to: next ? next.name : "конец", lengthM: Math.round(lengthM), liftM: Number(liftM.toFixed(1)), seg };
+    });
+  }, [res, material, lining, minSuction, freeEnd, pumpEff, motorEff]);
+
+  const worstStage = stageProtection.reduce<(typeof stageProtection)[number] | null>(
+    (w, x) => (!w || x.seg.peakBar > w.seg.peakBar ? x : w),
+    null,
+  );
 
   const money = (v: number | undefined) =>
     v === undefined ? "—" : v >= 1e6 ? `${(v / 1e6).toFixed(1)} млн` : v.toLocaleString("ru-RU");
@@ -274,7 +331,7 @@ function PipelinePageContent() {
               Таблица отметок
             </button>
             <button style={profileMode === "simple" ? primary : ghost} onClick={() => setProfileMode("simple")}>
-              Упрощённо, по трём числам
+              Без профиля: перепад и длина
             </button>
           </div>
 
@@ -308,21 +365,30 @@ function PipelinePageContent() {
           ) : (
             <>
               <p style={{ ...hint, marginTop: 0 }}>
-                Когда съёмки ещё нет. Число станций и порядок давлений так получить можно, места
-                станций и вантузов — нет.
+                Когда съёмки ещё нет: расход, перепад, длина по трубе и геометрическая длина. Число
+                станций, напоры, давления и защита от гидроудара считаются полностью; места станций и
+                вантузов по пикетам — только по настоящему профилю.
               </p>
               <div style={grid}>
                 <label style={field}>
+                  <span style={fieldLabel}>Геодезический перепад, м</span>
+                  <input value={segLift} onChange={(e) => setSegLift(e.target.value)} inputMode="decimal" style={inputStyle} />
+                  <span style={fieldHint}>разница отметок конца и начала</span>
+                </label>
+                <label style={field}>
+                  <span style={fieldLabel}>Длина участка по трубе, м</span>
+                  <input value={segLength} onChange={(e) => setSegLength(e.target.value)} inputMode="decimal" style={inputStyle} />
+                  <span style={fieldHint}>по трассе, с уклонами — по ней считаются потери и фаза удара</span>
+                </label>
+                <label style={field}>
+                  <span style={fieldLabel}>Геометрическая длина, м</span>
+                  <input value={segPlan} onChange={(e) => setSegPlan(e.target.value)} inputMode="decimal" placeholder="горизонтальная проекция" style={inputStyle} />
+                  <span style={fieldHint}>для проверки: труба не короче гипотенузы</span>
+                </label>
+                <label style={field}>
                   <span style={fieldLabel}>Отметка начала, м</span>
-                  <input value={startElev} onChange={(e) => setStartElev(e.target.value)} inputMode="decimal" style={inputStyle} />
-                </label>
-                <label style={field}>
-                  <span style={fieldLabel}>Отметка конца, м</span>
-                  <input value={endElev} onChange={(e) => setEndElev(e.target.value)} inputMode="decimal" style={inputStyle} />
-                </label>
-                <label style={field}>
-                  <span style={fieldLabel}>Длина трассы, м</span>
-                  <input value={simpleLength} onChange={(e) => setSimpleLength(e.target.value)} inputMode="decimal" style={inputStyle} />
+                  <input value={segStart} onChange={(e) => setSegStart(e.target.value)} inputMode="decimal" placeholder="0" style={inputStyle} />
+                  <span style={fieldHint}>для атмосферного давления на высоте</span>
                 </label>
                 <label style={field}>
                   <span style={fieldLabel}>Характер рельефа</span>
@@ -516,7 +582,8 @@ function PipelinePageContent() {
         {!res && !error && (
           <section style={card}>
             <p style={{ ...hint, margin: 0 }}>
-              Для расчёта нужны расход и профиль не менее чем из двух точек.
+              Для расчёта нужны расход и трасса: либо таблица отметок, либо перепад и длина в блоке
+              «Продольный профиль трассы» выше.
             </p>
           </section>
         )}
@@ -749,6 +816,99 @@ function PipelinePageContent() {
                 ))}
               </ul>
             </section>
+
+            {/* ---------------- ЗАЩИТА ПО СТУПЕНЯМ ---------------- */}
+            {stageProtection.length > 0 && (
+              <section style={card}>
+                <div style={sectionTitle}>ЗАЩИТНАЯ АРМАТУРА ПО КАЖДОЙ СТУПЕНИ</div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...th, textAlign: "left" }}>Участок</th>
+                        <th style={th}>L, м</th>
+                        <th style={th}>ΔZ, м</th>
+                        <th style={th}>Напор, м</th>
+                        <th style={th}>Пик без защиты, бар</th>
+                        <th style={th}>Торможение, с</th>
+                        <th style={{ ...th, textAlign: "left" }}>Клапан</th>
+                        <th style={th}>Kv</th>
+                        <th style={th}>Открытие ≤, с</th>
+                        <th style={th}>Сброс, м³</th>
+                        <th style={th}>Дренаж</th>
+                        <th style={th}>Бак, м³</th>
+                        <th style={th}>Вантузы</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stageProtection.map((x) => (
+                        <tr key={x.name}>
+                          <td style={tdLeft}>
+                            {x.name} — {x.to}
+                          </td>
+                          <td style={td}>{x.lengthM}</td>
+                          <td style={td}>{x.liftM}</td>
+                          <td style={td}>{x.seg.requiredHeadM}</td>
+                          <td style={{ ...td, color: x.seg.peakBar > res.pnBar ? "#ffcf8a" : undefined }}>{x.seg.peakBar}</td>
+                          <td style={td}>
+                            {x.seg.stopTimeS || "—"}
+                            {x.seg.direct ? " прямой" : ""}
+                          </td>
+                          <td style={{ ...td, textAlign: "left" }}>
+                            {x.seg.protection.valveCount}×DN{x.seg.protection.valveDnMm} PN{x.seg.protection.valvePnBar}
+                          </td>
+                          <td style={td}>{x.seg.protection.requiredKv}</td>
+                          <td style={td}>{x.seg.protection.openTimeS}</td>
+                          <td style={td}>{x.seg.protection.dischargeVolumeM3}</td>
+                          <td style={td}>DN{x.seg.protection.drainDnMm}</td>
+                          <td style={td}>{x.seg.protection.vesselTotalM3}</td>
+                          <td style={td}>
+                            {x.seg.protection.airValveCount}×DN{x.seg.protection.airValveDnMm}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ ...hint }}>
+                  Пик — без защиты, то есть то, чего защита обязана не допустить. Клапан подобран по
+                  обратному потоку, равному рабочему расходу; дренаж — по скорости не выше 5 м/с;
+                  гидропневмобак — энергетическим методом. Всё это предварительный подбор типоразмера;
+                  окончательные уставки даёт расчёт переходного процесса.
+                </p>
+                {worstStage && (
+                  <>
+                    <div style={sectionTitle}>МАТЕРИАЛ ТРУБОПРОВОДА — ПО САМОМУ ТЯЖЁЛОМУ УЧАСТКУ ({worstStage.name} — {worstStage.to})</div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={tableStyle}>
+                        <thead>
+                          <tr>
+                            <th style={{ ...th, textAlign: "left" }}>Материал</th>
+                            <th style={th}>Скорость волны, м/с</th>
+                            <th style={th}>Повышение, м</th>
+                            <th style={th}>Пик без защиты, бар</th>
+                            <th style={{ ...th, textAlign: "left" }}>Пригодность</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {worstStage.seg.materials.map((m) => (
+                            <tr key={m.kind} style={{ opacity: m.suitable ? 1 : 0.5 }}>
+                              <td style={{ ...tdLeft, color: m.note === "принят в расчёт" ? "#5fb6c9" : undefined }}>{m.label}</td>
+                              <td style={td}>{m.waveSpeedMs}</td>
+                              <td style={td}>{m.surgeM}</td>
+                              <td style={td}>{m.peakBar}</td>
+                              <td style={{ ...td, textAlign: "left", whiteSpace: "normal", color: "#8ca4ad" }}>
+                                {m.suitable ? m.note || "проходит по классу давления" : m.note}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
 
             {/* ---------------- ВАНТУЗЫ ---------------- */}
             <section style={card}>
