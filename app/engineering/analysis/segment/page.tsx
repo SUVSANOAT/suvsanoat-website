@@ -35,6 +35,7 @@ function SegmentPageContent() {
   const [geoLift, setGeoLift] = useState("");
   const [pipeLength, setPipeLength] = useState("");
   const [planLength, setPlanLength] = useState("");
+  const [startElev, setStartElev] = useState("");
 
   /* дополнительно — свёрнуто */
   const [more, setMore] = useState(false);
@@ -60,6 +61,7 @@ function SegmentPageContent() {
           geoLiftM: num(geoLift),
           pipeLengthM: num(pipeLength),
           planLengthM: num(planLength) || undefined,
+          startElevM: startElev ? num(startElev) : undefined,
           material,
           lining,
           outerMm: num(outer) || undefined,
@@ -73,7 +75,7 @@ function SegmentPageContent() {
     } catch (e) {
       return { res: null, error: e instanceof Error ? e.message : "Расчёт не выполнен." };
     }
-  }, [qM3H, geoLift, pipeLength, planLength, material, lining, outer, wall, freeHead, valveCount, pn]);
+  }, [qM3H, geoLift, pipeLength, planLength, startElev, material, lining, outer, wall, freeHead, valveCount, pn]);
 
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
   const best = res?.materials.find((m) => m.suitable && m.note === "принят в расчёт") ?? res?.materials.find((m) => m.suitable);
@@ -113,6 +115,10 @@ function SegmentPageContent() {
             <label style={field}>
               <span style={fieldLabel}>Геометрическая длина, м</span>
               <input value={planLength} onChange={(e) => setPlanLength(e.target.value)} inputMode="decimal" placeholder="проекция, для проверки" style={inputStyle} />
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Отметка насосной станции, м</span>
+              <input value={startElev} onChange={(e) => setStartElev(e.target.value)} inputMode="decimal" placeholder="начало участка" style={inputStyle} />
             </label>
           </div>
 
@@ -283,6 +289,20 @@ function SegmentPageContent() {
                   </div>
                   <div style={fieldHint}>{res.separation ? "разрыв потока — защита обязательна" : "минимум при разрежении"}</div>
                 </div>
+              </div>
+              <div style={{ overflowX: "auto", marginTop: 16 }}>
+                <table style={tableStyle}>
+                  <tbody>
+                    <tr>
+                      <td style={tdLeft}>Удар приходит в точку</td>
+                      <td style={tdNote}>{res.peakAt}. Здесь ставится противоударный клапан.</td>
+                    </tr>
+                    <tr>
+                      <td style={tdLeft}>Разрежение</td>
+                      <td style={tdNote}>{res.vacuumAt}. Здесь нужны вантузы.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </section>
 

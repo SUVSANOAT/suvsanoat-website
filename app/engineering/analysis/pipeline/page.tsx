@@ -216,7 +216,7 @@ function PipelinePageContent() {
      труба. Значит, клапан, дренаж, бак и вантузы считаются сразу для
      всех ступеней — отдельной страницы и повторного ввода не нужно.
      ------------------------------------------------------------------ */
-  const stageProtection = useMemo((): { name: string; to: string; lengthM: number; liftM: number; seg: SegmentResult }[] => {
+  const stageProtection = useMemo((): { name: string; to: string; elev: number; lengthM: number; liftM: number; seg: SegmentResult }[] => {
     if (!res) return [];
     const last = res.nodes[res.nodes.length - 1];
     return res.stations.map((s, i) => {
@@ -233,12 +233,15 @@ function PipelinePageContent() {
         lining,
         outerMm: res.outerMm,
         wallMm: res.wallMm,
+        startElevM: s.groundM,
+        startLabel: `${s.name} (${s.piket})`,
+        endLabel: next ? `${next.name} (${next.piket})` : `конец (${last.piket})`,
         freeHeadM: next ? num(minSuction) || undefined : num(freeEnd) || undefined,
         pnBar: res.pnBar,
         pumpEff: num(pumpEff) || undefined,
         motorEff: num(motorEff) || undefined,
       });
-      return { name: s.name, to: next ? next.name : "конец", lengthM: Math.round(lengthM), liftM: Number(liftM.toFixed(1)), seg };
+      return { name: s.name, to: next ? next.name : "конец", elev: s.groundM, lengthM: Math.round(lengthM), liftM: Number(liftM.toFixed(1)), seg };
     });
   }, [res, material, lining, minSuction, freeEnd, pumpEff, motorEff]);
 
@@ -830,6 +833,7 @@ function PipelinePageContent() {
                         <th style={th}>ΔZ, м</th>
                         <th style={th}>Напор, м</th>
                         <th style={th}>Пик без защиты, бар</th>
+                        <th style={{ ...th, textAlign: "left" }}>Удар приходит в</th>
                         <th style={th}>Торможение, с</th>
                         <th style={{ ...th, textAlign: "left" }}>Клапан</th>
                         <th style={th}>Kv</th>
@@ -850,6 +854,9 @@ function PipelinePageContent() {
                           <td style={td}>{x.liftM}</td>
                           <td style={td}>{x.seg.requiredHeadM}</td>
                           <td style={{ ...td, color: x.seg.peakBar > res.pnBar ? "#ffcf8a" : undefined }}>{x.seg.peakBar}</td>
+                          <td style={{ ...td, textAlign: "left" }}>
+                            {x.name}, отм. {x.elev} м
+                          </td>
                           <td style={td}>
                             {x.seg.stopTimeS || "—"}
                             {x.seg.direct ? " прямой" : ""}

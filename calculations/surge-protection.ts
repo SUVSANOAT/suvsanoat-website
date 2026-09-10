@@ -121,6 +121,12 @@ export type SegmentInput = {
   pipeLengthM: number;
   /** геометрическая длина — горизонтальная проекция, м; для проверки */
   planLengthM?: number;
+  /** отметка начала участка — насосной станции, м; для подписи точки удара */
+  startElevM?: number;
+  /** название начала участка (станции) для подписи */
+  startLabel?: string;
+  /** название конца участка для подписи */
+  endLabel?: string;
 
   material?: WaterPipeKind;
   lining?: Lining;
@@ -200,6 +206,10 @@ export type SegmentResult = {
   minHeadM: number;
   /** разрыв сплошности потока */
   separation: boolean;
+  /** куда приходит обратный удар */
+  peakAt: string;
+  /** где разрежение */
+  vacuumAt: string;
 
   /* защитная арматура */
   protection: {
@@ -371,6 +381,27 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
   const separation = minHead < -7;
 
   /* ------------------------------------------------------------------
+     КУДА ПРИХОДИТ УДАР
+
+     Обратный удар — это возврат столба воды, поднявшегося по трубе,
+     обратно вниз. Он бьёт в самую нижнюю точку участка: в обратный
+     клапан насосной станции и напорный коллектор за ним. Именно там
+     давление наибольшее, и именно там ставится противоударный клапан.
+
+     Разрежение — наоборот, в верхней части: волна понижения давления
+     уходит от остановившейся станции вперёд, и там, где труба выше
+     всего, столб рвётся первым. Там нужны вантузы и гидропневмобак
+     помогает меньше — он стоит у станции.
+     ------------------------------------------------------------------ */
+  const startName = input.startLabel ?? "насосная станция";
+  const endName = input.endLabel ?? "конец участка";
+  const elevNote = input.startElevM !== undefined ? `, отм. ${input.startElevM.toFixed(2)} м` : "";
+  const peakAt = `${startName}${elevNote} — обратный клапан и напорный коллектор за ним, нижняя точка участка`;
+  const vacuumAt = separation
+    ? `верхняя часть участка, ближе к точке «${endName}»${input.startElevM !== undefined ? ` (отм. до ${(input.startElevM + dZ).toFixed(2)} м)` : ""}: там столб рвётся первым`
+    : `верхняя часть участка у точки «${endName}» — разрежение есть, но сплошность сохраняется`;
+
+  /* ------------------------------------------------------------------
      ЗАЩИТНАЯ АРМАТУРА
      ------------------------------------------------------------------ */
   /* Объём сброса: расход, проходящий за время торможения, за
@@ -540,6 +571,8 @@ export function calculateSegment(input: SegmentInput): SegmentResult {
     peakBar: r2(peakBar),
     minHeadM: r1(minHead),
     separation,
+    peakAt,
+    vacuumAt,
 
     protection: {
       dischargeVolumeM3: r2(dischargeVolume),
