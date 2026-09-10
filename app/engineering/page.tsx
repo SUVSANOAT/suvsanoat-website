@@ -32,8 +32,8 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/network", label: "Гидравлический расчёт наружной сети" },
       { href: "/engineering/analysis/audit", label: "Проверка чужого проекта по ҚМҚ" },
       { href: "/engineering/analysis/storm", label: "Расчёт дождевой канализации" },
-      { href: "/engineering/analysis/pipeline", label: "Напорный водовод и насосные станции" },
-      { href: "/engineering/analysis/segment", label: "Участок водовода: напор и защита от гидроудара" },
+      { href: "/engineering/analysis/segment", label: "Гидравлический расчёт водовода: напор, гидроудар, защита" },
+      { href: "/engineering/analysis/pipeline", label: "Водовод по продольному профилю (расширенный)" },
     ],
     trustLabel: "ЧТО ПОЛУЧАЕТ ПРОЕКТИРОВЩИК",
     cards: [
@@ -66,8 +66,8 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/network", label: "Tashqi tarmoqning gidravlik hisobi" },
       { href: "/engineering/analysis/audit", label: "Boshqa loyihani ҚМҚ bo'yicha tekshirish" },
       { href: "/engineering/analysis/storm", label: "Yomg'ir kanalizatsiyasi hisobi" },
-      { href: "/engineering/analysis/pipeline", label: "Bosimli suv quvuri va nasos stansiyalari" },
-      { href: "/engineering/analysis/segment", label: "Suv quvuri uchastkasi: bosim va gidravlik zarbadan himoya" },
+      { href: "/engineering/analysis/segment", label: "Suv quvurining gidravlik hisobi: bosim, gidravlik zarba, himoya" },
+      { href: "/engineering/analysis/pipeline", label: "Bo'ylama profil bo'yicha suv quvuri (kengaytirilgan)" },
     ],
     trustLabel: "LOYIHACHI NIMA OLADI",
     cards: [
@@ -100,8 +100,8 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/network", label: "Sewer network hydraulic calculation" },
       { href: "/engineering/analysis/audit", label: "Third-party design check to ҚМҚ" },
       { href: "/engineering/analysis/storm", label: "Storm drainage calculation" },
-      { href: "/engineering/analysis/pipeline", label: "Pressure water main and pumping stations" },
-      { href: "/engineering/analysis/segment", label: "Water main segment: head and surge protection" },
+      { href: "/engineering/analysis/segment", label: "Water main hydraulics: head, surge, protection" },
+      { href: "/engineering/analysis/pipeline", label: "Water main by longitudinal profile (advanced)" },
     ],
     trustLabel: "WHAT THE DESIGNER GETS",
     cards: [
@@ -134,8 +134,8 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/network", label: "室外管网水力计算" },
       { href: "/engineering/analysis/audit", label: "按 ҚМҚ 审核他方设计" },
       { href: "/engineering/analysis/storm", label: "雨水管网计算" },
-      { href: "/engineering/analysis/pipeline", label: "压力输水管与泵站" },
-      { href: "/engineering/analysis/segment", label: "输水管段：扬程与水锤防护" },
+      { href: "/engineering/analysis/segment", label: "输水管水力计算：扬程、水锤、防护" },
+      { href: "/engineering/analysis/pipeline", label: "按纵断面计算输水管（高级）" },
     ],
     trustLabel: "设计人员将获得什么",
     cards: [
