@@ -35,6 +35,7 @@ import {
 import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
 import { buildReportHtml } from "../../../../calculations/water-report";
 import { buildSpecification, SPEC } from "../../../../calculations/water-spec";
+import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
 export default function WaterNetworkPage() {
@@ -208,6 +209,64 @@ function WaterNetworkContent() {
         }
       : null;
 
+
+  /* ------------------------------------------------------------------
+     СОХРАНЕНИЕ РАСЧЁТА
+
+     Сохраняются таблицы узлов и участков и все принятые величины —
+     то есть ввод. Результаты не сохраняются: открытый проект обязан
+     пересчитаться сегодняшним кодом.
+     ------------------------------------------------------------------ */
+  const stateSnapshot = (): Record<string, unknown> => ({
+    floors,
+    lpcd,
+    kDay,
+    alpha,
+    unacc,
+    objectName,
+    nodesText,
+    linksText,
+    sourceId,
+    sourceHead,
+    fireNode,
+    reservePct,
+    settlement,
+    terrain,
+    horizon,
+    hydrants,
+    method,
+    material,
+    lining,
+  });
+
+  const applyState = (d: Record<string, unknown>) => {
+    const str = (k: string, set: (v: string) => void) => {
+      const v = d[k];
+      if (typeof v === "string") set(v);
+      else if (typeof v === "number") set(String(v));
+    };
+    str("floors", setFloors);
+    str("lpcd", setLpcd);
+    str("kDay", setKDay);
+    str("alpha", setAlpha);
+    str("unacc", setUnacc);
+    str("objectName", setObjectName);
+    str("nodesText", setNodesText);
+    str("linksText", setLinksText);
+    str("sourceId", setSourceId);
+    str("sourceHead", setSourceHead);
+    str("fireNode", setFireNode);
+    str("reservePct", setReservePct);
+    if (d.settlement === "city-large" || d.settlement === "city" || d.settlement === "town" || d.settlement === "village") setSettlement(d.settlement);
+    if (d.terrain === "flat" || d.terrain === "hills" || d.terrain === "mountain") setTerrain(d.terrain);
+    if (d.horizon === "2020" || d.horizon === "2035") setHorizon(d.horizon);
+    if (typeof d.hydrants === "boolean") setHydrants(d.hydrants);
+    if (d.method === "shnk" || d.method === "kmk") setMethod(d.method);
+    if (typeof d.material === "string" && d.material in WATER_PIPE) setMaterial(d.material as WaterPipeKind);
+    if (d.lining === "none" || d.lining === "cement" || d.lining === "epoxy") setLining(d.lining);
+    setFileError("");
+  };
+
   async function downloadWord() {
     const payload = exportPayload();
     if (!payload) return;
@@ -259,6 +318,36 @@ function WaterNetworkContent() {
       const a = document.createElement("a");
       a.href = href;
       a.download = "SUVSANOAT_vedomost_vodoprovodnoy_seti.xlsx";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadDxf() {
+    const payload = exportPayload();
+    if (!payload) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const r = await fetch("/api/water-dxf", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...payload, mode: "network" }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Чертёж не собрался.");
+        return;
+      }
+      const blob = await r.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_chertezhi_vodoprovodnoy_seti.zip";
       a.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -332,12 +421,17 @@ function WaterNetworkContent() {
             <button style={busy ? tabDisabled : primary} onClick={downloadXlsx}>
               Ведомость Excel (.xlsx)
             </button>
+            <button style={busy ? tabDisabled : primary} onClick={downloadDxf}>
+              Схема DXF (.zip)
+            </button>
             <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
               В отчёт входят исходные данные, расходы с формулами, ведомости участков и узлов, аварийный и
               пожарный режимы, оборудование узлов и реестр источников величин.
             </span>
           </section>
         )}
+
+        <ProjectsPanel kind="network" getState={stateSnapshot} onLoad={applyState} objectName={objectName || undefined} />
 
         {fileError && <div style={warnBox}>{fileError}</div>}
         {error && <div style={warnBox}>{error}</div>}
@@ -483,7 +577,9 @@ function WaterNetworkContent() {
                 Узлов может быть сколько угодно — каждый перекрёсток, каждая точка отбора. Чем их
                 больше, тем точнее отборы и тем точнее место для арматуры. Жители — по кварталу,
                 который узел обслуживает. Отбор напрямую задаётся для предприятий и общественных
-                зданий.
+                зданий. Колонки X и Y не обязательны: если координаты заданы, чертёж выходит планом в
+                масштабе; если нет — схемой связей, где длины читаются по подписям, а не меряются
+                линейкой.
               </p>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button style={ghost} onClick={() => { setNodesText(EX_NODES); setLinksText(EX_LINKS_TREE); setSourceHead("130"); }}>

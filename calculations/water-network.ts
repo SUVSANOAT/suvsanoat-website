@@ -676,7 +676,7 @@ export function parseNetworkTables(nodesText: string, linksText: string): { node
   const nd = delim(nodesText);
   /* Шапка распознаётся по словам; без шапки порядок:
      узел; отметка; жителей; отбор; этажей. */
-  let col = { id: 0, ground: 1, people: 2, demand: 3, floors: 4 };
+  let col = { id: 0, ground: 1, people: 2, demand: 3, floors: 4, x: -1, y: -1 };
   let start = 0;
   const head = split(nl[0] ?? "", nd).map((x) => x.trim().toLowerCase());
   const find = (...keys: string[]) => head.findIndex((h) => keys.some((k) => h.startsWith(k)));
@@ -688,6 +688,10 @@ export function parseNetworkTables(nodesText: string, linksText: string): { node
       people: find("жител", "насел", "чел", "people"),
       demand: find("отбор", "расход", "q", "л/с"),
       floors: find("этаж", "floor"),
+      /* Координаты не обязательны. Если они есть — план сети рисуется
+         по ним; если нет — чертёж честно называется схемой. */
+      x: find("x", "х коорд", "коорд x"),
+      y: find("y", "у коорд", "коорд y"),
     };
     if (col.ground < 0) problems.push("В таблице узлов не найден столбец «Отметка».");
   }
@@ -705,6 +709,8 @@ export function parseNetworkTables(nodesText: string, linksText: string): { node
       people: col.people >= 0 ? cellNum(c[col.people]) : undefined,
       demandLps: col.demand >= 0 ? cellNum(c[col.demand]) : undefined,
       floors: col.floors >= 0 ? cellNum(c[col.floors]) : undefined,
+      x: col.x >= 0 ? cellNum(c[col.x]) : undefined,
+      y: col.y >= 0 ? cellNum(c[col.y]) : undefined,
     });
   }
 

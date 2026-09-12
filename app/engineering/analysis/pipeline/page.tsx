@@ -43,6 +43,7 @@ import {
 } from "../../../../calculations/water-main-input";
 import { buildMainSpecification, stageProtection as buildStages, type MainSpecStage } from "../../../../calculations/main-spec";
 import { buildMainReportHtml } from "../../../../calculations/main-report";
+import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
 export default function PipelinePage() {
@@ -265,6 +266,95 @@ function PipelinePageContent() {
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
   const hasEconomics = num(tariff) > 0 && num(pipePrice) > 0;
 
+
+  /* ------------------------------------------------------------------
+     СОХРАНЕНИЕ РАСЧЁТА
+
+     Снимок — это содержимое полей, ничего больше. Результаты не
+     сохраняются: код расчёта меняется, и открытый через месяц проект
+     обязан пересчитаться сегодняшним кодом, а не показать вчерашнее
+     число, которое к тому времени могло оказаться ошибкой.
+     ------------------------------------------------------------------ */
+  const stateSnapshot = (): Record<string, unknown> => ({
+    qDay,
+    areaHa,
+    normM3HaDay,
+    hours,
+    days,
+    lines,
+    profileText,
+    segLift,
+    segLength,
+    segPlan,
+    segStart,
+    outer,
+    wall,
+    sourceLevel,
+    freeEnd,
+    minSuction,
+    minLine,
+    maxStage,
+    bury,
+    pn,
+    maxStations,
+    pumpEff,
+    motorEff,
+    tariff,
+    pipePrice,
+    horizon,
+    objectName,
+    reservePct,
+    sectionSpacing,
+    flowMode,
+    profileMode,
+    terrain,
+    material,
+    lining,
+  });
+
+  const applyState = (d: Record<string, unknown>) => {
+    const str = (k: string, set: (v: string) => void) => {
+      const v = d[k];
+      if (typeof v === "string") set(v);
+      else if (typeof v === "number") set(String(v));
+    };
+    str("qDay", setQDay);
+    str("areaHa", setAreaHa);
+    str("normM3HaDay", setNormM3HaDay);
+    str("hours", setHours);
+    str("days", setDays);
+    str("lines", setLines);
+    str("profileText", setProfileText);
+    str("segLift", setSegLift);
+    str("segLength", setSegLength);
+    str("segPlan", setSegPlan);
+    str("segStart", setSegStart);
+    str("outer", setOuter);
+    str("wall", setWall);
+    str("sourceLevel", setSourceLevel);
+    str("freeEnd", setFreeEnd);
+    str("minSuction", setMinSuction);
+    str("minLine", setMinLine);
+    str("maxStage", setMaxStage);
+    str("bury", setBury);
+    str("pn", setPn);
+    str("maxStations", setMaxStations);
+    str("pumpEff", setPumpEff);
+    str("motorEff", setMotorEff);
+    str("tariff", setTariff);
+    str("pipePrice", setPipePrice);
+    str("horizon", setHorizon);
+    str("objectName", setObjectName);
+    str("reservePct", setReservePct);
+    str("sectionSpacing", setSectionSpacing);
+    if (d.flowMode === "known" || d.flowMode === "irrigation") setFlowMode(d.flowMode);
+    if (d.profileMode === "table" || d.profileMode === "simple") setProfileMode(d.profileMode);
+    if (d.terrain === "flat" || d.terrain === "hills" || d.terrain === "mountain") setTerrain(d.terrain);
+    if (typeof d.material === "string" && d.material in WATER_PIPE) setMaterial(d.material as WaterPipeKind);
+    if (d.lining === "none" || d.lining === "cement" || d.lining === "epoxy") setLining(d.lining);
+    setFileError("");
+  };
+
   /* ------------------------------------------------------------------
      ВЫГРУЗКА
 
@@ -357,6 +447,36 @@ function PipelinePageContent() {
       const a = document.createElement("a");
       a.href = href;
       a.download = "SUVSANOAT_vedomost_napornogo_vodovoda.xlsx";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadDxf() {
+    const payload = reportPayload();
+    if (!payload) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const r = await fetch("/api/water-dxf", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Чертежи не собрались.");
+        return;
+      }
+      const blob = await r.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_chertezhi_vodovoda.zip";
       a.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -714,6 +834,8 @@ function PipelinePageContent() {
           </div>
         </section>
 
+        <ProjectsPanel kind="main" getState={stateSnapshot} onLoad={applyState} objectName={objectName || undefined} />
+
         {error && <div style={warnBox}>{error}</div>}
 
         {!res && !error && (
@@ -746,6 +868,9 @@ function PipelinePageContent() {
               </button>
               <button style={busy ? ghost : primary} onClick={downloadXlsx}>
                 Ведомость Excel (.xlsx)
+              </button>
+              <button style={busy ? ghost : primary} onClick={downloadDxf}>
+                Профиль DXF (.zip)
               </button>
               <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
                 В отчёт входят исходные данные, гидравлика с формулами, таблица профиля с линией энергии,

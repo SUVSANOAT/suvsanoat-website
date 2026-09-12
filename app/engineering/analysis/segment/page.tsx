@@ -19,6 +19,7 @@ import { CSSProperties, useMemo, useState } from "react";
 import { calculateSegment, type SegmentResult } from "../../../../calculations/surge-protection";
 import { STEEL_PIPES, WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
 import { buildSegmentReportHtml } from "../../../../calculations/main-report";
+import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
 export default function SegmentPage() {
@@ -90,6 +91,54 @@ function SegmentPageContent() {
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
   const best = res?.materials.find((m) => m.suitable && m.note === "принят в расчёт") ?? res?.materials.find((m) => m.suitable);
   const p = res?.protection;
+
+
+  /* ------------------------------------------------------------------
+     СОХРАНЕНИЕ РАСЧЁТА — сохраняется ввод, результат считается заново
+     ------------------------------------------------------------------ */
+  const stateSnapshot = (): Record<string, unknown> => ({
+    flow,
+    geoLift,
+    pipeLength,
+    planLength,
+    startElev,
+    airValveDn,
+    drainDn,
+    outer,
+    wall,
+    freeHead,
+    valveCount,
+    pn,
+    objectName,
+    flowUnit,
+    material,
+    lining,
+  });
+
+  const applyState = (d: Record<string, unknown>) => {
+    const str = (k: string, set: (v: string) => void) => {
+      const v = d[k];
+      if (typeof v === "string") set(v);
+      else if (typeof v === "number") set(String(v));
+    };
+    str("flow", setFlow);
+    str("geoLift", setGeoLift);
+    str("pipeLength", setPipeLength);
+    str("planLength", setPlanLength);
+    str("startElev", setStartElev);
+    str("airValveDn", setAirValveDn);
+    str("drainDn", setDrainDn);
+    str("outer", setOuter);
+    str("wall", setWall);
+    str("freeHead", setFreeHead);
+    str("valveCount", setValveCount);
+    str("pn", setPn);
+    str("objectName", setObjectName);
+    if (d.flowUnit === "h" || d.flowUnit === "day") setFlowUnit(d.flowUnit);
+    if (typeof d.material === "string" && d.material in WATER_PIPE) setMaterial(d.material as WaterPipeKind);
+    if (d.lining === "none" || d.lining === "cement" || d.lining === "epoxy") setLining(d.lining);
+    setFileError("");
+  };
 
   /* ------------------------------------------------------------------
      ВЫГРУЗКА
@@ -283,6 +332,8 @@ function SegmentPageContent() {
             </div>
           )}
         </section>
+
+        <ProjectsPanel kind="segment" getState={stateSnapshot} onLoad={applyState} objectName={objectName || undefined} />
 
         {error && <div style={warnBox}>{error}</div>}
         {fileError && <div style={warnBox}>{fileError}</div>}
