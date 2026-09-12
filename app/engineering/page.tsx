@@ -34,6 +34,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/storm", label: "Расчёт дождевой канализации" },
       { href: "/engineering/analysis/segment", label: "Гидравлический расчёт водовода: напор, гидроудар, защита" },
       { href: "/engineering/analysis/pipeline", label: "Водовод по продольному профилю (расширенный)" },
+      { href: "/engineering/analysis/water-network", label: "Водопроводная сеть: тупиковая и закольцованная" },
     ],
     trustLabel: "ЧТО ПОЛУЧАЕТ ПРОЕКТИРОВЩИК",
     cards: [
@@ -68,6 +69,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/storm", label: "Yomg'ir kanalizatsiyasi hisobi" },
       { href: "/engineering/analysis/segment", label: "Suv quvurining gidravlik hisobi: bosim, gidravlik zarba, himoya" },
       { href: "/engineering/analysis/pipeline", label: "Bo'ylama profil bo'yicha suv quvuri (kengaytirilgan)" },
+      { href: "/engineering/analysis/water-network", label: "Suv tarmog'i: tupik va halqali" },
     ],
     trustLabel: "LOYIHACHI NIMA OLADI",
     cards: [
@@ -102,6 +104,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/storm", label: "Storm drainage calculation" },
       { href: "/engineering/analysis/segment", label: "Water main hydraulics: head, surge, protection" },
       { href: "/engineering/analysis/pipeline", label: "Water main by longitudinal profile (advanced)" },
+      { href: "/engineering/analysis/water-network", label: "Water distribution network: branched and looped" },
     ],
     trustLabel: "WHAT THE DESIGNER GETS",
     cards: [
@@ -136,6 +139,7 @@ const T: Record<Language, EngineeringText> = {
       { href: "/engineering/analysis/storm", label: "雨水管网计算" },
       { href: "/engineering/analysis/segment", label: "输水管水力计算：扬程、水锤、防护" },
       { href: "/engineering/analysis/pipeline", label: "按纵断面计算输水管（高级）" },
+      { href: "/engineering/analysis/water-network", label: "给水管网：枝状与环状" },
     ],
     trustLabel: "设计人员将获得什么",
     cards: [
