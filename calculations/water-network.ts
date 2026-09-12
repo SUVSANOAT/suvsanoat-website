@@ -88,6 +88,8 @@ export type NetNode = {
   demandLps?: number;
   /** этажность у этого узла — для требуемого свободного напора */
   floors?: number;
+  /** жителей у узла — для расчёта отбора по норме */
+  people?: number;
   x?: number;
   y?: number;
 };
@@ -173,6 +175,7 @@ export type WaterNetworkResult = {
   links: LinkResult[];
   nodes: NodeResult[];
   emergency: EmergencyCase[];
+  formulas: { label: string; formula: string; result: string; source?: string }[];
   assumptions: string[];
   warnings: string[];
 };
@@ -523,6 +526,46 @@ export function calculateWaterNetwork(input: WaterNetworkInput): WaterNetworkRes
     "Гидравлический удар в сети не считается: волна в узлах делится и отражается, и простой формулой это не описывается. Для насосной подачи в кольцевую сеть нужен расчёт переходного процесса по сети целиком.",
   );
 
+  const sample = linkResults.find((l) => l.qLps !== 0) ?? linkResults[0];
+  const formulas = [
+    {
+      label: "Тип сети",
+      formula: `участков − узлов + 1 = ${links.length} − ${nodeIds.length} + 1 = ${loops}`,
+      result: loops > 0 ? `${loops} независимых колец — закольцованная` : "0 колец — тупиковая",
+    },
+    {
+      label: "Расход участка (тупиковая)",
+      formula: "q_уч = Σ q_узлов за участком",
+      result: "прямой ход от концов веток",
+    },
+    {
+      label: "Потери напора на участке",
+      formula: `h = i · L, где i = λ · v² / (2·g·d), λ по Шевелёву; для ${sample?.id ?? "участка"}: i = ${sample?.gradientMPerKm ?? 0} м/км, L = ${sample?.lengthM ?? 0} м`,
+      result: `h = ${sample?.headlossM ?? 0} м`,
+      source: headlossGradient(0.01, 0.1, kind, lining).method,
+    },
+    ...(isLooped
+      ? [
+          {
+            label: "Увязка колец (Лобачёв–Кросс)",
+            formula: "ΔQ = −Σ(±h) / (2 · Σ|h / Q|) по каждому кольцу, пока |ΔQ| < 0,001 л/с",
+            result: `${iterations} итераций, ${converged ? "сошлось" : "не сошлось"}`,
+          },
+        ]
+      : []),
+    {
+      label: "Пьезометр в узле",
+      formula: "H_узла = H_источника − Σ h по пути от источника",
+      result: `H_ист = ${input.sourceHeadM} м`,
+    },
+    {
+      label: "Свободный напор",
+      formula: "H_св = H_узла − z_земли; требуется 10 + 4·(этажей − 1)",
+      result: `для ${floorsDefault} эт.: ${WATER_NETWORK.freeHeadFirstFloor.value + WATER_NETWORK.freeHeadPerFloor.value * (floorsDefault - 1)} м`,
+      source: WATER_NETWORK.freeHeadFirstFloor.note,
+    },
+  ];
+
   return {
     kind: isLooped ? "looped" : "dead-end",
     kindLabel: isLooped ? "закольцованная" : "тупиковая",
@@ -533,8 +576,69 @@ export function calculateWaterNetwork(input: WaterNetworkInput): WaterNetworkRes
     links: linkResults,
     nodes: nodeResults,
     emergency,
+    formulas,
     assumptions,
     warnings,
+  };
+}
+
+/* ------------------------------------------------------------------
+ * ПОЖАРНЫЙ РЕЖИМ
+ *
+ * Тот же час максимального водопотребления плюс пожар. Пожар ставится
+ * в самый невыгодный узел — где в обычном режиме напор ниже всего, —
+ * если проектировщик не указал другой. При двух и трёх пожарах — в
+ * следующие по невыгодности узлы. Требование одно: свободный напор у
+ * каждого гидранта не ниже 10 м.
+ * ------------------------------------------------------------------ */
+export type FireModeResult = {
+  fireNodes: string[];
+  lpsPerFire: number;
+  net: WaterNetworkResult;
+  ok: boolean;
+  worst: { id: string; freeHeadM: number } | null;
+  formulas: { label: string; formula: string; result: string; source?: string }[];
+};
+
+export function calculateFireMode(
+  input: WaterNetworkInput,
+  normal: WaterNetworkResult,
+  fire: { fires: number; lpsPerFire: number },
+  fireNodeIds?: string[],
+): FireModeResult {
+  const candidates = normal.nodes
+    .filter((n) => n.id !== input.sourceId)
+    .sort((a, b) => a.freeHeadM - b.freeHeadM)
+    .map((n) => n.id);
+  const chosen = (fireNodeIds && fireNodeIds.length ? fireNodeIds : candidates).slice(0, Math.max(1, fire.fires));
+
+  const nodes = input.nodes.map((n) => (chosen.includes(n.id) ? { ...n, demandLps: (n.demandLps ?? 0) + fire.lpsPerFire } : n));
+  /* диаметры — те, что приняты в обычном режиме, иначе пожар их «перепоберёт» */
+  const links = input.links.map((l, i) => ({ ...l, dnMm: normal.links[i]?.dnMm ?? l.dnMm }));
+  const net = calculateWaterNetwork({ ...input, nodes, links, emergency: false });
+
+  const worstNode = net.nodes.filter((n) => n.id !== input.sourceId).reduce<NodeResult | null>((w, n) => (!w || n.freeHeadM < w.freeHeadM ? n : w), null);
+  const ok = !!worstNode && worstNode.freeHeadM >= 10;
+
+  return {
+    fireNodes: chosen,
+    lpsPerFire: fire.lpsPerFire,
+    net,
+    ok,
+    worst: worstNode ? { id: worstNode.id, freeHeadM: worstNode.freeHeadM } : null,
+    formulas: [
+      {
+        label: "Расход в пожарном режиме",
+        formula: `q_узла.пож = q_max.ч + q_пож = q_узла + ${fire.lpsPerFire} л/с в узлах ${chosen.join(", ")}`,
+        result: `пожаров: ${fire.fires}`,
+      },
+      {
+        label: "Условие",
+        formula: "H_св ≥ 10 м во всех узлах (сеть низкого давления)",
+        result: worstNode ? `худший узел ${worstNode.id}: ${worstNode.freeHeadM} м — ${ok ? "проходит" : "НЕ проходит"}` : "—",
+        source: "СНиП 2.04.02-84 п. 2.26",
+      },
+    ],
   };
 }
 
@@ -570,16 +674,39 @@ export function parseNetworkTables(nodesText: string, linksText: string): { node
 
   const nl = nodesText.split(/\r?\n/).filter((l) => l.trim());
   const nd = delim(nodesText);
-  nl.forEach((line, i) => {
-    const c = split(line, nd).map((x) => x.trim());
-    const id = c[0];
-    const ground = cellNum(c[1]);
+  /* Шапка распознаётся по словам; без шапки порядок:
+     узел; отметка; жителей; отбор; этажей. */
+  let col = { id: 0, ground: 1, people: 2, demand: 3, floors: 4 };
+  let start = 0;
+  const head = split(nl[0] ?? "", nd).map((x) => x.trim().toLowerCase());
+  const find = (...keys: string[]) => head.findIndex((h) => keys.some((k) => h.startsWith(k)));
+  if (head.some((h) => /узел|отмет|жител|отбор|этаж|node|elev/.test(h))) {
+    start = 1;
+    col = {
+      id: Math.max(0, find("узел", "имя", "id", "node")),
+      ground: find("отмет", "z", "elev"),
+      people: find("жител", "насел", "чел", "people"),
+      demand: find("отбор", "расход", "q", "л/с"),
+      floors: find("этаж", "floor"),
+    };
+    if (col.ground < 0) problems.push("В таблице узлов не найден столбец «Отметка».");
+  }
+  for (let i = start; i < nl.length; i += 1) {
+    const c = split(nl[i], nd).map((x) => x.trim());
+    const id = c[col.id];
+    const ground = col.ground >= 0 ? cellNum(c[col.ground]) : undefined;
     if (!id || ground === undefined) {
-      if (i > 0 || nl.length === 1) problems.push(`Узлы, строка ${i + 1}: не прочитаны имя или отметка — пропущена.`);
-      return;
+      problems.push(`Узлы, строка ${i + 1}: не прочитаны имя или отметка — пропущена.`);
+      continue;
     }
-    nodes.push({ id, groundM: ground, demandLps: cellNum(c[2]) ?? 0, floors: cellNum(c[3]) });
-  });
+    nodes.push({
+      id,
+      groundM: ground,
+      people: col.people >= 0 ? cellNum(c[col.people]) : undefined,
+      demandLps: col.demand >= 0 ? cellNum(c[col.demand]) : undefined,
+      floors: col.floors >= 0 ? cellNum(c[col.floors]) : undefined,
+    });
+  }
 
   const ll = linksText.split(/\r?\n/).filter((l) => l.trim());
   const ld = delim(linksText);
