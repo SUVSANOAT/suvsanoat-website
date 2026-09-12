@@ -33,6 +33,7 @@ import {
   type Terrain,
 } from "../../../../calculations/water-demand";
 import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
+import { buildReportHtml } from "../../../../calculations/water-report";
 import RequireAuth from "../../RequireAuth";
 
 export default function WaterNetworkPage() {
@@ -90,6 +91,10 @@ function WaterNetworkContent() {
   const [alpha, setAlpha] = useState(String(DEMAND.alphaMax.value));
   const [unacc, setUnacc] = useState(String(DEMAND.unaccountedPct.value));
   const [hydrants, setHydrants] = useState(true);
+  const [method, setMethod] = useState<"shnk" | "kmk">("shnk");
+  const [objectName, setObjectName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   /* сеть */
   const [nodesText, setNodesText] = useState("");
@@ -117,8 +122,9 @@ function WaterNetworkContent() {
       alphaMax: num(alpha) || undefined,
       unaccountedPct: unacc === "" ? undefined : num(unacc),
       lpcdOverride: num(lpcd) || undefined,
+      unevennessMethod: method,
     });
-  }, [parsed, settlement, horizon, floors, kDay, alpha, unacc, lpcd]);
+  }, [parsed, settlement, horizon, floors, kDay, alpha, unacc, lpcd, method]);
 
   /* 4. гидравлика */
   const netInput = useMemo(
@@ -155,6 +161,96 @@ function WaterNetworkContent() {
 
   const ready = !!net;
 
+  /* ------------------------------------------------------------------
+     ВЫГРУЗКА
+
+     Word собирается на сервере: расчёт там повторяется тем же кодом,
+     чтобы в документ попали числа, посчитанные один раз. PDF печатает
+     браузер из подготовленной страницы — он делает это лучше любой
+     библиотеки, которую пришлось бы тащить в сборку.
+     ------------------------------------------------------------------ */
+  const exportPayload = () =>
+    parsed && netInput
+      ? {
+          object: objectName || undefined,
+          settlement,
+          terrain,
+          floors: num(floors) || 1,
+          sourceId: effectiveSource,
+          sourceHeadM: num(sourceHead),
+          nodes: parsed.nodes,
+          links: parsed.links,
+          material,
+          lining,
+          horizon: horizon === "2020" ? 2020 : 2035,
+          kDayMax: num(kDay) || undefined,
+          alphaMax: num(alpha) || undefined,
+          unaccountedPct: unacc === "" ? undefined : num(unacc),
+          lpcdOverride: num(lpcd) || undefined,
+          unevennessMethod: method,
+          hydrants,
+          fireNodes: fireNode.trim() ? fireNode.split(/[,;\s]+/).filter(Boolean) : undefined,
+        }
+      : null;
+
+  async function downloadWord() {
+    const payload = exportPayload();
+    if (!payload) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const r = await fetch("/api/water-report", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Документ не собрался.");
+        return;
+      }
+      const blob = await r.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_raschet_vodoprovodnoy_seti.docx";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function downloadPdf() {
+    if (!net || !demand || !equip) return;
+    setFileError("");
+    const peopleByNode: Record<string, number | undefined> = {};
+    parsed?.nodes.forEach((n) => (peopleByNode[n.id] = n.people));
+    const html = buildReportHtml({
+      object: objectName || undefined,
+      settlement,
+      terrain,
+      floors: num(floors) || 1,
+      sourceId: effectiveSource,
+      sourceHeadM: num(sourceHead),
+      materialLabel: WATER_PIPE[material].label,
+      demand,
+      net,
+      fire,
+      equip,
+      peopleByNode,
+    });
+    const w = window.open("", "_blank");
+    if (!w) {
+      setFileError("Браузер заблокировал новое окно. Разрешите всплывающие окна для этого сайта.");
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  }
+
   return (
     <main style={page}>
       <div style={container}>
@@ -178,6 +274,23 @@ function WaterNetworkContent() {
           })}
         </div>
 
+        {ready && (
+          <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ ...sectionTitle, margin: 0 }}>СКАЧАТЬ РАСЧЁТ</div>
+            <button style={busy ? tabDisabled : primary} onClick={downloadWord}>
+              {busy ? "Собирается…" : "Word (.docx)"}
+            </button>
+            <button style={ghost} onClick={downloadPdf}>
+              PDF (печать)
+            </button>
+            <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
+              В отчёт входят исходные данные, расходы с формулами, ведомости участков и узлов, аварийный и
+              пожарный режимы, оборудование узлов и реестр источников величин.
+            </span>
+          </section>
+        )}
+
+        {fileError && <div style={warnBox}>{fileError}</div>}
         {error && <div style={warnBox}>{error}</div>}
 
         {/* ================= 1. ОБЪЕКТ ================= */}
@@ -185,6 +298,10 @@ function WaterNetworkContent() {
           <section style={card}>
             <div style={sectionTitle}>ТИП НАСЕЛЁННОГО ПУНКТА И МЕСТНОСТЬ</div>
             <div style={grid}>
+              <label style={field}>
+                <span style={fieldLabel}>Название объекта</span>
+                <input value={objectName} onChange={(e) => setObjectName(e.target.value)} placeholder="для шапки отчёта" style={inputStyle} />
+              </label>
               <label style={field}>
                 <span style={fieldLabel}>Населённый пункт</span>
                 <select value={settlement} onChange={(e) => setSettlement(e.target.value as SettlementKind)} style={inputStyle}>
@@ -238,6 +355,18 @@ function WaterNetworkContent() {
               <label style={field}>
                 <span style={fieldLabel}>Неучтённые расходы, %</span>
                 <input value={unacc} onChange={(e) => setUnacc(e.target.value)} inputMode="decimal" style={inputStyle} />
+              </label>
+              <label style={field}>
+                <span style={fieldLabel}>Неравномерность расхода</span>
+                <select value={method} onChange={(e) => setMethod(e.target.value as "shnk" | "kmk")} style={inputStyle}>
+                  <option value="shnk">K сут.max × K ч.max (водоснабжение)</option>
+                  <option value="kmk">K gen.max по табл. 2 ҚМҚ 2.04.03-19</option>
+                </select>
+                <span style={fieldHint}>
+                  {method === "kmk"
+                    ? "табл. 2 КМК 2019 нормирует приток сточных вод; для водопровода даёт другой результат"
+                    : "способ для водоснабжения; норма на жителя — по табл. 3 ҚМҚ 2.04.03-19"}
+                </span>
               </label>
               <label style={field}>
                 <span style={fieldLabel}>Пожарные гидранты</span>

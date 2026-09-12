@@ -38,7 +38,14 @@
  * ШНК не проставлены — сверить по действующей редакции.
  * ================================================================== */
 
-import { specificWaterUse, type SettlementCategory, type WaterUseHorizon } from "../norms/kmk-2-04-03-19";
+import {
+  kmkRef,
+  LOCAL_INDUSTRY_SHARE,
+  specificWaterUse,
+  unevenness,
+  type SettlementCategory,
+  type WaterUseHorizon,
+} from "../norms/kmk-2-04-03-19";
 import type { NetNode, NetLink, WaterNetworkResult } from "./water-network";
 
 /* ------------------------------------------------------------------
@@ -128,6 +135,35 @@ export function fireDemand(people: number, floors: number): { fires: number; lps
 }
 
 /* ------------------------------------------------------------------
+ * РЕЕСТР ИСТОЧНИКОВ
+ *
+ * Каждая величина в расчёте помечена: норма это или практика, и какая
+ * именно норма. Граница между ними — то, о чём эксперт вправе спорить
+ * по существу; без неё спор идёт о том, что в расчёте вообще
+ * происходит.
+ *
+ * ҚМҚ 2.04.03-19 — «Канализация. Наружные сети и сооружения». К
+ * водоснабжению из него применимы табл. 3 (удельное водоотведение
+ * прямо приравнено к водопотреблению по ШНК 2.04.02-97*, п. 2.1),
+ * п. 2.3 (местная промышленность и неучтённые) и табл. 2 (общие
+ * коэффициенты неравномерности — для притока сточных вод).
+ *
+ * Всё, что относится к самой водопроводной сети — свободные напоры,
+ * пожарные расходы, зонирование, — нормирует ШНК 2.04.02-97*. Его
+ * текста в модуле нет, поэтому пункты не проставлены: указан
+ * первоисточник СНиП 2.04.02-84, из которого ШНК переиздан, с
+ * пометкой «сверить».
+ * ------------------------------------------------------------------ */
+export type SourceKind = "норма" | "практика";
+export type SourceRow = { label: string; value: string; kind: SourceKind; source: string };
+
+export const NORM_DOC = {
+  kmk: "ҚМҚ 2.04.03-19 «Канализация. Наружные сети и сооружения»",
+  shnk: "ШНК 2.04.02-97* «Водоснабжение. Наружные сети и сооружения»",
+  snip: "СНиП 2.04.02-84 (первоисточник ШНК 2.04.02-97*) — пункт ШНК сверить",
+} as const;
+
+/* ------------------------------------------------------------------
  * РАСХОДЫ ПО ЖИТЕЛЯМ
  * ------------------------------------------------------------------ */
 export type Formula = { label: string; formula: string; result: string; source?: string };
@@ -144,6 +180,18 @@ export type DemandInput = {
   unaccountedPct?: number;
   /** норма на жителя, если задана вручную, л/сут */
   lpcdOverride?: number;
+  /**
+   * Способ учёта неравномерности:
+   *   "shnk" — K_сут.max × K_ч.max (α·β), водоснабжение;
+   *   "kmk"  — общий коэффициент K_gen.max по табл. 2 ҚМҚ 2.04.03-19
+   *            в зависимости от среднего расхода.
+   * Второй способ — норматив КМК 2019 для притока сточных вод; для
+   * водопровода он даёт другой, обычно меньший результат, и применять
+   * его надо сознательно.
+   */
+  unevennessMethod?: "shnk" | "kmk";
+  /** доля местной промышленности, доли единицы; по умолчанию 5 % (п. 2.3) */
+  localIndustryShare?: number;
 };
 
 export type DemandResult = {
@@ -157,6 +205,15 @@ export type DemandResult = {
   alphaMax: number;
   betaMax: number;
   qMaxHourLps: number;
+  /** способ учёта неравномерности */
+  method: "shnk" | "kmk";
+  /** общий коэффициент по табл. 2 КМК, если применён этот способ */
+  kGenMax?: number;
+  kGenSource?: string;
+  /** доля местной промышленности */
+  localIndustryShare: number;
+  /** реестр источников: норма или практика по каждой величине */
+  sources: SourceRow[];
   /** узлы с рассчитанным отбором, л/с — готовы для сети */
   nodes: NetNode[];
   fire: { fires: number; lpsPerFire: number; totalLps: number; volumeM3: number };
@@ -184,10 +241,29 @@ export function calculateDemand(input: DemandInput): DemandResult {
   const totalPeople = input.nodes.reduce((a, n) => a + (n.people ?? 0), 0);
   const beta = betaMax(Math.max(1, totalPeople));
   const kHour = alpha * beta;
+  const method = input.unevennessMethod ?? "shnk";
+  const industry = input.localIndustryShare ?? LOCAL_INDUSTRY_SHARE.value;
 
-  const qAvgDay = (totalPeople * norm.lpcd * (1 + unacc / 100)) / 1000;
-  const qMaxDay = qAvgDay * kDay;
-  const qMaxHourLps = (qMaxDay * kHour * 1000) / 86400;
+  /* Средний расход: норма × жители, плюс местная промышленность
+     (п. 2.3) и неучтённые (табл. 3, прим. 5). */
+  const qAvgDay = (totalPeople * norm.lpcd * (1 + industry) * (1 + unacc / 100)) / 1000;
+  const qAvgLps = (qAvgDay * 1000) / 86400;
+
+  /* Два способа перехода к расчётному расходу. */
+  let kGen: number | undefined;
+  let kGenSource: string | undefined;
+  let qMaxDay: number;
+  let qMaxHourLps: number;
+  if (method === "kmk" && qAvgLps > 0) {
+    const u = unevenness(qAvgLps);
+    kGen = u.kMax;
+    kGenSource = u.source;
+    qMaxHourLps = qAvgLps * kGen;
+    qMaxDay = qAvgDay * kDay;
+  } else {
+    qMaxDay = qAvgDay * kDay;
+    qMaxHourLps = (qMaxDay * kHour * 1000) / 86400;
+  }
 
   /* Отбор по узлам: жители → тот же путь, что и для всего пункта, но
      коэффициенты одни на всех — неравномерность свойство пункта, а
@@ -195,7 +271,8 @@ export function calculateDemand(input: DemandInput): DemandResult {
   const nodes: NetNode[] = input.nodes.map((n) => {
     if (n.demandLps !== undefined && n.demandLps > 0) return { ...n };
     const people = n.people ?? 0;
-    const lps = (people * norm.lpcd * (1 + unacc / 100) * kDay * kHour) / 86400;
+    const base = (people * norm.lpcd * (1 + industry) * (1 + unacc / 100)) / 86400;
+    const lps = method === "kmk" && kGen ? base * kGen : base * kDay * kHour;
     return { ...n, demandLps: r3(lps) };
   });
 
@@ -208,51 +285,98 @@ export function calculateDemand(input: DemandInput): DemandResult {
       label: "Норма водопотребления",
       formula: `q = ${norm.lpcd} л/сут на жителя`,
       result: norm.source,
+      source: s.category ? kmkRef("2.9", "табл. 3") : NORM_DOC.snip,
     },
     {
-      label: "Среднесуточный расход",
-      formula: `Q_ср.сут = N · q · (1 + ${unacc} %) / 1000 = ${totalPeople} · ${norm.lpcd} · ${(1 + unacc / 100).toFixed(2)} / 1000`,
-      result: `${r1(qAvgDay)} м³/сут`,
-      source: "ҚМҚ 2.04.03-19 п. 2.3; неучтённые — табл. 3 прим. 5",
+      label: "Средний суточный расход",
+      formula: `Q_ср.сут = N · q · (1 + ${Math.round(industry * 100)} %) · (1 + ${unacc} %) / 1000 = ${totalPeople} · ${norm.lpcd} · ${(1 + industry).toFixed(2)} · ${(1 + unacc / 100).toFixed(2)} / 1000`,
+      result: `${r1(qAvgDay)} м³/сут = ${r2(qAvgLps)} л/с`,
+      source: `${kmkRef("2.3")} — местная промышленность ${Math.round(industry * 100)} %; ${kmkRef("2.9", "табл. 3, прим. 5")} — неучтённые ${unacc} %`,
     },
-    {
-      label: "Максимальный суточный расход",
-      formula: `Q_max.сут = K_сут.max · Q_ср.сут = ${kDay} · ${r1(qAvgDay)}`,
-      result: `${r1(qMaxDay)} м³/сут`,
-      source: "СНиП 2.04.02-84 п. 2.2",
-    },
-    {
-      label: "Коэффициент часовой неравномерности",
-      formula: `K_ч.max = α_max · β_max = ${alpha} · ${r2(beta)} (β при N = ${totalPeople} чел.)`,
-      result: `${r2(kHour)}`,
-      source: "СНиП 2.04.02-84 п. 2.2, табл. 2",
-    },
-    {
-      label: "Максимальный часовой расход (расчётный для сети)",
-      formula: `q_max.ч = Q_max.сут · K_ч.max · 1000 / 86400 = ${r1(qMaxDay)} · ${r2(kHour)} · 1000 / 86400`,
-      result: `${r2(qMaxHourLps)} л/с`,
-    },
+    ...(method === "kmk"
+      ? [
+          {
+            label: "Общий коэффициент неравномерности",
+            formula: `K_gen.max при Q_ср = ${r2(qAvgLps)} л/с`,
+            result: `${r2(kGen ?? 0)}`,
+            source: kGenSource ?? kmkRef("2.7", "табл. 2"),
+          },
+          {
+            label: "Расчётный расход (максимальный)",
+            formula: `q_max = K_gen.max · Q_ср = ${r2(kGen ?? 0)} · ${r2(qAvgLps)}`,
+            result: `${r2(qMaxHourLps)} л/с`,
+            source: kmkRef("2.7"),
+          },
+        ]
+      : [
+          {
+            label: "Максимальный суточный расход",
+            formula: `Q_max.сут = K_сут.max · Q_ср.сут = ${kDay} · ${r1(qAvgDay)}`,
+            result: `${r1(qMaxDay)} м³/сут`,
+            source: NORM_DOC.snip + ", п. 2.2",
+          },
+          {
+            label: "Коэффициент часовой неравномерности",
+            formula: `K_ч.max = α_max · β_max = ${alpha} · ${r2(beta)} (β по N = ${totalPeople} чел.)`,
+            result: `${r2(kHour)}`,
+            source: NORM_DOC.snip + ", п. 2.2, табл. 2",
+          },
+          {
+            label: "Максимальный часовой расход (расчётный для сети)",
+            formula: `q_max.ч = Q_max.сут · K_ч.max · 1000 / 86400 = ${r1(qMaxDay)} · ${r2(kHour)} · 1000 / 86400`,
+            result: `${r2(qMaxHourLps)} л/с`,
+            source: NORM_DOC.snip + ", п. 2.2",
+          },
+        ]),
     {
       label: "Узловой отбор",
-      formula: "q_узла = N_узла · q · (1 + неучт.) · K_сут.max · K_ч.max / 86400",
+      formula:
+        method === "kmk"
+          ? "q_узла = N_узла · q · (1 + пром.) · (1 + неучт.) · K_gen.max / 86400"
+          : "q_узла = N_узла · q · (1 + пром.) · (1 + неучт.) · K_сут.max · K_ч.max / 86400",
       result: "л/с, по каждому узлу в таблице",
     },
     {
       label: "Пожарный расход",
       formula: `n = ${fire.fires} пожар${fire.fires === 1 ? "" : "а"} × ${fire.lpsPerFire} л/с (N = ${totalPeople} чел., ${floors >= 3 ? "3 этажа и выше" : "до 2 этажей"})`,
       result: `${fireTotal} л/с`,
-      source: "СНиП 2.04.02-84 табл. 5",
+      source: NORM_DOC.snip + ", табл. 5",
     },
     {
       label: "Неприкосновенный пожарный запас",
       formula: `W_пож = Q_пож · t · 3,6 = ${fireTotal} · ${DEMAND.fireDurationH.value} ч · 3,6`,
       result: `${r1(fireVolume)} м³`,
-      source: DEMAND.fireDurationH.note,
+      source: NORM_DOC.snip + ", п. 2.24",
     },
+  ];
+
+  const sources: SourceRow[] = [
+    { label: "Удельное водопотребление", value: `${norm.lpcd} л/сут на жителя`, kind: s.category ? "норма" : "практика", source: norm.source },
+    { label: "Местная промышленность", value: `${Math.round(industry * 100)} %`, kind: "норма", source: kmkRef("2.3") },
+    { label: "Неучтённые расходы", value: `${unacc} %`, kind: "норма", source: kmkRef("2.9", "табл. 3, прим. 5") },
+    ...(method === "kmk"
+      ? [{ label: "Общий коэффициент неравномерности K_gen.max", value: `${r2(kGen ?? 0)}`, kind: "норма" as SourceKind, source: kGenSource ?? kmkRef("2.7", "табл. 2") }]
+      : [
+          { label: "Коэффициент суточной неравномерности K_сут.max", value: `${kDay}`, kind: "практика" as SourceKind, source: `${NORM_DOC.snip}, п. 2.2 (диапазон 1,1–1,3)` },
+          { label: "α_max", value: `${alpha}`, kind: "практика" as SourceKind, source: `${NORM_DOC.snip}, п. 2.2 (диапазон 1,2–1,4)` },
+          { label: "β_max", value: `${r2(beta)}`, kind: "норма" as SourceKind, source: `${NORM_DOC.snip}, п. 2.2, табл. 2 — по числу жителей` },
+        ]),
+    { label: "Число одновременных пожаров", value: `${fire.fires}`, kind: "норма", source: `${NORM_DOC.snip}, табл. 5` },
+    { label: "Расход на один пожар", value: `${fire.lpsPerFire} л/с`, kind: "норма", source: `${NORM_DOC.snip}, табл. 5` },
+    { label: "Продолжительность тушения", value: `${DEMAND.fireDurationH.value} ч`, kind: "норма", source: `${NORM_DOC.snip}, п. 2.24` },
+    { label: "Свободный напор", value: "10 + 4·(этажей − 1) м", kind: "норма", source: `${NORM_DOC.snip}, п. 2.26` },
+    { label: "Предельный напор в сети", value: `${DEMAND.zoneHeadM.value} м`, kind: "норма", source: `${NORM_DOC.snip}, п. 2.28` },
+    { label: "Шаг пожарных гидрантов", value: `${DEMAND.hydrantSpacingM.value} м`, kind: "норма", source: `${NORM_DOC.snip}, п. 8.16` },
+    { label: "Скорость в сети", value: "0,5–2,0 м/с", kind: "практика", source: "практика проектирования" },
+    { label: "Потери напора", value: "формула Шевелёва", kind: "практика", source: "таблицы Ф. А. Шевелёва для гидравлического расчёта водопроводных труб" },
   ];
 
   const assumptions = [
     `Населённый пункт: ${s.label}. ${norm.source}.`,
+    method === "kmk"
+      ? `Неравномерность учтена общим коэффициентом K_gen.max = ${r2(kGen ?? 0)} по табл. 2 ҚМҚ 2.04.03-19 в зависимости от среднего расхода. Эта таблица нормирует приток СТОЧНЫХ вод; для водопровода она применена по прямому указанию проектировщика.`
+      : `Неравномерность учтена раздельно: K_сут.max = ${kDay} и K_ч.max = α·β = ${alpha}·${r2(beta)} = ${r2(kHour)}. Это способ, принятый для водоснабжения (${NORM_DOC.shnk}).`,
+    `Местная промышленность ${Math.round(industry * 100)} % — ${kmkRef("2.3")}.`,
     `${DEMAND.kDayMax.note}${input.kDayMax ? ` (задано ${input.kDayMax})` : ""}.`,
     `${DEMAND.alphaMax.note}${input.alphaMax ? ` (задано ${input.alphaMax})` : ""}; β_max = ${r2(beta)} по числу жителей ${totalPeople}.`,
     `${DEMAND.unaccountedPct.note}.`,
@@ -262,6 +386,11 @@ export function calculateDemand(input: DemandInput): DemandResult {
   ];
 
   return {
+    method,
+    kGenMax: kGen !== undefined ? r2(kGen) : undefined,
+    kGenSource,
+    localIndustryShare: industry,
+    sources,
     lpcd: norm.lpcd,
     lpcdSource: norm.source,
     totalPeople,
