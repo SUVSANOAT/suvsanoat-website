@@ -25,6 +25,7 @@ import type { DocxBlock } from "../app/engineering/analysis/pro-result/docx";
 import type { DemandResult, NodeEquipment, LinkEquipment, Formula, SettlementKind, Terrain } from "./water-demand";
 import { NORM_DOC, SETTLEMENT, TERRAIN } from "./water-demand";
 import type { FireModeResult, WaterNetworkResult } from "./water-network";
+import type { SpecResult } from "./water-spec";
 
 export type ReportInput = {
   object?: string;
@@ -38,6 +39,7 @@ export type ReportInput = {
   net: WaterNetworkResult;
   fire?: FireModeResult | null;
   equip?: { nodes: NodeEquipment[]; links: LinkEquipment[]; zoning: string | null; formulas: Formula[] } | null;
+  spec?: SpecResult | null;
   peopleByNode?: Record<string, number | undefined>;
 };
 
@@ -238,8 +240,29 @@ export function buildReportBlocks(r: ReportInput): DocxBlock[] {
     b.push(formulaTable(r.equip.formulas));
   }
 
+  /* ---------------- ведомость ---------------- */
+  let secNo = 3 + (r.fire ? 1 : 0) + (r.equip ? 1 : 0);
+  if (r.spec && r.spec.rows.length) {
+    secNo += 1;
+    b.push({ t: "h", level: 1, text: `${secNo}. Ведомость материалов и оборудования` });
+    b.push({
+      t: "p",
+      text:
+        "Ведомость собрана из графа сети: количество задвижек определено числом участков в каждом узле, вантузы и " +
+        "выпуски — положением узла относительно соседних по высоте, диаметры арматуры — расчётом. Цены не " +
+        "приводятся: они подставляются на день закупки.",
+    });
+    b.push({
+      t: "table",
+      head: ["№", "Наименование", "Тип, марка", "Ед.", "Кол-во", "Примечание"],
+      widths: [5, 26, 20, 8, 10, 31],
+      rows: r.spec.rows.map((x) => [x.no, x.name, x.type, x.unit, String(x.qty).replace(".", ","), x.note]),
+    });
+    b.push(formulaTable(r.spec.formulas));
+  }
+
   /* ---------------- источники ---------------- */
-  const nSec = r.equip ? (r.fire ? 6 : 5) : r.fire ? 5 : 4;
+  const nSec = secNo;
   b.push({ t: "h", level: 1, text: `${nSec}. Источники величин` });
   b.push({
     t: "p",

@@ -34,6 +34,7 @@ import {
 } from "../../../calculations/water-network";
 import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../calculations/water-main";
 import { buildReportBlocks, reportDocxMeta } from "../../../calculations/water-report";
+import { buildSpecification } from "../../../calculations/water-spec";
 import { sessionFromRequest } from "../../../lib/session";
 
 const MAX_BODY_BYTES = 512 * 1024;
@@ -141,6 +142,13 @@ export async function POST(request: Request) {
       withHydrants: body.hydrants !== false,
     });
 
+    const spec = buildSpecification(demand.nodes, links, net, {
+      sourceId,
+      materialLabel: WATER_PIPE[material].label,
+      withHydrants: body.hydrants !== false,
+      installReservePct: num(body.installReservePct),
+    });
+
     const peopleByNode: Record<string, number | undefined> = {};
     nodes.forEach((n) => (peopleByNode[n.id] = n.people));
 
@@ -156,6 +164,7 @@ export async function POST(request: Request) {
       net,
       fire,
       equip,
+      spec,
       peopleByNode,
     };
 

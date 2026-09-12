@@ -34,6 +34,7 @@ import {
 } from "../../../../calculations/water-demand";
 import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
 import { buildReportHtml } from "../../../../calculations/water-report";
+import { buildSpecification, SPEC } from "../../../../calculations/water-spec";
 import RequireAuth from "../../RequireAuth";
 
 export default function WaterNetworkPage() {
@@ -68,7 +69,7 @@ const EX_LINKS_LOOP = `От;До;Длина, м;DN
 4;5;350
 4;1;500`;
 
-type Tab = "object" | "net" | "demand" | "hydro" | "fire" | "equip";
+type Tab = "object" | "net" | "demand" | "hydro" | "fire" | "equip" | "spec";
 const TABS: { id: Tab; label: string }[] = [
   { id: "object", label: "1. Объект" },
   { id: "net", label: "2. Сеть" },
@@ -76,6 +77,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "hydro", label: "4. Гидравлика" },
   { id: "fire", label: "5. Пожар" },
   { id: "equip", label: "6. Арматура" },
+  { id: "spec", label: "7. Ведомость" },
 ];
 
 function WaterNetworkContent() {
@@ -104,6 +106,7 @@ function WaterNetworkContent() {
   const [material, setMaterial] = useState<WaterPipeKind>("castIron");
   const [lining, setLining] = useState<Lining>("cement");
   const [fireNode, setFireNode] = useState("");
+  const [reservePct, setReservePct] = useState(String(SPEC.installReservePct.value));
 
   const num = (x: string) => Number(String(x).replace(",", ".")) || 0;
 
@@ -159,6 +162,17 @@ function WaterNetworkContent() {
     return equipmentPlan(netInput.nodes, netInput.links, net, { sourceId: effectiveSource, terrain, withHydrants: hydrants });
   }, [netInput, net, effectiveSource, terrain, hydrants]);
 
+  /* 7. ведомость */
+  const spec = useMemo(() => {
+    if (!netInput || !net) return null;
+    return buildSpecification(netInput.nodes, netInput.links, net, {
+      sourceId: effectiveSource,
+      materialLabel: WATER_PIPE[material].label,
+      withHydrants: hydrants,
+      installReservePct: num(reservePct),
+    });
+  }, [netInput, net, effectiveSource, material, hydrants, reservePct]);
+
   const ready = !!net;
 
   /* ------------------------------------------------------------------
@@ -189,6 +203,7 @@ function WaterNetworkContent() {
           lpcdOverride: num(lpcd) || undefined,
           unevennessMethod: method,
           hydrants,
+          installReservePct: num(reservePct),
           fireNodes: fireNode.trim() ? fireNode.split(/[,;\s]+/).filter(Boolean) : undefined,
         }
       : null;
@@ -240,6 +255,7 @@ function WaterNetworkContent() {
       net,
       fire,
       equip,
+      spec,
       peopleByNode,
     });
     const w = window.open("", "_blank");
@@ -265,7 +281,7 @@ function WaterNetworkContent() {
         {/* ---------------- ВКЛАДКИ ---------------- */}
         <div style={tabs}>
           {TABS.map((t) => {
-            const disabled = (t.id === "demand" && !demand) || ((t.id === "hydro" || t.id === "fire" || t.id === "equip") && !ready);
+            const disabled = (t.id === "demand" && !demand) || ((t.id === "hydro" || t.id === "fire" || t.id === "equip" || t.id === "spec") && !ready);
             return (
               <button key={t.id} style={tab === t.id ? tabActive : disabled ? tabDisabled : tabBtn} onClick={() => !disabled && setTab(t.id)}>
                 {t.label}
@@ -758,6 +774,64 @@ function WaterNetworkContent() {
               </section>
             )}
             <Formulas items={equip.formulas} />
+          </>
+        )}
+
+        {/* ================= 7. ВЕДОМОСТЬ ================= */}
+        {tab === "spec" && spec && (
+          <>
+            <section style={card}>
+              <div style={sectionTitle}>ВЕДОМОСТЬ МАТЕРИАЛОВ И ОБОРУДОВАНИЯ</div>
+              <div style={bigRow}>
+                <Big v={spec.totalPipeM} u="м" l="труб всего" />
+                <Big v={spec.rows.length} u="" l="позиций" />
+                <label style={{ ...field, maxWidth: 200 }}>
+                  <span style={fieldLabel}>Монтажный запас, %</span>
+                  <input value={reservePct} onChange={(e) => setReservePct(e.target.value)} inputMode="decimal" style={inputStyle} />
+                  <span style={fieldHint}>длины считаются по осям узлов</span>
+                </label>
+              </div>
+            </section>
+            <section style={card}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={tableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...th, textAlign: "left" }}>№</th>
+                      <th style={{ ...th, textAlign: "left" }}>Наименование</th>
+                      <th style={{ ...th, textAlign: "left" }}>Тип, марка</th>
+                      <th style={th}>Ед.</th>
+                      <th style={th}>Кол-во</th>
+                      <th style={{ ...th, textAlign: "left" }}>Примечание</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {spec.rows.map((x, i) => {
+                      const newGroup = i === 0 || spec.rows[i - 1].group !== x.group;
+                      return (
+                        <tr key={x.no} style={newGroup ? { borderTop: "2px solid #1c3742" } : undefined}>
+                          <td style={tdLeft}>{x.no}</td>
+                          <td style={{ ...tdLeft, color: "#e7eef1", minWidth: 190 }}>
+                            {newGroup && <div style={{ ...smallLabel, marginBottom: 4 }}>{x.group.toUpperCase()}</div>}
+                            {x.name}
+                          </td>
+                          <td style={tdLeft}>{x.type}</td>
+                          <td style={td}>{x.unit}</td>
+                          <td style={{ ...td, color: "#e7eef1", fontWeight: 700 }}>{x.qty}</td>
+                          <td style={tdNote}>{x.note}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ ...hint, marginBottom: 0 }}>
+                Количества выведены из графа сети: задвижки — по числу участков в узле, вантузы и выпуски — по
+                положению узла относительно соседних по высоте, диаметры арматуры — расчётом. Цены не приводятся:
+                их подставляют на день закупки.
+              </p>
+            </section>
+            <Formulas items={spec.formulas} />
           </>
         )}
       </div>
