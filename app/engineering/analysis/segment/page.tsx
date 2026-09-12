@@ -18,6 +18,7 @@
 import { CSSProperties, useMemo, useState } from "react";
 import { calculateSegment, type SegmentResult } from "../../../../calculations/surge-protection";
 import { STEEL_PIPES, WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
+import { buildSegmentReportHtml } from "../../../../calculations/main-report";
 import RequireAuth from "../../RequireAuth";
 
 export default function SegmentPage() {
@@ -50,6 +51,11 @@ function SegmentPageContent() {
   const [pn, setPn] = useState("");
 
   const [showAssumptions, setShowAssumptions] = useState(false);
+
+  /* --- отчёт --- */
+  const [objectName, setObjectName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   const num = (x: string) => Number(String(x).replace(",", ".")) || 0;
   const qM3H = flowUnit === "h" ? num(flow) : num(flow) / 24;
@@ -84,6 +90,81 @@ function SegmentPageContent() {
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
   const best = res?.materials.find((m) => m.suitable && m.note === "принят в расчёт") ?? res?.materials.find((m) => m.suitable);
   const p = res?.protection;
+
+  /* ------------------------------------------------------------------
+     ВЫГРУЗКА
+
+     Word собирается на сервере и пересчитывается там же: присылать
+     серверу готовые числа нельзя, иначе документ перестаёт быть
+     расчётом. PDF печатает браузер из той же вёрстки.
+     ------------------------------------------------------------------ */
+  async function downloadWord() {
+    if (!res) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const r = await fetch("/api/main-report", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "segment",
+          object: objectName || undefined,
+          qM3H,
+          geoLiftM: num(geoLift),
+          pipeLengthM: num(pipeLength),
+          planLengthM: num(planLength) || undefined,
+          startElevM: startElev ? num(startElev) : undefined,
+          airValveDnMm: num(airValveDn) || undefined,
+          drainDnMm: num(drainDn) || undefined,
+          material,
+          lining,
+          outerMm: num(outer) || undefined,
+          wallMm: num(wall) || undefined,
+          freeHeadM: num(freeHead) || undefined,
+          valveCount: num(valveCount) || 1,
+          pnBar: num(pn) || undefined,
+        }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Документ не собрался.");
+        return;
+      }
+      const blob = await r.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_raschet_uchastka_vodovoda.docx";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function downloadPdf() {
+    if (!res) return;
+    setFileError("");
+    const html = buildSegmentReportHtml({
+      object: objectName || undefined,
+      material,
+      lining,
+      qM3H,
+      geoLiftM: num(geoLift),
+      pipeLengthM: num(pipeLength),
+      startElevM: startElev ? num(startElev) : undefined,
+      seg: res,
+    });
+    const w = window.open("", "_blank");
+    if (!w) {
+      setFileError("Браузер заблокировал новое окно. Разрешите всплывающие окна для этого сайта.");
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  }
 
   return (
     <main style={page}>
@@ -204,6 +285,29 @@ function SegmentPageContent() {
         </section>
 
         {error && <div style={warnBox}>{error}</div>}
+        {fileError && <div style={warnBox}>{fileError}</div>}
+
+        {res && (
+          <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ ...sectionTitle, margin: 0 }}>СКАЧАТЬ РАСЧЁТ</div>
+            <input
+              value={objectName}
+              onChange={(e) => setObjectName(e.target.value)}
+              placeholder="название объекта для шапки"
+              style={{ ...inputStyle, maxWidth: 260 }}
+            />
+            <button style={busy ? ghost : primary} onClick={downloadWord}>
+              {busy ? "Собирается…" : "Word (.docx)"}
+            </button>
+            <button style={ghost} onClick={downloadPdf}>
+              PDF (печать)
+            </button>
+            <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
+              Напор, подбор трубы и стенки, гидроудар с формулами, противоударная арматура, сравнение
+              материалов и перечень принятых величин.
+            </span>
+          </section>
+        )}
 
         {res && p && (
           <>
@@ -422,6 +526,7 @@ const bigRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(au
 const bigValue: CSSProperties = { color: "#e7eef1", fontSize: 30, fontWeight: 700 };
 const unit: CSSProperties = { fontSize: 15, color: "#8ca4ad", fontWeight: 400 };
 const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
 const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
 const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };

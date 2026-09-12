@@ -41,7 +41,8 @@ import {
   synthesizeProfile,
   type ParsedProfile,
 } from "../../../../calculations/water-main-input";
-import { calculateSegment, type SegmentResult } from "../../../../calculations/surge-protection";
+import { buildMainSpecification, stageProtection as buildStages, type MainSpecStage } from "../../../../calculations/main-spec";
+import { buildMainReportHtml } from "../../../../calculations/main-report";
 import RequireAuth from "../../RequireAuth";
 
 export default function PipelinePage() {
@@ -105,6 +106,13 @@ function PipelinePageContent() {
 
   const [showNodes, setShowNodes] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(false);
+
+  /* --- отчёт и ведомость --- */
+  const [objectName, setObjectName] = useState("");
+  const [reservePct, setReservePct] = useState("2");
+  const [sectionSpacing, setSectionSpacing] = useState("2000");
+  const [busy, setBusy] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   const num = (v: string) => Number(String(v).replace(",", ".")) || 0;
 
@@ -216,34 +224,35 @@ function PipelinePageContent() {
      труба. Значит, клапан, дренаж, бак и вантузы считаются сразу для
      всех ступеней — отдельной страницы и повторного ввода не нужно.
      ------------------------------------------------------------------ */
-  const stageProtection = useMemo((): { name: string; to: string; elev: number; lengthM: number; liftM: number; seg: SegmentResult }[] => {
+  const stageProtection = useMemo((): MainSpecStage[] => {
     if (!res) return [];
-    const last = res.nodes[res.nodes.length - 1];
-    return res.stations.map((s, i) => {
-      const next = res.stations[i + 1];
-      const endM = next ? next.stationM : last.stationM;
-      const endGround = next ? next.groundM : last.groundM;
-      const lengthM = Math.max(1, endM - s.stationM);
-      const liftM = Math.max(0, endGround - s.groundM);
-      const seg = calculateSegment({
-        qM3H: res.qM3H,
-        geoLiftM: liftM,
-        pipeLengthM: lengthM,
-        material,
-        lining,
-        outerMm: res.outerMm,
-        wallMm: res.wallMm,
-        startElevM: s.groundM,
-        startLabel: `${s.name} (${s.piket})`,
-        endLabel: next ? `${next.name} (${next.piket})` : `конец (${last.piket})`,
-        freeHeadM: next ? num(minSuction) || undefined : num(freeEnd) || undefined,
-        pnBar: res.pnBar,
-        pumpEff: num(pumpEff) || undefined,
-        motorEff: num(motorEff) || undefined,
-      });
-      return { name: s.name, to: next ? next.name : "конец", elev: s.groundM, lengthM: Math.round(lengthM), liftM: Number(liftM.toFixed(1)), seg };
+    return buildStages(res, {
+      material,
+      lining,
+      minSuctionHeadM: num(minSuction) || undefined,
+      freeHeadEndM: num(freeEnd) || undefined,
+      pumpEff: num(pumpEff) || undefined,
+      motorEff: num(motorEff) || undefined,
     });
   }, [res, material, lining, minSuction, freeEnd, pumpEff, motorEff]);
+
+  /* ------------------------------------------------------------------
+     ВЕДОМОСТЬ
+
+     Собирается из того же результата, что и таблицы на экране: длина
+     трубы — по профилю, агрегаты — по станциям, вантузы и выпуски — по
+     найденным точкам. Отдельного ввода нет и быть не должно.
+     ------------------------------------------------------------------ */
+  const spec = useMemo(() => {
+    if (!res) return null;
+    return buildMainSpecification(res, {
+      material,
+      lining,
+      stages: stageProtection,
+      installReservePct: num(reservePct) || undefined,
+      sectionSpacingM: num(sectionSpacing) || undefined,
+    });
+  }, [res, material, lining, stageProtection, reservePct, sectionSpacing]);
 
   const worstStage = stageProtection.reduce<(typeof stageProtection)[number] | null>(
     (w, x) => (!w || x.seg.peakBar > w.seg.peakBar ? x : w),
@@ -255,6 +264,101 @@ function PipelinePageContent() {
 
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
   const hasEconomics = num(tariff) > 0 && num(pipePrice) > 0;
+
+  /* ------------------------------------------------------------------
+     ВЫГРУЗКА
+
+     Word собирается на сервере: туда уходят исходные данные, и расчёт
+     повторяется тем же кодом. Присылать серверу готовые числа нельзя —
+     документ, собранный из присланного, перестаёт быть расчётом.
+     PDF печатает браузер из той же вёрстки.
+     ------------------------------------------------------------------ */
+  function reportPayload() {
+    const points = parsed?.points ?? [];
+    if (!res || points.length < 2) return null;
+    return {
+      mode: "main" as const,
+      object: objectName || undefined,
+      profile: points,
+      qM3Day,
+      hoursPerDay: num(hours) || 24,
+      daysPerYear: num(days) || 365,
+      lines: num(lines) || 1,
+      material,
+      lining,
+      outerMm: num(outer) || undefined,
+      wallMm: num(wall) || undefined,
+      sourceLevelM: sourceLevel ? num(sourceLevel) : undefined,
+      freeHeadEndM: num(freeEnd) || undefined,
+      minSuctionHeadM: num(minSuction) || undefined,
+      minLineHeadM: num(minLine) || undefined,
+      maxStageHeadM: num(maxStage) || undefined,
+      buryDepthM: num(bury) || undefined,
+      pnBar: num(pn) || undefined,
+      maxStations: num(maxStations) || undefined,
+      pumpEff: num(pumpEff) || undefined,
+      motorEff: num(motorEff) || undefined,
+      tariffPerKWh: num(tariff) || undefined,
+      pipePricePerTon: num(pipePrice) || undefined,
+      horizonYears: num(horizon) || undefined,
+      installReservePct: num(reservePct) || undefined,
+      sectionSpacingM: num(sectionSpacing) || undefined,
+    };
+  }
+
+  async function downloadWord() {
+    const payload = reportPayload();
+    if (!payload) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const r = await fetch("/api/main-report", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Документ не собрался.");
+        return;
+      }
+      const blob = await r.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_raschet_napornogo_vodovoda.docx";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function downloadPdf() {
+    if (!res) return;
+    setFileError("");
+    const html = buildMainReportHtml({
+      object: objectName || undefined,
+      material,
+      lining,
+      qM3Day,
+      hoursPerDay: num(hours) || 24,
+      lines: num(lines) || 1,
+      res,
+      stages: stageProtection,
+      spec,
+      tariffPerKWh: num(tariff) || undefined,
+    });
+    const w = window.open("", "_blank");
+    if (!w) {
+      setFileError("Браузер заблокировал новое окно. Разрешите всплывающие окна для этого сайта.");
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  }
 
   return (
     <main style={page}>
@@ -591,8 +695,32 @@ function PipelinePageContent() {
           </section>
         )}
 
+        {fileError && <div style={warnBox}>{fileError}</div>}
+
         {res && (
           <>
+            {/* ---------------- ВЫГРУЗКА ---------------- */}
+            <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ ...sectionTitle, margin: 0 }}>СКАЧАТЬ РАСЧЁТ</div>
+              <input
+                value={objectName}
+                onChange={(e) => setObjectName(e.target.value)}
+                placeholder="название объекта для шапки"
+                style={{ ...inputStyle, maxWidth: 260 }}
+              />
+              <button style={busy ? ghost : primary} onClick={downloadWord}>
+                {busy ? "Собирается…" : "Word (.docx)"}
+              </button>
+              <button style={ghost} onClick={downloadPdf}>
+                PDF (печать)
+              </button>
+              <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
+                В отчёт входят исходные данные, гидравлика с формулами, таблица профиля с линией энергии,
+                каскад станций, подбор стенки, гидроудар по ступеням, вантузы и выпуски, ведомость и
+                перечень принятых величин.
+              </span>
+            </section>
+
             {/* ---------------- СВОДКА ---------------- */}
             <section style={card}>
               <div style={sectionTitle}>ПРИНЯТОЕ РЕШЕНИЕ</div>
@@ -1023,6 +1151,66 @@ function PipelinePageContent() {
                 </table>
               </div>
             </section>
+
+            {/* ---------------- ВЕДОМОСТЬ ---------------- */}
+            {spec && spec.rows.length > 0 && (
+              <section style={card}>
+                <div style={sectionTitle}>ВЕДОМОСТЬ МАТЕРИАЛОВ И ОБОРУДОВАНИЯ</div>
+                <p style={{ ...hint, marginTop: 0 }}>
+                  Ничего не вводится руками: труба — по профилю, агрегаты — по каскаду, вантузы и выпуски — по
+                  найденным точкам, противоударная арматура — по расчёту ступеней. Упоров, опор и колодцев на
+                  поворотах здесь нет: план трассы в расчёт не вводится, а считать их «по среднему» значит выдать
+                  число, которое нечем подтвердить.
+                </p>
+                <div style={grid}>
+                  <label style={field}>
+                    <span style={fieldLabel}>Монтажный запас к длине труб, %</span>
+                    <input value={reservePct} onChange={(e) => setReservePct(e.target.value)} inputMode="decimal" style={inputStyle} />
+                  </label>
+                  <label style={field}>
+                    <span style={fieldLabel}>Шаг секционирующих задвижек, м</span>
+                    <input value={sectionSpacing} onChange={(e) => setSectionSpacing(e.target.value)} inputMode="decimal" style={inputStyle} />
+                  </label>
+                </div>
+                <div style={{ overflowX: "auto", marginTop: 16 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...th, textAlign: "left" }}>№</th>
+                        <th style={{ ...th, textAlign: "left" }}>Наименование</th>
+                        <th style={{ ...th, textAlign: "left" }}>Тип, марка</th>
+                        <th style={th}>Ед.</th>
+                        <th style={th}>Кол-во</th>
+                        <th style={{ ...th, textAlign: "left" }}>Примечание</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {spec.rows.map((r) => (
+                        <tr key={r.no}>
+                          <td style={{ ...td, textAlign: "left" }}>{r.no}</td>
+                          <td style={{ ...td, textAlign: "left", whiteSpace: "normal" }}>{r.name}</td>
+                          <td style={{ ...td, textAlign: "left", whiteSpace: "normal" }}>{r.type}</td>
+                          <td style={td}>{r.unit}</td>
+                          <td style={{ ...td, fontWeight: 700 }}>{r.qty}</td>
+                          <td style={{ ...td, textAlign: "left", whiteSpace: "normal", color: "#8ca4ad", fontSize: 12 }}>{r.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ ...smallLabel, marginBottom: 10 }}>ФОРМУЛЫ ВЕДОМОСТИ</div>
+                  <ul style={notes}>
+                    {spec.formulas.map((x, i) => (
+                      <li key={i} style={{ marginBottom: 8 }}>
+                        <b>{x.label}:</b> {x.formula} = <b>{x.result}</b>
+                        {x.source ? <span style={{ color: "#5c7280" }}> — {x.source}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            )}
 
             {/* ---------------- ДОПУЩЕНИЯ ---------------- */}
             <section style={card}>
