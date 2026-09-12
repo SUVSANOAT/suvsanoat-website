@@ -238,6 +238,36 @@ function WaterNetworkContent() {
     }
   }
 
+  async function downloadXlsx() {
+    const payload = exportPayload();
+    if (!payload) return;
+    setBusy(true);
+    setFileError("");
+    try {
+      const r = await fetch("/api/vedomost-xlsx", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...payload, mode: "network" }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => null)) as { error?: string } | null;
+        setFileError(j?.error || "Ведомость не собралась.");
+        return;
+      }
+      const blob = await r.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = "SUVSANOAT_vedomost_vodoprovodnoy_seti.xlsx";
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setFileError("Сервер не ответил.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function downloadPdf() {
     if (!net || !demand || !equip) return;
     setFileError("");
@@ -298,6 +328,9 @@ function WaterNetworkContent() {
             </button>
             <button style={ghost} onClick={downloadPdf}>
               PDF (печать)
+            </button>
+            <button style={busy ? tabDisabled : primary} onClick={downloadXlsx}>
+              Ведомость Excel (.xlsx)
             </button>
             <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
               В отчёт входят исходные данные, расходы с формулами, ведомости участков и узлов, аварийный и

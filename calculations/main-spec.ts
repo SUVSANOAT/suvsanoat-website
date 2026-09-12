@@ -155,7 +155,7 @@ export function buildMainSpecification(
     `${label}, ${res.outerMm}×${res.wallMm} мм (DN ${dn})`,
     "м",
     pipeM,
-    `по профилю ${Math.round(res.lengthM)} м + ${reserve} % монтажный запас; масса ${tons.toFixed(1)} т`,
+    `по профилю ${Math.round(res.lengthM)} м + ${reserve} % монтажный запас; масса ${tons.toFixed(1).replace(".", ",")} т`,
   );
 
   /* ---------------- запорная арматура ---------------- */
@@ -254,7 +254,7 @@ export function buildMainSpecification(
     {
       label: "Масса трубы",
       formula: `m = π/4 · (D² − d²) · L · ρ = π/4 · (${(res.outerMm / 1000).toFixed(3)}² − ${((res.outerMm - 2 * res.wallMm) / 1000).toFixed(3)}²) · ${Math.round(pipeM)} · ${WATER_PIPE[opts.material].densityKgM3}`,
-      result: `${tons.toFixed(1)} т`,
+      result: `${tons.toFixed(1).replace(".", ",")} т`,
       source: `плотность материала «${label}» ${WATER_PIPE[opts.material].densityKgM3} кг/м³`,
     },
     {

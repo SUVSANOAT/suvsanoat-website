@@ -60,7 +60,19 @@ const STYLE_INDEX: Record<XStyle, number> = {
   note: 9,
 };
 
-export type XCell = { v: string | number | null; s?: XStyle };
+export type XCell = {
+  v: string | number | null;
+  s?: XStyle;
+  /**
+   * Формула Excel без знака «=», например «E7*F7» или «SUM(G7:G20)».
+   * Нужна там, где человек будет вписывать свои числа — цены в
+   * ведомости. Если считать итог заранее и положить готовое число,
+   * вписанная цена его не изменит, и ведомость начнёт врать при первой
+   * же правке. Значение v при этом остаётся: это то, что увидит
+   * программа, которая формулы не считает.
+   */
+  f?: string;
+};
 export type XRow = XCell[];
 
 export type XSheet = {
@@ -99,6 +111,10 @@ export function colName(i: number): string {
 
 function cellXml(c: XCell, ref: string): string {
   const s = c.s ? ` s="${STYLE_INDEX[c.s]}"` : "";
+  if (c.f) {
+    const v = typeof c.v === "number" && Number.isFinite(c.v) ? `<v>${c.v}</v>` : "";
+    return `<c r="${ref}"${s}><f>${esc(c.f)}</f>${v}</c>`;
+  }
   if (c.v === null || c.v === undefined || c.v === "") return `<c r="${ref}"${s}/>`;
   if (typeof c.v === "number") {
     /* NaN и Infinity в XML-числе недопустимы: такое значение выводим
@@ -217,7 +233,11 @@ function workbookXml(sheets: XSheet[]): string {
     .join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets>${list}</sheets></workbook>`;
+<sheets>${list}</sheets>
+<!-- fullCalcOnLoad: в ячейках с формулами не записано заранее посчитанное
+     значение, и без этого флага Excel показал бы их пустыми до первой
+     правки. Пересчёт при открытии стоит доли секунды. -->
+<calcPr calcId="0" fullCalcOnLoad="1"/></workbook>`;
 }
 
 function workbookRelsXml(n: number): string {
