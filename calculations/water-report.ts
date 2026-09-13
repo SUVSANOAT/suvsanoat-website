@@ -27,8 +27,15 @@ import { NORM_DOC, SETTLEMENT, TERRAIN } from "./water-demand";
 import type { FireModeResult, WaterNetworkResult } from "./water-network";
 import type { SpecResult } from "./water-spec";
 
+export type ReportBrand = {
+  title: string;
+  subtitle?: string;
+  logo?: { data: Uint8Array; ext: "png" | "jpeg"; widthMm: number; heightMm: number } | null;
+};
+
 export type ReportInput = {
   object?: string;
+  brand?: ReportBrand;
   settlement: SettlementKind;
   terrain: Terrain;
   floors: number;
@@ -66,7 +73,11 @@ export function buildReportBlocks(r: ReportInput): DocxBlock[] {
   const object = r.object || "Водопроводная сеть населённого пункта";
 
   /* ---------------- титул ---------------- */
-  b.push({ t: "p", text: "SUVSANOAT", style: "subtitle" });
+  if (r.brand?.logo) {
+    b.push({ t: "image", data: r.brand.logo.data, ext: r.brand.logo.ext, widthMm: r.brand.logo.widthMm, heightMm: r.brand.logo.heightMm });
+  }
+  b.push({ t: "p", text: r.brand?.title || "SUVSANOAT", style: "subtitle" });
+  if (r.brand?.subtitle) b.push({ t: "p", text: r.brand.subtitle, style: "small" });
   b.push({ t: "p", text: "Гидравлический расчёт", style: "title" });
   b.push({ t: "p", text: "водопроводной сети населённого пункта", style: "subtitle" });
   b.push({ t: "p", text: object, style: "subtitle" });
@@ -299,7 +310,7 @@ export function reportDocxMeta(r: ReportInput) {
   return {
     title: `Гидравлический расчёт водопроводной сети — ${r.object || "объект"}`,
     subject: "Расчёт водопроводной сети",
-    creator: "SUVSANOAT",
+    creator: r.brand?.title || "SUVSANOAT",
   };
 }
 
@@ -325,6 +336,16 @@ export function buildReportHtml(r: ReportInput): string {
       }
       if (bl.t === "ul") return `<ul>${bl.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
       if (bl.t === "break") return `<div class="pagebreak"></div>`;
+      if (bl.t === "image") {
+        /* В печатной версии картинка вставляется как data-URL: файл
+           один, никаких внешних ссылок, которые могут не загрузиться
+           в момент печати. */
+        let bin = "";
+        bl.data.forEach((b) => (bin += String.fromCharCode(b)));
+        const g = globalThis as unknown as { btoa?: (s: string) => string; Buffer?: { from: (d: Uint8Array) => { toString: (e: string) => string } } };
+        const b64 = g.btoa ? g.btoa(bin) : g.Buffer ? g.Buffer.from(bl.data).toString("base64") : "";
+        return `<p style="text-align:${bl.align === "left" ? "left" : "center"};margin:0 0 6pt"><img src="data:image/${bl.ext};base64,${b64}" style="width:${bl.widthMm}mm;height:${bl.heightMm}mm"></p>`;
+      }
       const head = `<tr>${bl.head.map((h, i) => `<th${bl.widths ? ` style="width:${bl.widths[i]}%"` : ""}>${esc(h)}</th>`).join("")}</tr>`;
       const rows = bl.rows.map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
       return `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;

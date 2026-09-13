@@ -36,6 +36,9 @@ import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../calculatio
 import { buildReportBlocks, reportDocxMeta } from "../../../calculations/water-report";
 import { buildSpecification } from "../../../calculations/water-spec";
 import { sessionFromRequest } from "../../../lib/session";
+import { getBrand, userBrandSlug } from "../../../lib/brands";
+import { loadBrandLogo } from "../../../lib/brand-logo";
+import { dbUrl } from "../../../lib/auth";
 
 const MAX_BODY_BYTES = 512 * 1024;
 const MAX_NODES = 500;
@@ -79,8 +82,18 @@ function parseLinks(raw: unknown): NetLink[] {
     .filter((l): l is NetLink => l !== null);
 }
 
+async function reportBrand(login: string) {
+  try {
+    const brand = await getBrand(dbUrl() ? await userBrandSlug(login) : null);
+    return { title: brand.title, subtitle: brand.subtitle, logo: await loadBrandLogo(brand.logo_url) };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
 
@@ -153,6 +166,7 @@ export async function POST(request: Request) {
     nodes.forEach((n) => (peopleByNode[n.id] = n.people));
 
     const report = {
+      brand: await reportBrand(session.u),
       object: String(body.object ?? "").slice(0, 160) || undefined,
       settlement,
       terrain,

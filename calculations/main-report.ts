@@ -21,8 +21,31 @@ import { WATER_MAIN, WATER_PIPE, type Lining, type WaterMainResult, type WaterPi
 import type { SegmentResult } from "./surge-protection";
 import type { MainSpecStage } from "./main-spec";
 
+
+/**
+ * Бренд документа: под чьим знаком выходит отчёт. Логотип передаётся
+ * байтами — сервер читает его из public и кладёт прямо в .docx.
+ */
+export type ReportBrand = {
+  title: string;
+  subtitle?: string;
+  logo?: { data: Uint8Array; ext: "png" | "jpeg"; widthMm: number; heightMm: number } | null;
+};
+
+/** Шапка документа: логотип, название владельца, подзаголовок. */
+export function brandBlocks(brand: ReportBrand | undefined): DocxBlock[] {
+  const out: DocxBlock[] = [];
+  if (brand?.logo) {
+    out.push({ t: "image", data: brand.logo.data, ext: brand.logo.ext, widthMm: brand.logo.widthMm, heightMm: brand.logo.heightMm });
+  }
+  out.push({ t: "p", text: brand?.title || "SUVSANOAT", style: "subtitle" });
+  if (brand?.subtitle) out.push({ t: "p", text: brand.subtitle, style: "small" });
+  return out;
+}
+
 export type MainReportInput = {
   object?: string;
+  brand?: ReportBrand;
   material: WaterPipeKind;
   lining: Lining;
   qM3Day: number;
@@ -191,7 +214,7 @@ export function buildMainReportBlocks(r: MainReportInput): DocxBlock[] {
   const stages = r.stages ?? [];
 
   /* ---------------- титул ---------------- */
-  b.push({ t: "p", text: "SUVSANOAT", style: "subtitle" });
+  brandBlocks(r.brand).forEach((x) => b.push(x));
   b.push({ t: "p", text: "Гидравлический расчёт", style: "title" });
   b.push({ t: "p", text: "напорного водовода и каскада насосных станций", style: "subtitle" });
   b.push({ t: "p", text: object, style: "subtitle" });
@@ -469,7 +492,7 @@ export function mainReportDocxMeta(r: MainReportInput) {
   return {
     title: `Гидравлический расчёт напорного водовода — ${r.object || "объект"}`,
     subject: "Расчёт напорного водовода",
-    creator: "SUVSANOAT",
+    creator: r.brand?.title || "SUVSANOAT",
   };
 }
 
@@ -482,6 +505,7 @@ export function mainReportDocxMeta(r: MainReportInput) {
  * ================================================================== */
 export type SegmentReportInput = {
   object?: string;
+  brand?: ReportBrand;
   material: WaterPipeKind;
   lining: Lining;
   qM3H: number;
@@ -496,7 +520,7 @@ export function buildSegmentReportBlocks(r: SegmentReportInput): DocxBlock[] {
   const s = r.seg;
   const p = s.protection;
 
-  b.push({ t: "p", text: "SUVSANOAT", style: "subtitle" });
+  brandBlocks(r.brand).forEach((x) => b.push(x));
   b.push({ t: "p", text: "Расчёт участка водовода", style: "title" });
   b.push({ t: "p", text: "напор, гидравлический удар и противоударная защита", style: "subtitle" });
   b.push({ t: "p", text: r.object || "Участок напорного водовода", style: "subtitle" });
@@ -653,7 +677,7 @@ export function segmentReportDocxMeta(r: SegmentReportInput) {
   return {
     title: `Расчёт участка водовода — ${r.object || "объект"}`,
     subject: "Расчёт участка напорного водовода",
-    creator: "SUVSANOAT",
+    creator: r.brand?.title || "SUVSANOAT",
   };
 }
 
@@ -675,6 +699,16 @@ export function renderReportHtml(blocks: DocxBlock[], title: string): string {
       }
       if (bl.t === "ul") return `<ul>${bl.items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
       if (bl.t === "break") return `<div class="pagebreak"></div>`;
+      if (bl.t === "image") {
+        /* В печатной версии картинка вставляется как data-URL: файл
+           один, никаких внешних ссылок, которые могут не загрузиться
+           в момент печати. */
+        let bin = "";
+        bl.data.forEach((b) => (bin += String.fromCharCode(b)));
+        const g = globalThis as unknown as { btoa?: (s: string) => string; Buffer?: { from: (d: Uint8Array) => { toString: (e: string) => string } } };
+        const b64 = g.btoa ? g.btoa(bin) : g.Buffer ? g.Buffer.from(bl.data).toString("base64") : "";
+        return `<p style="text-align:${bl.align === "left" ? "left" : "center"};margin:0 0 6pt"><img src="data:image/${bl.ext};base64,${b64}" style="width:${bl.widthMm}mm;height:${bl.heightMm}mm"></p>`;
+      }
       const head = `<tr>${bl.head.map((h, i) => `<th${bl.widths ? ` style="width:${bl.widths[i]}%"` : ""}>${esc(h)}</th>`).join("")}</tr>`;
       const rows = bl.rows.map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
       return `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;

@@ -48,7 +48,14 @@ export type DocxBlock =
   | { t: "ul"; items: string[] }
   /** таблица: шапка повторяется на каждой странице, ширины — доли колонок */
   | { t: "table"; head: string[]; rows: string[][]; widths?: number[] }
-  | { t: "break" };
+  | { t: "break" }
+  /**
+   * Картинка в тексте — логотип в шапке отчёта. Ширина и высота в
+   * миллиметрах бумаги: документ печатают, а не смотрят в пикселях.
+   * Байты кладутся в word/media как есть — перекодировать чужой знак
+   * мы права не имеем.
+   */
+  | { t: "image"; data: Uint8Array; ext: "png" | "jpeg"; widthMm: number; heightMm: number; align?: "left" | "center" };
 
 /** Экранирование текста для XML. Без него любой «&» или «<» ломает документ. */
 function esc(s: string): string {
@@ -125,8 +132,38 @@ function tableXml(head: string[], rows: string[][], widths?: number[]): string {
   );
 }
 
+/** Индекс картинки в документе: нужен, чтобы связать блок с rId и файлом. */
+let imageIndex = new Map<DocxBlock, number>();
+
+/* 1 мм = 36000 EMU — единица, в которой Word хранит размеры. */
+const EMU_PER_MM = 36000;
+
+function imageXml(b: Extract<DocxBlock, { t: "image" }>): string {
+  const id = imageIndex.get(b) ?? 1;
+  const cx = Math.round(b.widthMm * EMU_PER_MM);
+  const cy = Math.round(b.heightMm * EMU_PER_MM);
+  const jc = b.align === "left" ? "left" : "center";
+  return (
+    `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:after="120"/></w:pPr><w:r><w:drawing>` +
+    `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
+    `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:docPr id="${100 + id}" name="Logo${id}"/>` +
+    `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+    `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:nvPicPr><pic:cNvPr id="${100 + id}" name="Logo${id}"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip r:embed="rIdImg${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
+  );
+}
+
 function blockXml(b: DocxBlock): string {
   switch (b.t) {
+    case "image":
+      return imageXml(b);
     case "h":
       return paragraph(b.text, `Heading${b.level}`);
     case "p":
@@ -205,19 +242,46 @@ const SECT_PR =
 
 /** Сборка .docx: ZIP из пяти обязательных частей OOXML. */
 export function buildDocxFile(blocks: DocxBlock[], meta: { title: string; subject?: string; creator?: string }): Uint8Array {
+  /* Картинки нумеруются до сборки тела: каждой нужен свой rId в
+     document.xml.rels и свой файл в word/media. */
+  const images = blocks.filter((b): b is Extract<DocxBlock, { t: "image" }> => b.t === "image");
+  imageIndex = new Map(images.map((b, i) => [b as DocxBlock, i + 1]));
+
   const body = blocks.map(blockXml).join("");
   const document =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
-    `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+    `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"` +
+    ` xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"` +
+    ` xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">` +
     `<w:body>${body}${SECT_PR}</w:body></w:document>`;
+
+  const exts = new Set(images.map((b) => b.ext));
+  const contentTypes = CONTENT_TYPES_XML.replace(
+    `<Default Extension="xml" ContentType="application/xml"/>`,
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+      [...exts].map((e) => `<Default Extension="${e === "jpeg" ? "jpg" : e}" ContentType="image/${e}"/>`).join(""),
+  );
+  const docRels = DOC_RELS_XML.replace(
+    `</Relationships>`,
+    images
+      .map(
+        (b, i) =>
+          `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo${i + 1}.${b.ext === "jpeg" ? "jpg" : b.ext}"/>`,
+      )
+      .join("") + `</Relationships>`,
+  );
 
   const enc = new TextEncoder();
   const entries: ZipEntry[] = [
-    { name: "[Content_Types].xml", data: enc.encode(CONTENT_TYPES_XML) },
+    { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
     { name: "_rels/.rels", data: enc.encode(ROOT_RELS_XML) },
     { name: "word/document.xml", data: enc.encode(document) },
-    { name: "word/_rels/document.xml.rels", data: enc.encode(DOC_RELS_XML) },
+    { name: "word/_rels/document.xml.rels", data: enc.encode(docRels) },
     { name: "word/styles.xml", data: enc.encode(STYLES_XML) },
+    ...images.map<ZipEntry>((b, i) => ({
+      name: `word/media/logo${i + 1}.${b.ext === "jpeg" ? "jpg" : b.ext}`,
+      data: b.data,
+    })),
     { name: "docProps/core.xml", data: enc.encode(coreXml(meta)) },
   ];
   return makeZip(entries);

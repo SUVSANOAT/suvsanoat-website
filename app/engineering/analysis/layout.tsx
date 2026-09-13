@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import BrandHeader from "../BrandHeader";
+
 export const metadata: Metadata = {
   title: "Расчёт очистных сооружений онлайн по нормам Узбекистана",
   description:
@@ -19,10 +21,30 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+/* ==================================================================
+ * ШАПКА БРЕНДА — ОДНА НА ВЕСЬ РАЗДЕЛ
+ *
+ * Логотип ставится в раскладке, а не в каждой странице: страниц в
+ * разделе полтора десятка, и вставленная в каждую шапка рано или
+ * поздно разойдётся — где-то забудут, где-то поправят только в одной.
+ * Здесь одно место на все расчёты.
+ *
+ * Шапка сама решает, что показывать: она спрашивает у сервера бренд
+ * вошедшего. Не вошёл — не показывается ничего.
+ * ================================================================== */
 export default function AnalysisLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <div style={{ background: "#06151d", paddingTop: 28 }}>
+        <div style={{ width: "min(1150px, calc(100% - 32px))", margin: "0 auto" }}>
+          <BrandHeader />
+        </div>
+      </div>
+      {children}
+    </>
+  );
 }
