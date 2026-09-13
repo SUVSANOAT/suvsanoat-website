@@ -47,17 +47,22 @@ function num(v: unknown): number | undefined {
 
 function parsePoints(raw: unknown): ProfilePoint[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .slice(0, MAX_POINTS)
-    .map((r) => {
-      const o = (r ?? {}) as Record<string, unknown>;
-      const stationM = num(o.stationM);
-      const groundM = num(o.groundM);
-      if (stationM === undefined || groundM === undefined) return null;
-      const label = typeof o.label === "string" ? o.label.slice(0, 40) : undefined;
-      return { stationM, groundM, invertM: num(o.invertM), label };
-    })
-    .filter((p): p is ProfilePoint => p !== null);
+  /* Собираем циклом, а не map+filter: предикат-фильтр в этой связке
+     типов не сужает, и сборка падает на проверке типов. Цикл понятнее
+     и не зависит от тонкостей вывода. */
+  const out: ProfilePoint[] = [];
+  for (const r of raw.slice(0, MAX_POINTS)) {
+    const o = (r ?? {}) as Record<string, unknown>;
+    const stationM = num(o.stationM);
+    const groundM = num(o.groundM);
+    if (stationM === undefined || groundM === undefined) continue;
+    const point: ProfilePoint = { stationM, groundM };
+    const invertM = num(o.invertM);
+    if (invertM !== undefined) point.invertM = invertM;
+    if (typeof o.label === "string" && o.label) point.label = o.label.slice(0, 40);
+    out.push(point);
+  }
+  return out;
 }
 
 function docxResponse(bytes: Uint8Array, filename: string) {

@@ -47,46 +47,63 @@ function num(v: unknown): number | undefined {
 
 function parsePoints(raw: unknown): ProfilePoint[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .slice(0, MAX_POINTS)
-    .map((r) => {
-      const o = (r ?? {}) as Record<string, unknown>;
-      const stationM = num(o.stationM);
-      const groundM = num(o.groundM);
-      if (stationM === undefined || groundM === undefined) return null;
-      const label = typeof o.label === "string" ? o.label.slice(0, 40) : undefined;
-      return { stationM, groundM, invertM: num(o.invertM), label };
-    })
-    .filter((p): p is ProfilePoint => p !== null);
+  /* Собираем циклом, а не map+filter: предикат-фильтр в этой связке
+     типов не сужает, и сборка падает на проверке типов. Цикл понятнее
+     и не зависит от тонкостей вывода. */
+  const out: ProfilePoint[] = [];
+  for (const r of raw.slice(0, MAX_POINTS)) {
+    const o = (r ?? {}) as Record<string, unknown>;
+    const stationM = num(o.stationM);
+    const groundM = num(o.groundM);
+    if (stationM === undefined || groundM === undefined) continue;
+    const point: ProfilePoint = { stationM, groundM };
+    const invertM = num(o.invertM);
+    if (invertM !== undefined) point.invertM = invertM;
+    if (typeof o.label === "string" && o.label) point.label = o.label.slice(0, 40);
+    out.push(point);
+  }
+  return out;
 }
 
-function parseNodes(raw: unknown): (NetNode & { people?: number })[] {
+function parseNodes(raw: unknown): NetNode[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .slice(0, MAX_NODES)
-    .map((r) => {
-      const o = (r ?? {}) as Record<string, unknown>;
-      const id = String(o.id ?? "").slice(0, 40).trim();
-      const groundM = num(o.groundM);
-      if (!id || groundM === undefined) return null;
-      return { id, groundM, people: num(o.people), demandLps: num(o.demandLps), floors: num(o.floors) };
-    })
-    .filter((n): n is NetNode & { people?: number } => n !== null);
+  const out: NetNode[] = [];
+  for (const r of raw.slice(0, MAX_NODES)) {
+    const o = (r ?? {}) as Record<string, unknown>;
+    const id = String(o.id ?? "").slice(0, 40).trim();
+    const groundM = num(o.groundM);
+    if (!id || groundM === undefined) continue;
+    const node: NetNode = { id, groundM };
+    const people = num(o.people);
+    const demandLps = num(o.demandLps);
+    const floors = num(o.floors);
+    const x = num(o.x);
+    const y = num(o.y);
+    if (people !== undefined) node.people = people;
+    if (demandLps !== undefined) node.demandLps = demandLps;
+    if (floors !== undefined) node.floors = floors;
+    if (x !== undefined) node.x = x;
+    if (y !== undefined) node.y = y;
+    out.push(node);
+  }
+  return out;
 }
 
 function parseLinks(raw: unknown): NetLink[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .slice(0, MAX_NODES)
-    .map((r) => {
-      const o = (r ?? {}) as Record<string, unknown>;
-      const from = String(o.from ?? "").slice(0, 40).trim();
-      const to = String(o.to ?? "").slice(0, 40).trim();
-      const lengthM = num(o.lengthM);
-      if (!from || !to || lengthM === undefined) return null;
-      return { from, to, lengthM, dnMm: num(o.dnMm) };
-    })
-    .filter((l): l is NetLink => l !== null);
+  const out: NetLink[] = [];
+  for (const r of raw.slice(0, MAX_NODES)) {
+    const o = (r ?? {}) as Record<string, unknown>;
+    const from = String(o.from ?? "").slice(0, 40).trim();
+    const to = String(o.to ?? "").slice(0, 40).trim();
+    const lengthM = num(o.lengthM);
+    if (!from || !to || lengthM === undefined) continue;
+    const link: NetLink = { from, to, lengthM };
+    const dnMm = num(o.dnMm);
+    if (dnMm !== undefined) link.dnMm = dnMm;
+    out.push(link);
+  }
+  return out;
 }
 
 function xlsxResponse(bytes: Uint8Array, filename: string) {
