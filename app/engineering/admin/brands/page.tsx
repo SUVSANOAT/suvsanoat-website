@@ -28,6 +28,7 @@ type Brand = {
   title: string;
   subtitle: string;
   logo_url: string;
+  og_image: string;
   accent: string;
   contact: string;
   host: string;
@@ -40,6 +41,7 @@ const EMPTY: Brand = {
   title: "",
   subtitle: "",
   logo_url: "",
+  og_image: "",
   accent: "#5fb6c9",
   contact: "",
   host: "",
@@ -136,6 +138,10 @@ function BrandsPageContent() {
             <label style={field}>
               <span style={fieldLabel}>Логотип: путь в public</span>
               <input value={form.logo_url} onChange={set("logo_url")} placeholder="/brands/kommunal-liti.png" style={inputStyle} />
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Картинка ссылки 1200×630: путь в public</span>
+              <input value={form.og_image} onChange={set("og_image")} placeholder="/brands/kommunal-liti-og.png" style={inputStyle} />
             </label>
             <label style={field}>
               <span style={fieldLabel}>Фирменный цвет</span>
