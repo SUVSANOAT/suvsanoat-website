@@ -15,7 +15,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { brandDaysLeft, brandExpired, getBrand, userBrandSlug } from "../../../lib/brands";
+import { brandDaysLeft, brandExpired, getBrand, getBrandByHost, userBrandSlug } from "../../../lib/brands";
 import { dbUrl } from "../../../lib/auth";
 import { sessionFromRequest } from "../../../lib/session";
 
@@ -24,8 +24,13 @@ export async function GET(request: Request) {
   if (!session) return Response.json({ ok: false, error: "Нужен вход." }, { status: 401 });
 
   try {
+    /* Сначала бренд вошедшего: он главнее домена. Человек может зайти
+       под своим логином и на общий адрес — и должен увидеть своё.
+       Если у пользователя бренда нет, берётся бренд домена: на
+       отдельном сайте это его знак. */
     const slug = dbUrl() ? await userBrandSlug(session.u) : null;
-    const brand = await getBrand(slug);
+    const byHost = slug ? null : await getBrandByHost(request.headers.get("host"));
+    const brand = byHost ?? (await getBrand(slug));
     return Response.json({
       ok: true,
       brand: {
