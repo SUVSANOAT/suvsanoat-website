@@ -5,6 +5,7 @@ import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import AccountBar, { AccountNote } from "./AccountBar";
+import BrandMark, { useBrandTitle } from "./BrandMark";
 import EngineeringStory from "./EngineeringStory";
 import type { Language } from "../translations";
 
@@ -167,6 +168,9 @@ export default function EngineeringPage() {
   const router = useRouter();
   const { language } = useLanguage();
   const t = T[language];
+  /* Имя над заголовком — того, чей это адрес. На нашем домене это
+     SUVSANOAT, на адресе проектировщика — его организация. */
+  const brandTitle = useBrandTitle();
 
   /* Свободного описания объекта на этой странице больше нет.
      Оно требовало от человека пересказать словами то, что мастер
@@ -179,9 +183,10 @@ export default function EngineeringPage() {
       {/* HEADER */}
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <a href="/" className={styles.logo} aria-label="Suvsanoat">
-            SUVSANOAT
-          </a>
+          {/* Знак берётся из бренда адреса, а не пишется в коде:
+              на отдельном адресе проектировщика здесь должен стоять
+              его логотип, а не наш. */}
+          <BrandMark href="/" height={30} />
 
           <div className={styles.headerRight}>
             <LanguageSwitcher />
@@ -202,7 +207,7 @@ export default function EngineeringPage() {
         <div className={`${styles.heroContent} ${styles.storyHead}`}>
           <div className={styles.eyebrow}>
             <span className={styles.eyebrowLine} />
-            SUVSANOAT ENGINEERING AI
+            {brandTitle ? `${brandTitle} ENGINEERING AI` : "ENGINEERING AI"}
           </div>
 
           <h1 className={styles.title}>

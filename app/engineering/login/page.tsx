@@ -2,6 +2,7 @@
 
 import { type CSSProperties, FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import BrandMark, { useIsHomeBrand } from "../BrandMark";
 
 /* ==================================================================
  * ВХОД В РАЗДЕЛ «ИНЖИНИРИНГ»
@@ -49,6 +50,11 @@ function LoginContent() {
   const sp = useSearchParams();
   const next = safeNext(sp.get("next"));
   const adminOnly = sp.get("admin") === "1";
+  /* На отдельном адресе заказчика заявка на доступ не показывается:
+     логины там выдаёт владелец лично, а форма «запросить доступ»
+     обещала бы то, чего на этом адресе нет. null — ответ ещё не
+     пришёл, до этого форму не показываем, чтобы она не мигала. */
+  const isHome = useIsHomeBrand();
 
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -108,6 +114,10 @@ function LoginContent() {
           ← Инжиниринг
         </button>
 
+        <div style={{ marginBottom: 26 }}>
+          <BrandMark height={40} />
+        </div>
+
         <div style={{ color: "#00d9ff", fontSize: 12, fontWeight: 800, letterSpacing: "0.2em", marginBottom: 16 }}>
           ДОСТУП ДЛЯ ПРОЕКТИРОВЩИКОВ
         </div>
@@ -115,11 +125,12 @@ function LoginContent() {
           {adminOnly ? "Нужны права администратора" : "Результат расчёта, чертежи DXF и записка — после входа"}
         </h1>
         <p style={{ maxWidth: 760, color: FAINT, fontSize: 17, lineHeight: 1.65, margin: "0 0 40px" }}>
-          Исходные данные вводятся свободно, а готовое решение с чертежами и технической запиской мы отдаём
-          зарегистрированным проектировщикам. Доступ бесплатный, выдаётся в рабочее время после заявки.
+          {isHome === false
+            ? "Раздел расчётов открыт по логину и паролю. Логин выдаётся владельцем доступа лично; самостоятельной регистрации на этом адресе нет."
+            : "Исходные данные вводятся свободно, а готовое решение с чертежами и технической запиской мы отдаём зарегистрированным проектировщикам. Доступ бесплатный, выдаётся в рабочее время после заявки."}
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, maxWidth: isHome === true ? undefined : 460 }}>
           {/* ВХОД */}
           <form onSubmit={onLogin} style={{ border: `1px solid ${LINE}`, background: PANEL, padding: 30, borderRadius: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.16em", color: "#00d9ff", marginBottom: 20 }}>ВХОД</div>
@@ -137,7 +148,8 @@ function LoginContent() {
             </p>
           </form>
 
-          {/* ЗАЯВКА */}
+          {/* ЗАЯВКА — только на нашем адресе */}
+          {isHome === true && (
           <form onSubmit={onRequest} style={{ border: `1px solid ${LINE}`, background: PANEL, padding: 30, borderRadius: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.16em", color: "#9ccc65", marginBottom: 20 }}>НЕТ ДОСТУПА — ЗАПРОСИТЬ</div>
             <label style={label}>ИМЯ *</label>
@@ -158,6 +170,7 @@ function LoginContent() {
               {reqBusy ? "Отправляю…" : "Отправить заявку"}
             </button>
           </form>
+          )}
         </div>
       </div>
     </main>
