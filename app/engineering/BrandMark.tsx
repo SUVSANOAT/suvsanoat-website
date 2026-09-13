@@ -19,6 +19,23 @@
 import { CSSProperties, useState } from "react";
 import { useBrand } from "./BrandHeader";
 
+/** Слаг нашего собственного бренда — задан в lib/brands.ts. */
+export const HOME_SLUG = "suvsanoat";
+
+/**
+ * Наш ли это адрес. Нужно там, где решение принимается до ответа
+ * сервера: на чужом домене нельзя показывать нашу витрину даже на
+ * долю секунды. Домены перечислены здесь прямо — их два, и оба наши;
+ * всё остальное считается адресом заказчика.
+ */
+export function isOwnHost(): boolean {
+  /* На сервере рисуется наш вариант: его читают поисковики нашего
+     домена, и статическая страница должна остаться статической. */
+  if (typeof window === "undefined") return true;
+  const h = window.location.hostname.toLowerCase();
+  return h === "suvsanoat.uz" || h === "www.suvsanoat.uz" || h === "localhost" || h.endsWith(".vercel.app");
+}
+
 export default function BrandMark({
   height = 34,
   showTitle = true,
@@ -63,11 +80,14 @@ export function useBrandTitle(): string {
   return useBrand()?.title ?? "";
 }
 
-/** Свой ли это адрес (наш дом) — на чужом бланке заявка на доступ не нужна. */
+/**
+ * Наш ли это бренд. На чужом бланке заявка на доступ не нужна:
+ * логины там выдаёт владелец лично. null — ответ ещё не пришёл.
+ */
 export function useIsHomeBrand(): boolean | null {
   const brand = useBrand();
   if (!brand) return null;
-  return brand.slug === "home";
+  return brand.slug === HOME_SLUG;
 }
 
 const wrap: CSSProperties = {

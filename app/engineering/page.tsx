@@ -5,7 +5,9 @@ import styles from "./engineering.module.css";
 import { useLanguage } from "../LanguageContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import AccountBar, { AccountNote } from "./AccountBar";
-import BrandMark, { useBrandTitle } from "./BrandMark";
+import BrandMark, { useBrandTitle, isOwnHost, HOME_SLUG } from "./BrandMark";
+import { useBrand } from "./BrandHeader";
+import BrandLanding from "./BrandLanding";
 import EngineeringStory from "./EngineeringStory";
 import type { Language } from "../translations";
 
@@ -171,6 +173,21 @@ export default function EngineeringPage() {
   /* Имя над заголовком — того, чей это адрес. На нашем домене это
      SUVSANOAT, на адресе проектировщика — его организация. */
   const brandTitle = useBrandTitle();
+  const brand = useBrand();
+
+  /* ---------------- чужой адрес — другой лист ----------------
+     Эта страница рекламная: движущаяся сцена, рассказ о том, как
+     рождается проект. Она написана для того, кто ещё не решил. На
+     адресе проектного института она не нужна — там человек уже купил
+     доступ и пришёл считать, и лист должен выглядеть как бланк
+     учреждения, а не как наша витрина.
+
+     Пока бренд не пришёл, на чужом адресе не показывается ничего:
+     мигнуть на секунду нашей витриной на его домене — ровно то, ради
+     чего всё это делалось, и было бы обидно. На нашем домене ждать
+     нечего, страница рисуется сразу — её же читают поисковики. */
+  if (brand && brand.slug !== HOME_SLUG) return <BrandLanding brand={brand} />;
+  if (!brand && !isOwnHost()) return null;
 
   /* Свободного описания объекта на этой странице больше нет.
      Оно требовало от человека пересказать словами то, что мастер

@@ -20,6 +20,13 @@
  * Справа — до какого числа открыт раздел. Не для красоты: человек
  * должен узнать об окончании заранее, а не в тот день, когда ему
  * нужно сдать расчёт.
+ *
+ * ОДИН ЗАПРОС НА СТРАНИЦУ
+ *
+ * Бренд спрашивают несколько мест сразу: шапка, знак на витрине,
+ * имя во вкладке. Раньше каждое ходило на сервер само — четыре
+ * одинаковых запроса на один показ. Теперь ответ берётся один раз и
+ * лежит в памяти вкладки: он не меняется, пока человек не вышел.
  * ================================================================== */
 
 import { CSSProperties, useEffect, useState } from "react";
@@ -36,46 +43,53 @@ export type Brand = {
   login?: string;
 };
 
-/**
- * Бренд для страниц: печатная версия PDF собирается в браузере, и ей
- * тоже нужен знак владельца. Запрос тот же, что у шапки.
- */
-export function useBrand(): Brand | null {
-  const [brand, setBrand] = useState<Brand | null>(null);
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/brand")
+/* ---------- общий ответ на всю вкладку ---------- */
+
+let cachedBrand: Brand | null = null;
+let inflight: Promise<Brand | null> | null = null;
+
+function loadBrand(): Promise<Brand | null> {
+  if (cachedBrand) return Promise.resolve(cachedBrand);
+  if (!inflight) {
+    inflight = fetch("/api/brand")
       .then((r) => r.json())
       .then((j: { ok: boolean; brand?: Brand }) => {
-        if (alive && j.ok && j.brand) setBrand(j.brand);
+        if (j.ok && j.brand) cachedBrand = j.brand;
+        return cachedBrand;
       })
-      .catch(() => {});
+      .catch(() => null)
+      .finally(() => {
+        inflight = null;
+      });
+  }
+  return inflight;
+}
+
+/**
+ * Бренд для страниц: печатная версия PDF собирается в браузере, и ей
+ * тоже нужен знак владельца. Тот же источник, что у шапки.
+ */
+export function useBrand(): Brand | null {
+  const [brand, setBrand] = useState<Brand | null>(cachedBrand);
+  useEffect(() => {
+    if (brand) return;
+    let alive = true;
+    loadBrand().then((b) => {
+      if (alive && b) setBrand(b);
+    });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [brand]);
   return brand;
 }
 
 export default function BrandHeader() {
-  const [brand, setBrand] = useState<Brand | null>(null);
+  const brand = useBrand();
   /* Файл логотипа может не найтись — путь берётся из базы и его никто
      не проверяет при вводе. Битая картинка в шапке выглядит хуже, чем
      её отсутствие, поэтому при ошибке загрузки подложка убирается. */
   const [logoOk, setLogoOk] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/brand")
-      .then((r) => r.json())
-      .then((j: { ok: boolean; brand?: Brand }) => {
-        if (alive && j.ok && j.brand) setBrand(j.brand);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   if (!brand) return null;
 

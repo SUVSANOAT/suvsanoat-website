@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import EngineeringLang from "./EngineeringLang";
+import BrandTitle from "./BrandTitle";
 
 export const metadata: Metadata = {
   title: "Инженерный подбор системы очистки сточных вод",
@@ -27,6 +28,8 @@ export default function EngineeringLayout({
   return (
     <>
       <EngineeringLang />
+      {/* На адресе заказчика имя во вкладке должно быть его. */}
+      <BrandTitle />
       {children}
     </>
   );
