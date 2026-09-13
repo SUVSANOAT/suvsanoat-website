@@ -34,6 +34,7 @@ export const HOME_BRAND: Brand = {
   subtitle: "Проектирование и производство очистного оборудования",
   logo_url: "/logo.png",
   og_image: "/og-image.jpg",
+  full_name: "",
   accent: "#5fb6c9",
   contact: "Ташкент, suvsanoat.uz",
   active_until: null,
@@ -62,6 +63,18 @@ export type Brand = {
    * наша картинка вместо его.
    */
   og_image: string;
+  /**
+   * Полное наименование, как в документах учреждения. Строки идут
+   * сверху вниз, разделены переводом строки.
+   *
+   * Отдельно от title не ради красоты: title — короткий знак для
+   * шапки и для свойств документа («KOMMUNAL LITI»), а здесь
+   * официальное название целиком, которое должно стоять на бланке и
+   * в карточке ссылки. Одним полем эти два не обойтись: короткое имя
+   * в шапку не влезет длинным, а длинное в свойствах файла читается
+   * плохо.
+   */
+  full_name: string;
   accent: string;
   contact: string;
   /** дата окончания доступа; null — бессрочно (свой бренд) */
@@ -87,6 +100,7 @@ export function ensureBrandsSchema(): Promise<void> {
         subtitle TEXT NOT NULL DEFAULT '',
         logo_url TEXT NOT NULL DEFAULT '',
         og_image TEXT NOT NULL DEFAULT '',
+        full_name TEXT NOT NULL DEFAULT '',
         accent TEXT NOT NULL DEFAULT '#5fb6c9',
         contact TEXT NOT NULL DEFAULT '',
         host TEXT NOT NULL DEFAULT '',
@@ -104,6 +118,7 @@ export function ensureBrandsSchema(): Promise<void> {
       /* Столбец появился позже таблицы: на работающей базе CREATE TABLE
          уже не выполнится, а колонку добавить надо. */
       await sql`ALTER TABLE brands ADD COLUMN IF NOT EXISTS og_image TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE brands ADD COLUMN IF NOT EXISTS full_name TEXT NOT NULL DEFAULT ''`;
       await sql`CREATE INDEX IF NOT EXISTS brands_host_idx ON brands (host)`;
     })().catch((e) => {
       ready = null;
@@ -117,7 +132,7 @@ export function ensureBrandsSchema(): Promise<void> {
 export async function listBrands(): Promise<Brand[]> {
   await ensureBrandsSchema();
   const sql = db();
-  const rows = (await sql`SELECT slug, title, subtitle, logo_url, og_image, accent, contact, host, active_until, note
+  const rows = (await sql`SELECT slug, title, subtitle, logo_url, og_image, full_name, accent, contact, host, active_until, note
     FROM brands ORDER BY created_at`) as Brand[];
   return [HOME_BRAND, ...rows.filter((b) => b.slug !== HOME_BRAND.slug)];
 }
@@ -126,7 +141,7 @@ export async function getBrand(slug: string | null | undefined): Promise<Brand> 
   if (!slug || slug === HOME_BRAND.slug) return HOME_BRAND;
   await ensureBrandsSchema();
   const sql = db();
-  const rows = (await sql`SELECT slug, title, subtitle, logo_url, og_image, accent, contact, host, active_until, note
+  const rows = (await sql`SELECT slug, title, subtitle, logo_url, og_image, full_name, accent, contact, host, active_until, note
     FROM brands WHERE slug = ${slug} LIMIT 1`) as Brand[];
   return rows[0] ?? HOME_BRAND;
 }
@@ -136,14 +151,14 @@ export async function saveBrand(b: Brand): Promise<Brand> {
   const sql = db();
   const slug = b.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40);
   if (!slug || slug === HOME_BRAND.slug) throw new Error("Недопустимый идентификатор бренда.");
-  const rows = (await sql`INSERT INTO brands (slug, title, subtitle, logo_url, og_image, accent, contact, host, active_until, note)
-    VALUES (${slug}, ${b.title.slice(0, 120)}, ${b.subtitle.slice(0, 200)}, ${b.logo_url.slice(0, 300)}, ${(b.og_image ?? "").slice(0, 300)},
+  const rows = (await sql`INSERT INTO brands (slug, title, subtitle, logo_url, og_image, full_name, accent, contact, host, active_until, note)
+    VALUES (${slug}, ${b.title.slice(0, 120)}, ${b.subtitle.slice(0, 200)}, ${b.logo_url.slice(0, 300)}, ${(b.og_image ?? "").slice(0, 300)}, ${(b.full_name ?? "").slice(0, 400)},
             ${b.accent.slice(0, 16)}, ${b.contact.slice(0, 200)}, ${normalizeHost(b.host)}, ${b.active_until}, ${b.note.slice(0, 400)})
     ON CONFLICT (slug) DO UPDATE SET
-      title = EXCLUDED.title, subtitle = EXCLUDED.subtitle, logo_url = EXCLUDED.logo_url, og_image = EXCLUDED.og_image,
+      title = EXCLUDED.title, subtitle = EXCLUDED.subtitle, logo_url = EXCLUDED.logo_url, og_image = EXCLUDED.og_image, full_name = EXCLUDED.full_name,
       accent = EXCLUDED.accent, contact = EXCLUDED.contact, host = EXCLUDED.host, active_until = EXCLUDED.active_until,
       note = EXCLUDED.note
-    RETURNING slug, title, subtitle, logo_url, og_image, accent, contact, host, active_until, note`) as Brand[];
+    RETURNING slug, title, subtitle, logo_url, og_image, full_name, accent, contact, host, active_until, note`) as Brand[];
   return rows[0];
 }
 
@@ -161,7 +176,7 @@ export async function getBrandByHost(host: string | null | undefined): Promise<B
   if (!h) return null;
   await ensureBrandsSchema();
   const sql = db();
-  const rows = (await sql`SELECT slug, title, subtitle, logo_url, og_image, accent, contact, host, active_until, note
+  const rows = (await sql`SELECT slug, title, subtitle, logo_url, og_image, full_name, accent, contact, host, active_until, note
     FROM brands WHERE host = ${h} LIMIT 1`) as Brand[];
   return rows[0] ?? null;
 }

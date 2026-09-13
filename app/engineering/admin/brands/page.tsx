@@ -29,6 +29,7 @@ type Brand = {
   subtitle: string;
   logo_url: string;
   og_image: string;
+  full_name: string;
   accent: string;
   contact: string;
   host: string;
@@ -42,6 +43,7 @@ const EMPTY: Brand = {
   subtitle: "",
   logo_url: "",
   og_image: "",
+  full_name: "",
   accent: "#5fb6c9",
   contact: "",
   host: "",
@@ -138,6 +140,16 @@ function BrandsPageContent() {
             <label style={field}>
               <span style={fieldLabel}>Логотип: путь в public</span>
               <input value={form.logo_url} onChange={set("logo_url")} placeholder="/brands/kommunal-liti.png" style={inputStyle} />
+            </label>
+            <label style={field}>
+              <span style={fieldLabel}>Полное наименование: каждая строка с новой строки</span>
+              <textarea
+                value={form.full_name}
+                onChange={set("full_name")}
+                rows={3}
+                placeholder={"“Kommunal loyiha ilmiy-tadqiqot instituti”\nDAVLAT MUASSASASI\nG‘arbiy mintaqalararo filiali"}
+                style={{ ...inputStyle, resize: "vertical" }}
+              />
             </label>
             <label style={field}>
               <span style={fieldLabel}>Картинка ссылки 1200×630: путь в public</span>

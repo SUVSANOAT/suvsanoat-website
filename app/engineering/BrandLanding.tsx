@@ -36,18 +36,26 @@ import { useLanguage } from "../LanguageContext";
  */
 export type LandingBrand = {
   title: string;
+  /** полное наименование, строки разделены переводом строки */
+  full_name: string;
   logo_url: string;
   accent: string;
   contact: string;
 };
 
-/* ---------- наименование учреждения ---------- */
-
-const NAME_LINES: { text: string; style: "quoted" | "caps" | "plain" }[] = [
-  { text: "“Kommunal loyiha ilmiy-tadqiqot instituti”", style: "quoted" },
-  { text: "DAVLAT MUASSASASI", style: "caps" },
-  { text: "G‘arbiy mintaqalararo filiali", style: "plain" },
-];
+/* ---------- наименование учреждения ----------
+ *
+ * Берётся из записи бренда, а не пишется здесь: страница одна на всех
+ * заказчиков, и второй такой же под другое название не делается.
+ * Разбивка простая — первая строка крупно, вторая прописными
+ * фирменным цветом, остальные обычным. Так устроен почти любой
+ * официальный бланк: название в кавычках, форма учреждения, филиал.
+ * Если наименование не заполнено, остаётся короткий знак. */
+function nameLines(brand: LandingBrand): { text: string; style: "quoted" | "caps" | "plain" }[] {
+  const lines = (brand.full_name || "").split("\n").map((x) => x.trim()).filter(Boolean);
+  if (!lines.length) return [{ text: brand.title, style: "quoted" }];
+  return lines.map((text, i) => ({ text, style: i === 0 ? "quoted" : i === 1 ? "caps" : "plain" }));
+}
 
 /* ---------- перечень расчётов ---------- */
 
@@ -171,7 +179,7 @@ export default function BrandLanding({ brand }: { brand: LandingBrand }) {
 
         <div style={{ ...rule, background: accent }} />
 
-        {NAME_LINES.map((l) => (
+        {nameLines(brand).map((l) => (
           <div
             key={l.text}
             style={

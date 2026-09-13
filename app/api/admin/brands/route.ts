@@ -2,7 +2,7 @@
  * БРЕНДЫ РАЗДЕЛА — УПРАВЛЕНИЕ (только администратор).
  *
  *   GET    → список брендов
- *   POST   { slug, title, subtitle, logo_url, og_image, accent, contact, host,
+ *   POST   { slug, title, subtitle, logo_url, og_image, full_name, accent, contact, host,
  *            active_until, note, login? } → создать или изменить;
  *            если передан login — привязать этого пользователя к бренду
  *   DELETE ?login=...  → отвязать пользователя от бренда
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     subtitle: str(body.subtitle, 200),
     logo_url: str(body.logo_url, 300),
     og_image: str(body.og_image, 300),
+    full_name: str(body.full_name, 400),
     accent: str(body.accent, 16) || "#5fb6c9",
     contact: str(body.contact, 200),
     host: str(body.host, 200),

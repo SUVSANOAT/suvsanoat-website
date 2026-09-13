@@ -48,6 +48,7 @@ export default async function EngineeringPage() {
       <BrandLanding
         brand={{
           title: brand.title,
+          full_name: brand.full_name,
           logo_url: brand.logo_url,
           accent: brand.accent,
           contact: brand.contact,

@@ -56,6 +56,15 @@ export async function generateMetadata(): Promise<Metadata> {
     if (!brand) return HOME;
 
     const base = `https://${host}`;
+    /* В карточке ссылки и во вкладке — полное наименование, как в
+       документах учреждения. Мессенджер покажет его одной строкой, но
+       текст останется тем же, что на бланке. Короткий знак остаётся
+       именем сайта: в карточке это отдельная строка сверху. */
+    const name = (brand.full_name || "")
+      .split("\n")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .join(" ") || brand.title;
     /* Если своей картинки у бренда нет, лучше не показывать никакой,
        чем показать чужую: мессенджер нарисует карточку без картинки, и
        это не выдаст постороннее имя. */
@@ -67,17 +76,24 @@ export async function generateMetadata(): Promise<Metadata> {
       /* absolute — иначе корневой шаблон допишет «| SUVSANOAT»
          к чужому имени, и мы вернём в карточку ровно то, что
          убираем. */
-      title: { absolute: brand.title },
+      title: { absolute: name },
       description: brand.subtitle,
       alternates: { canonical: `${base}/engineering` },
       openGraph: {
-        title: brand.title,
+        title: name,
         description: brand.subtitle,
         url: `${base}/engineering`,
         siteName: brand.title,
         type: "website",
         images: image,
       },
+      /* Автор, издатель и ключевые слова тоже задаются в корневой
+         раскладке и остаются нашими. На карточку они не влияют, но
+         это наше имя в исходном коде его страницы — убираем. */
+      authors: [{ name: brand.title }],
+      creator: brand.title,
+      publisher: brand.title,
+      keywords: [],
       /* Telegram и часть мессенджеров читают не только og:, но и
          twitter:. Эти теги задаются в корневой раскладке сайта и
          остаются нашими, если их не перекрыть здесь: получается
@@ -85,7 +101,7 @@ export async function generateMetadata(): Promise<Metadata> {
          ровно то, что мы убирали. */
       twitter: {
         card: "summary_large_image",
-        title: brand.title,
+        title: name,
         description: brand.subtitle,
         images: image.map((x) => x.url),
       },
