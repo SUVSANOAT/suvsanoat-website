@@ -32,7 +32,7 @@ export const HOME_BRAND: Brand = {
   host: "",
   title: "SUVSANOAT",
   subtitle: "Проектирование и производство очистного оборудования",
-  logo_url: "/logo.svg",
+  logo_url: "/logo.png",
   accent: "#5fb6c9",
   contact: "Ташкент, suvsanoat.uz",
   active_until: null,

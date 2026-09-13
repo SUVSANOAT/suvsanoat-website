@@ -38,6 +38,10 @@ export type Brand = {
 
 export default function BrandHeader() {
   const [brand, setBrand] = useState<Brand | null>(null);
+  /* Файл логотипа может не найтись — путь берётся из базы и его никто
+     не проверяет при вводе. Битая картинка в шапке выглядит хуже, чем
+     её отсутствие, поэтому при ошибке загрузки подложка убирается. */
+  const [logoOk, setLogoOk] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -58,10 +62,12 @@ export default function BrandHeader() {
 
   return (
     <header style={{ ...wrap, borderColor: brand.accent }}>
-      <div style={plate}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brand.logo_url} alt={brand.title} style={logo} />
-      </div>
+      {brand.logo_url && logoOk && (
+        <div style={plate}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={brand.logo_url} alt={brand.title} style={logo} onError={() => setLogoOk(false)} />
+        </div>
+      )}
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ ...title, color: brand.accent }}>{brand.title}</div>
         {brand.subtitle && <div style={subtitle}>{brand.subtitle}</div>}
