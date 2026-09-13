@@ -14,6 +14,8 @@ import { useRouter } from "next/navigation";
 type User = {
   id: number; login: string; name: string; company: string; phone: string; email: string;
   active: boolean; created_at: string; last_login: string | null; note: string;
+  /* под чьим знаком человек видит раздел и получает документы */
+  brand_slug?: string | null;
 };
 type Req = { id: number; name: string; company: string; phone: string; email: string; message: string; status: string; created_at: string };
 /** заказ на комплект чертежей — lib/orders.ts */
@@ -268,7 +270,7 @@ export default function AdminPage() {
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }}>
             <thead>
-              <tr>{["Логин", "Имя", "Организация", "Телефон", "Создан", "Был", "Статус", ""].map((h) => (
+              <tr>{["Логин", "Имя", "Организация", "Бренд", "Телефон", "Создан", "Был", "Статус", ""].map((h) => (
                 <th key={h} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${LINE}`, color: FAINT, fontWeight: 600 }}>{h}</th>
               ))}</tr>
             </thead>
@@ -278,6 +280,9 @@ export default function AdminPage() {
                   <td style={{ padding: "6px 8px", fontWeight: 600 }}>{u.login}</td>
                   <td style={{ padding: "6px 8px" }}>{u.name}</td>
                   <td style={{ padding: "6px 8px" }}>{u.company}</td>
+                  {/* Видно, под чьим знаком человек работает. Пусто —
+                      под нашим: это не ошибка, а обычный случай. */}
+                  <td style={{ padding: "6px 8px", color: u.brand_slug ? "#9ccc65" : FAINT }}>{u.brand_slug || "—"}</td>
                   <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{u.phone}</td>
                   <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{dt(u.created_at)}</td>
                   <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{dt(u.last_login)}</td>
@@ -289,7 +294,7 @@ export default function AdminPage() {
                   </td>
                 </tr>
               ))}
-              {!users.length && <tr><td colSpan={8} style={{ padding: 10, color: FAINT }}>Пользователей пока нет.</td></tr>}
+              {!users.length && <tr><td colSpan={9} style={{ padding: 10, color: FAINT }}>Пользователей пока нет.</td></tr>}
             </tbody>
           </table>
         </div>

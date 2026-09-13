@@ -25,6 +25,13 @@ export type User = {
   created_at: string;
   last_login: string | null;
   note: string;
+  /**
+   * Под чьим знаком человек видит раздел и получает документы. Пусто —
+   * под нашим. Поле выводится в список не для красоты: привязка к
+   * бренду делается отдельным запросом, и без неё в списке нельзя
+   * отличить «привязал» от «команда прошла, но логин не совпал».
+   */
+  brand_slug?: string | null;
 };
 
 export type AccessRequest = {
@@ -75,6 +82,11 @@ export function ensureSchema(): Promise<void> {
         last_login TIMESTAMPTZ,
         note TEXT NOT NULL DEFAULT ''
       )`;
+      /* Колонку заводит и lib/brands.ts, но порядок вызовов не
+         гарантирован: список пользователей может открыться раньше, чем
+         кто-нибудь тронет бренды. IF NOT EXISTS делает повтор
+         безвредным. */
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS brand_slug TEXT`;
       await sql`CREATE TABLE IF NOT EXISTS access_requests (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL DEFAULT '',
@@ -140,7 +152,7 @@ export async function touchLogin(id: number): Promise<void> {
 export async function listUsers(): Promise<User[]> {
   await ensureSchema();
   const sql = db();
-  return (await sql`SELECT id, login, name, company, phone, email, active, created_at, last_login, note FROM users ORDER BY created_at DESC`) as User[];
+  return (await sql`SELECT id, login, name, company, phone, email, active, created_at, last_login, note, brand_slug FROM users ORDER BY created_at DESC`) as User[];
 }
 
 export async function createUser(input: {
