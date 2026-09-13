@@ -16,12 +16,196 @@
  * ================================================================== */
 
 import { CSSProperties, useMemo, useState } from "react";
+import { useLanguage } from "../../../LanguageContext";
+import type { Lang } from "../../../../calculations/i18n";
 import { calculateSegment, type SegmentResult } from "../../../../calculations/surge-protection";
 import { STEEL_PIPES, WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
 import { buildSegmentReportHtml } from "../../../../calculations/main-report";
 import { useBrand } from "../../BrandHeader";
 import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
+
+/* ------------------------------------------------------------------
+ * ПОДПИСИ СТРАНИЦЫ
+ *
+ * Обе формулировки лежат рядом: правишь русскую — видишь узбекскую и
+ * не забываешь её поправить. Язык берётся общий, тот же, что и на
+ * остальных страницах: выбрал на главной — действует и здесь.
+ *
+ * Числа, единицы и обозначения (DN, PN, м³/ч) не переводятся:
+ * обозначения величин одинаковы в обоих языках, а самодельный
+ * перевод единиц в проектном документе читается как ошибка.
+ * ------------------------------------------------------------------ */
+const TX = {
+  ru: {
+    eyebrow: "ВОДОВОД",
+    title: "Гидравлический расчёт",
+    lead: "Расход, перепад, длина — и получаете напор, трубу, обратный гидроудар и защитную арматуру.",
+    flow: "Расход",
+    perHour: "м³/ч",
+    perDay: "м³/сут",
+    geoLift: "Геодезический перепад, м",
+    pipeLength: "Длина участка по трубе, м",
+    planLength: "Геометрическая длина, м",
+    planHint: "проекция, для проверки",
+    startElev: "Отметка насосной станции, м",
+    startHint: "начало участка",
+    airValve: "Вантуз, DN",
+    drain: "Сбросный трубопровод, DN",
+    autoHint: "пусто — подобрать",
+    moreOpen: "Дополнительно: труба и условия",
+    moreClose: "Скрыть дополнительно",
+    material: "Материал",
+    lining: "Внутреннее покрытие",
+    liningNone: "нет",
+    liningCement: "цементно-песчаное",
+    liningEpoxy: "эпоксидное",
+    outer: "Наружный диаметр, мм",
+    pickAuto: "подобрать",
+    wall: "Толщина стенки, мм",
+    byCalc: "по расчёту",
+    pn: "Класс давления PN",
+    freeHead: "Свободный напор в конце, м",
+    valveCount: "Противоударных клапанов, шт.",
+    download: "СКАЧАТЬ РАСЧЁТ",
+    objectName: "название объекта для шапки",
+    busy: "Собирается…",
+    word: "Word (.docx)",
+    pdf: "PDF (печать)",
+    downloadHint:
+      "Напор, подбор трубы и стенки, гидроудар с формулами, противоударная арматура, сравнение материалов и перечень принятых величин.",
+    s1: "1. ТРЕБУЕМЫЙ НАПОР",
+    headBar: "бар на выходе насоса",
+    power: "потребляемая мощность",
+    velocity: "скорость в трубе",
+    headSum: (dz: number, fr: number, loc: number, free: number) =>
+      `Перепад ${dz} + потери ${fr} + местные ${loc} + свободный напор ${free} м.`,
+    s2: "2. ТРУБА И МАТЕРИАЛ",
+    inner: "внутренний",
+    pnNote: "класс давления трубы",
+    thMaterial: "Материал",
+    thPeak: "Удар, бар",
+    notFit: "не проходит по давлению",
+    s3: "3. ОБРАТНЫЙ ГИДРОУДАР",
+    peakNote: "пик без защиты",
+    waveSpeed: "скорость волны",
+    phase: "фаза удара 2L/c",
+    separation: "разрыв потока — защита обязательна",
+    minHead: "минимум при разрежении",
+    peakAtRow: "Удар приходит в точку",
+    peakAtNote: "Здесь ставится противоударный клапан.",
+    vacuumRow: "Разрежение",
+    vacuumNote: "Здесь нужны вантузы.",
+    s4: "4. ЗАЩИТНАЯ АРМАТУРА",
+    surgeValve: "Противоударный клапан",
+    pcs: "шт.",
+    kvNote: (kv: number, t: number) => `Kv не менее ${kv} м³/ч, открытие не более ${t} с`,
+    drainRow: "Сбросный трубопровод",
+    needDn: (dn: number) => ` → нужен DN${dn}`,
+    drainNote: (v: number, vol: number, rec: number) =>
+      `скорость ${v} м/с; сброс ${vol} м³ за отключение, приёмная ёмкость от ${rec} м³`,
+    vessel: "Гидропневмобак",
+    vesselNote: "против разрыва потока при остановке",
+    airValves: "Вантузы двойного действия",
+    airValvesNote: "в верхних точках и через каждые 700 м",
+    checkValve: "Обратный клапан у насоса",
+    checkValveVal: "с демпфированием",
+    checkValveNote: "захлопка примет удар целиком",
+    warnings: "НА ЧТО ОБРАТИТЬ ВНИМАНИЕ",
+    showAssumptions: "Что принято в расчёте",
+    hideAssumptions: "Скрыть допущения",
+    footerQ: "Есть продольный профиль трассы с отметками по пикетам?",
+    footerLink: "Расширенный расчёт с расстановкой станций",
+    errCalc: "Расчёт не выполнен.",
+    errDoc: "Документ не собрался.",
+    errServer: "Сервер не ответил.",
+    errPopup: "Браузер заблокировал новое окно. Разрешите всплывающие окна для этого сайта.",
+  },
+  uz: {
+    eyebrow: "SUV QUVURI",
+    title: "Gidravlik hisob",
+    lead: "Sarf, balandlik farqi, uzunlik — va siz bosim, quvur, teskari gidravlik zarba hamda himoya armaturasini olasiz.",
+    flow: "Sarf",
+    perHour: "m³/soat",
+    perDay: "m³/kun",
+    geoLift: "Geodezik balandlik farqi, m",
+    pipeLength: "Quvur bo‘yicha uchastka uzunligi, m",
+    planLength: "Geometrik uzunlik, m",
+    planHint: "proyeksiya, tekshirish uchun",
+    startElev: "Nasos stansiyasining belgisi, m",
+    startHint: "uchastka boshi",
+    airValve: "Vantuz (havo klapani), DN",
+    drain: "Chiqarish (drenaj) quvuri, DN",
+    autoHint: "bo‘sh — tanlansin",
+    moreOpen: "Qo‘shimcha: quvur va shartlar",
+    moreClose: "Qo‘shimchani yopish",
+    material: "Material",
+    lining: "Ichki qoplama",
+    liningNone: "yo‘q",
+    liningCement: "sement-qumli",
+    liningEpoxy: "epoksidli",
+    outer: "Tashqi diametr, mm",
+    pickAuto: "tanlansin",
+    wall: "Devor qalinligi, mm",
+    byCalc: "hisob bo‘yicha",
+    pn: "Bosim klassi PN",
+    freeHead: "Oxirida erkin bosim, m",
+    valveCount: "Zarbaga qarshi klapanlar, dona",
+    download: "HISOBNI YUKLAB OLISH",
+    objectName: "sarlavha uchun obyekt nomi",
+    busy: "Tayyorlanmoqda…",
+    word: "Word (.docx)",
+    pdf: "PDF (chop etish)",
+    downloadHint:
+      "Bosim, quvur va devor qalinligini tanlash, formulalar bilan gidravlik zarba, zarbaga qarshi armatura, materiallarni taqqoslash va qabul qilingan kattaliklar ro‘yxati.",
+    s1: "1. TALAB QILINADIGAN BOSIM",
+    headBar: "nasos chiqishida, bar",
+    power: "iste’mol quvvati",
+    velocity: "quvurdagi tezlik",
+    headSum: (dz: number, fr: number, loc: number, free: number) =>
+      `Balandlik farqi ${dz} + yo‘l yo‘qotishlari ${fr} + mahalliy ${loc} + erkin bosim ${free} m.`,
+    s2: "2. QUVUR VA MATERIAL",
+    inner: "ichki",
+    pnNote: "quvurning bosim klassi",
+    thMaterial: "Material",
+    thPeak: "Zarba, bar",
+    notFit: "bosim bo‘yicha o‘tmaydi",
+    s3: "3. TESKARI GIDRAVLIK ZARBA",
+    peakNote: "himoyasiz cho‘qqi",
+    waveSpeed: "to‘lqin tezligi",
+    phase: "zarba fazasi 2L/c",
+    separation: "oqim uzilishi — himoya majburiy",
+    minHead: "siyraklanishdagi eng kichik qiymat",
+    peakAtRow: "Zarba keladigan nuqta",
+    peakAtNote: "Shu yerga zarbaga qarshi klapan o‘rnatiladi.",
+    vacuumRow: "Siyraklanish",
+    vacuumNote: "Shu yerda vantuzlar kerak.",
+    s4: "4. HIMOYA ARMATURASI",
+    surgeValve: "Zarbaga qarshi klapan",
+    pcs: "dona",
+    kvNote: (kv: number, t: number) => `Kv kamida ${kv} m³/soat, ochilishi ${t} s dan ortiq emas`,
+    drainRow: "Chiqarish (drenaj) quvuri",
+    needDn: (dn: number) => ` → DN${dn} kerak`,
+    drainNote: (v: number, vol: number, rec: number) =>
+      `tezlik ${v} m/s; bir o‘chishda ${vol} m³ chiqarish, qabul qiluvchi sig‘im ${rec} m³ dan`,
+    vessel: "Gidropnevmobak",
+    vesselNote: "to‘xtaganda oqim uzilishiga qarshi",
+    airValves: "Ikki tomonlama vantuzlar",
+    airValvesNote: "yuqori nuqtalarda va har 700 m da",
+    checkValve: "Nasos oldidagi teskari klapan",
+    checkValveVal: "dempferlangan",
+    checkValveNote: "oddiy qopqoq zarbani to‘liq oladi",
+    warnings: "E’TIBOR BERISH KERAK",
+    showAssumptions: "Hisobda nima qabul qilingan",
+    hideAssumptions: "Qabul qilinganlarni yopish",
+    footerQ: "Trassaning piketlar bo‘yicha belgilari ko‘rsatilgan bo‘ylama profili bormi?",
+    footerLink: "Stansiyalarni joylashtirish bilan kengaytirilgan hisob",
+    errCalc: "Hisob bajarilmadi.",
+    errDoc: "Hujjat yig‘ilmadi.",
+    errServer: "Server javob bermadi.",
+    errPopup: "Brauzer yangi oynani bloklab qo‘ydi. Ushbu sayt uchun qalqib chiquvchi oynalarga ruxsat bering.",
+  },
+};
 
 export default function SegmentPage() {
   return (
@@ -54,6 +238,11 @@ function SegmentPageContent() {
 
   const [showAssumptions, setShowAssumptions] = useState(false);
 
+  /* Язык — общий для всего сайта, не свой у страницы. */
+  const { language } = useLanguage();
+  const lang: Lang = language === "uz" ? "uz" : "ru";
+  const tx = TX[lang];
+
   /* --- отчёт --- */
   const [objectName, setObjectName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,16 +272,17 @@ function SegmentPageContent() {
           freeHeadM: num(freeHead) || undefined,
           valveCount: num(valveCount) || 1,
           pnBar: num(pn) || undefined,
+          lang,
         }),
         error: "",
       };
     } catch (e) {
-      return { res: null, error: e instanceof Error ? e.message : "Расчёт не выполнен." };
+      return { res: null, error: e instanceof Error ? e.message : TX[lang].errCalc };
     }
-  }, [qM3H, geoLift, pipeLength, planLength, startElev, airValveDn, drainDn, material, lining, outer, wall, freeHead, valveCount, pn]);
+  }, [qM3H, geoLift, pipeLength, planLength, startElev, airValveDn, drainDn, material, lining, outer, wall, freeHead, valveCount, pn, lang]);
 
   const walls = STEEL_PIPES.find((p) => p.outerMm === num(outer))?.walls ?? [];
-  const best = res?.materials.find((m) => m.suitable && m.note === "принят в расчёт") ?? res?.materials.find((m) => m.suitable);
+  const best = res?.materials.find((m) => m.suitable && m.accepted) ?? res?.materials.find((m) => m.suitable);
   const p = res?.protection;
 
 
@@ -179,7 +369,7 @@ function SegmentPageContent() {
       });
       if (!r.ok) {
         const j = (await r.json().catch(() => null)) as { error?: string } | null;
-        setFileError(j?.error || "Документ не собрался.");
+        setFileError(j?.error || tx.errDoc);
         return;
       }
       const blob = await r.blob();
@@ -190,7 +380,7 @@ function SegmentPageContent() {
       a.click();
       URL.revokeObjectURL(href);
     } catch {
-      setFileError("Сервер не ответил.");
+      setFileError(tx.errServer);
     } finally {
       setBusy(false);
     }
@@ -212,7 +402,7 @@ function SegmentPageContent() {
     });
     const w = window.open("", "_blank");
     if (!w) {
-      setFileError("Браузер заблокировал новое окно. Разрешите всплывающие окна для этого сайта.");
+      setFileError(tx.errPopup);
       return;
     }
     w.document.write(html);
@@ -222,60 +412,57 @@ function SegmentPageContent() {
   return (
     <main style={page}>
       <div style={container}>
-        <div style={eyebrow}>ВОДОВОД</div>
-        <h1 style={title}>Гидравлический расчёт</h1>
-        <p style={lead}>
-          Расход, перепад, длина — и получаете напор, трубу, обратный гидроудар и защитную
-          арматуру.
-        </p>
+        <div style={eyebrow}>{tx.eyebrow}</div>
+        <h1 style={title}>{tx.title}</h1>
+        <p style={lead}>{tx.lead}</p>
 
         {/* ---------------- ЧЕТЫРЕ ЧИСЛА ---------------- */}
         <section style={card}>
           <div style={grid}>
             <label style={field}>
-              <span style={fieldLabel}>Расход</span>
+              <span style={fieldLabel}>{tx.flow}</span>
               <div style={{ display: "flex", gap: 8 }}>
                 <input value={flow} onChange={(e) => setFlow(e.target.value)} inputMode="decimal" placeholder="1500" style={{ ...inputStyle, flex: 1 }} />
                 <select value={flowUnit} onChange={(e) => setFlowUnit(e.target.value as "h" | "day")} style={{ ...inputStyle, width: 110 }}>
-                  <option value="h">м³/ч</option>
-                  <option value="day">м³/сут</option>
+                  <option value="h">{tx.perHour}</option>
+                  <option value="day">{tx.perDay}</option>
                 </select>
               </div>
             </label>
             <label style={field}>
-              <span style={fieldLabel}>Геодезический перепад, м</span>
+              <span style={fieldLabel}>{tx.geoLift}</span>
               <input value={geoLift} onChange={(e) => setGeoLift(e.target.value)} inputMode="decimal" placeholder="175" style={inputStyle} />
             </label>
             <label style={field}>
-              <span style={fieldLabel}>Длина участка по трубе, м</span>
+              <span style={fieldLabel}>{tx.pipeLength}</span>
               <input value={pipeLength} onChange={(e) => setPipeLength(e.target.value)} inputMode="decimal" placeholder="2000" style={inputStyle} />
             </label>
             <label style={field}>
-              <span style={fieldLabel}>Геометрическая длина, м</span>
-              <input value={planLength} onChange={(e) => setPlanLength(e.target.value)} inputMode="decimal" placeholder="проекция, для проверки" style={inputStyle} />
+              <span style={fieldLabel}>{tx.planLength}</span>
+              <input value={planLength} onChange={(e) => setPlanLength(e.target.value)} inputMode="decimal" placeholder={tx.planHint} style={inputStyle} />
             </label>
             <label style={field}>
-              <span style={fieldLabel}>Отметка насосной станции, м</span>
-              <input value={startElev} onChange={(e) => setStartElev(e.target.value)} inputMode="decimal" placeholder="начало участка" style={inputStyle} />
+              <span style={fieldLabel}>{tx.startElev}</span>
+              <input value={startElev} onChange={(e) => setStartElev(e.target.value)} inputMode="decimal" placeholder={tx.startHint} style={inputStyle} />
             </label>
             <label style={field}>
-              <span style={fieldLabel}>Вантуз, DN</span>
-              <input value={airValveDn} onChange={(e) => setAirValveDn(e.target.value)} inputMode="numeric" placeholder="пусто — подобрать" style={inputStyle} />
+              <span style={fieldLabel}>{tx.airValve}</span>
+              <input value={airValveDn} onChange={(e) => setAirValveDn(e.target.value)} inputMode="numeric" placeholder={tx.autoHint} style={inputStyle} />
             </label>
             <label style={field}>
-              <span style={fieldLabel}>Сбросный трубопровод, DN</span>
-              <input value={drainDn} onChange={(e) => setDrainDn(e.target.value)} inputMode="numeric" placeholder="пусто — подобрать" style={inputStyle} />
+              <span style={fieldLabel}>{tx.drain}</span>
+              <input value={drainDn} onChange={(e) => setDrainDn(e.target.value)} inputMode="numeric" placeholder={tx.autoHint} style={inputStyle} />
             </label>
           </div>
 
           <button style={{ ...ghost, marginTop: 18 }} onClick={() => setMore((v) => !v)}>
-            {more ? "Скрыть дополнительно" : "Дополнительно: труба и условия"}
+            {more ? tx.moreClose : tx.moreOpen}
           </button>
 
           {more && (
             <div style={{ ...grid, marginTop: 16 }}>
               <label style={field}>
-                <span style={fieldLabel}>Материал</span>
+                <span style={fieldLabel}>{tx.material}</span>
                 <select value={material} onChange={(e) => setMaterial(e.target.value as WaterPipeKind)} style={inputStyle}>
                   {(Object.keys(WATER_PIPE) as WaterPipeKind[]).map((k) => (
                     <option key={k} value={k}>
@@ -285,17 +472,17 @@ function SegmentPageContent() {
                 </select>
               </label>
               <label style={field}>
-                <span style={fieldLabel}>Внутреннее покрытие</span>
+                <span style={fieldLabel}>{tx.lining}</span>
                 <select value={lining} onChange={(e) => setLining(e.target.value as Lining)} style={inputStyle}>
-                  <option value="none">нет</option>
-                  <option value="cement">цементно-песчаное</option>
-                  <option value="epoxy">эпоксидное</option>
+                  <option value="none">{tx.liningNone}</option>
+                  <option value="cement">{tx.liningCement}</option>
+                  <option value="epoxy">{tx.liningEpoxy}</option>
                 </select>
               </label>
               <label style={field}>
-                <span style={fieldLabel}>Наружный диаметр, мм</span>
+                <span style={fieldLabel}>{tx.outer}</span>
                 <select value={outer} onChange={(e) => { setOuter(e.target.value); setWall(""); }} style={inputStyle}>
-                  <option value="">подобрать</option>
+                  <option value="">{tx.pickAuto}</option>
                   {STEEL_PIPES.map((x) => (
                     <option key={x.outerMm} value={x.outerMm}>
                       {x.outerMm}
@@ -304,9 +491,9 @@ function SegmentPageContent() {
                 </select>
               </label>
               <label style={field}>
-                <span style={fieldLabel}>Толщина стенки, мм</span>
+                <span style={fieldLabel}>{tx.wall}</span>
                 <select value={wall} onChange={(e) => setWall(e.target.value)} style={inputStyle} disabled={!walls.length}>
-                  <option value="">по расчёту</option>
+                  <option value="">{tx.byCalc}</option>
                   {walls.map((w) => (
                     <option key={w} value={w}>
                       {w}
@@ -315,9 +502,9 @@ function SegmentPageContent() {
                 </select>
               </label>
               <label style={field}>
-                <span style={fieldLabel}>Класс давления PN</span>
+                <span style={fieldLabel}>{tx.pn}</span>
                 <select value={pn} onChange={(e) => setPn(e.target.value)} style={inputStyle}>
-                  <option value="">подобрать</option>
+                  <option value="">{tx.pickAuto}</option>
                   {[10, 16, 25, 32, 40, 63].map((x) => (
                     <option key={x} value={x}>
                       PN{x}
@@ -326,11 +513,11 @@ function SegmentPageContent() {
                 </select>
               </label>
               <label style={field}>
-                <span style={fieldLabel}>Свободный напор в конце, м</span>
+                <span style={fieldLabel}>{tx.freeHead}</span>
                 <input value={freeHead} onChange={(e) => setFreeHead(e.target.value)} inputMode="decimal" style={inputStyle} />
               </label>
               <label style={field}>
-                <span style={fieldLabel}>Противоударных клапанов, шт.</span>
+                <span style={fieldLabel}>{tx.valveCount}</span>
                 <input value={valveCount} onChange={(e) => setValveCount(e.target.value)} inputMode="numeric" style={inputStyle} />
               </label>
             </div>
@@ -344,23 +531,20 @@ function SegmentPageContent() {
 
         {res && (
           <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ ...sectionTitle, margin: 0 }}>СКАЧАТЬ РАСЧЁТ</div>
+            <div style={{ ...sectionTitle, margin: 0 }}>{tx.download}</div>
             <input
               value={objectName}
               onChange={(e) => setObjectName(e.target.value)}
-              placeholder="название объекта для шапки"
+              placeholder={tx.objectName}
               style={{ ...inputStyle, maxWidth: 260 }}
             />
             <button style={busy ? ghost : primary} onClick={downloadWord}>
-              {busy ? "Собирается…" : "Word (.docx)"}
+              {busy ? tx.busy : tx.word}
             </button>
             <button style={ghost} onClick={downloadPdf}>
-              PDF (печать)
+              {tx.pdf}
             </button>
-            <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>
-              Напор, подбор трубы и стенки, гидроудар с формулами, противоударная арматура, сравнение
-              материалов и перечень принятых величин.
-            </span>
+            <span style={{ ...fieldHint, flex: 1, minWidth: 240 }}>{tx.downloadHint}</span>
           </section>
         )}
 
@@ -368,63 +552,60 @@ function SegmentPageContent() {
           <>
             {/* ---------------- 1. НАПОР ---------------- */}
             <section style={card}>
-              <div style={sectionTitle}>1. ТРЕБУЕМЫЙ НАПОР</div>
+              <div style={sectionTitle}>{tx.s1}</div>
               <div style={bigRow}>
                 <div>
                   <div style={bigValue}>
-                    {res.requiredHeadM} <span style={unit}>м</span>
+                    {res.requiredHeadM} <span style={unit}>{lang === "uz" ? "m" : "м"}</span>
                   </div>
-                  <div style={fieldHint}>{res.requiredHeadBar} бар на выходе насоса</div>
+                  <div style={fieldHint}>{res.requiredHeadBar} {tx.headBar}</div>
                 </div>
                 <div>
                   <div style={bigValue}>
-                    {res.motorKW} <span style={unit}>кВт</span>
+                    {res.motorKW} <span style={unit}>{lang === "uz" ? "kVt" : "кВт"}</span>
                   </div>
-                  <div style={fieldHint}>потребляемая мощность</div>
+                  <div style={fieldHint}>{tx.power}</div>
                 </div>
                 <div>
                   <div style={bigValue}>
-                    {res.velocity} <span style={unit}>м/с</span>
+                    {res.velocity} <span style={unit}>{lang === "uz" ? "m/s" : "м/с"}</span>
                   </div>
-                  <div style={fieldHint}>скорость в трубе</div>
+                  <div style={fieldHint}>{tx.velocity}</div>
                 </div>
               </div>
-              <p style={{ ...hint, marginBottom: 0 }}>
-                Перепад {num(geoLift)} + потери {res.frictionM} + местные {res.localM} + свободный напор{" "}
-                {num(freeHead)} м.
-              </p>
+              <p style={{ ...hint, marginBottom: 0 }}>{tx.headSum(num(geoLift), res.frictionM, res.localM, num(freeHead))}</p>
             </section>
 
             {/* ---------------- 2. ТРУБА ---------------- */}
             <section style={card}>
-              <div style={sectionTitle}>2. ТРУБА И МАТЕРИАЛ</div>
+              <div style={sectionTitle}>{tx.s2}</div>
               <div style={bigRow}>
                 <div>
                   <div style={bigValue}>
                     {res.outerMm}×{res.wallMm}
                   </div>
-                  <div style={fieldHint}>{best?.label ?? WATER_PIPE[material].label}, внутренний {res.innerMm} мм</div>
+                  <div style={fieldHint}>{best?.label ?? WATER_PIPE[material].label}, {tx.inner} {res.innerMm} {lang === "uz" ? "mm" : "мм"}</div>
                 </div>
                 <div>
                   <div style={bigValue}>PN{res.pnBar}</div>
-                  <div style={fieldHint}>класс давления трубы</div>
+                  <div style={fieldHint}>{tx.pnNote}</div>
                 </div>
               </div>
               <div style={{ overflowX: "auto", marginTop: 16 }}>
                 <table style={tableStyle}>
                   <thead>
                     <tr>
-                      <th style={{ ...th, textAlign: "left" }}>Материал</th>
-                      <th style={th}>Удар, бар</th>
+                      <th style={{ ...th, textAlign: "left" }}>{tx.thMaterial}</th>
+                      <th style={th}>{tx.thPeak}</th>
                       <th style={{ ...th, textAlign: "left" }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {res.materials.map((m) => (
                       <tr key={m.kind} style={{ opacity: m.suitable ? 1 : 0.45 }}>
-                        <td style={{ ...tdLeft, color: m.note === "принят в расчёт" ? "#5fb6c9" : undefined }}>{m.label}</td>
+                        <td style={{ ...tdLeft, color: m.accepted ? "#5fb6c9" : undefined }}>{m.label}</td>
                         <td style={td}>{m.peakBar}</td>
-                        <td style={tdNote}>{m.suitable ? m.note : "не проходит по давлению"}</td>
+                        <td style={tdNote}>{m.suitable ? m.note : tx.notFit}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -434,43 +615,43 @@ function SegmentPageContent() {
 
             {/* ---------------- 3. ГИДРОУДАР ---------------- */}
             <section style={card}>
-              <div style={sectionTitle}>3. ОБРАТНЫЙ ГИДРОУДАР</div>
+              <div style={sectionTitle}>{tx.s3}</div>
               <div style={bigRow}>
                 <div>
                   <div style={{ ...bigValue, color: res.peakBar > res.pnBar ? "#ffcf8a" : "#e7eef1" }}>
-                    {res.peakBar} <span style={unit}>бар</span>
+                    {res.peakBar} <span style={unit}>bar</span>
                   </div>
-                  <div style={fieldHint}>пик без защиты, +{res.surgeM} м</div>
+                  <div style={fieldHint}>{tx.peakNote}, +{res.surgeM} {lang === "uz" ? "m" : "м"}</div>
                 </div>
                 <div>
                   <div style={bigValue}>
-                    {res.waveSpeedMs} <span style={unit}>м/с</span>
+                    {res.waveSpeedMs} <span style={unit}>{lang === "uz" ? "m/s" : "м/с"}</span>
                   </div>
-                  <div style={fieldHint}>скорость волны</div>
+                  <div style={fieldHint}>{tx.waveSpeed}</div>
                 </div>
                 <div>
                   <div style={bigValue}>
-                    {res.phaseS} <span style={unit}>с</span>
+                    {res.phaseS} <span style={unit}>{lang === "uz" ? "s" : "с"}</span>
                   </div>
-                  <div style={fieldHint}>фаза удара 2L/c</div>
+                  <div style={fieldHint}>{tx.phase}</div>
                 </div>
                 <div>
                   <div style={{ ...bigValue, color: res.separation ? "#ffcf8a" : "#e7eef1" }}>
-                    {res.minHeadM} <span style={unit}>м</span>
+                    {res.minHeadM} <span style={unit}>{lang === "uz" ? "m" : "м"}</span>
                   </div>
-                  <div style={fieldHint}>{res.separation ? "разрыв потока — защита обязательна" : "минимум при разрежении"}</div>
+                  <div style={fieldHint}>{res.separation ? tx.separation : tx.minHead}</div>
                 </div>
               </div>
               <div style={{ overflowX: "auto", marginTop: 16 }}>
                 <table style={tableStyle}>
                   <tbody>
                     <tr>
-                      <td style={tdLeft}>Удар приходит в точку</td>
-                      <td style={tdNote}>{res.peakAt}. Здесь ставится противоударный клапан.</td>
+                      <td style={tdLeft}>{tx.peakAtRow}</td>
+                      <td style={tdNote}>{res.peakAt}. {tx.peakAtNote}</td>
                     </tr>
                     <tr>
-                      <td style={tdLeft}>Разрежение</td>
-                      <td style={tdNote}>{res.vacuumAt}. Здесь нужны вантузы.</td>
+                      <td style={tdLeft}>{tx.vacuumRow}</td>
+                      <td style={tdNote}>{res.vacuumAt}. {tx.vacuumNote}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -479,44 +660,42 @@ function SegmentPageContent() {
 
             {/* ---------------- 4. ЗАЩИТА ---------------- */}
             <section style={card}>
-              <div style={sectionTitle}>4. ЗАЩИТНАЯ АРМАТУРА</div>
+              <div style={sectionTitle}>{tx.s4}</div>
               <div style={{ overflowX: "auto" }}>
                 <table style={tableStyle}>
                   <tbody>
                     <tr>
-                      <td style={tdLeft}>Противоударный клапан</td>
+                      <td style={tdLeft}>{tx.surgeValve}</td>
                       <td style={tdVal}>
-                        {p.valveCount} шт. DN{p.valveDnMm} PN{p.valvePnBar}
+                        {p.valveCount} {tx.pcs} DN{p.valveDnMm} PN{p.valvePnBar}
                       </td>
-                      <td style={tdNote}>Kv не менее {p.requiredKv} м³/ч, открытие не более {p.openTimeS} с</td>
+                      <td style={tdNote}>{tx.kvNote(p.requiredKv, p.openTimeS)}</td>
                     </tr>
                     <tr>
-                      <td style={tdLeft}>Сбросный трубопровод</td>
+                      <td style={tdLeft}>{tx.drainRow}</td>
                       <td style={{ ...tdVal, color: p.drainDnMm < p.drainDnRequiredMm ? "#ffcf8a" : undefined }}>
                         DN{p.drainDnMm}
-                        {p.drainDnMm !== p.drainDnRequiredMm ? ` → нужен DN${p.drainDnRequiredMm}` : ""}
+                        {p.drainDnMm !== p.drainDnRequiredMm ? tx.needDn(p.drainDnRequiredMm) : ""}
                       </td>
-                      <td style={tdNote}>
-                        скорость {p.drainVelocity} м/с; сброс {p.dischargeVolumeM3} м³ за отключение, приёмная ёмкость от {p.receiverM3} м³
-                      </td>
+                      <td style={tdNote}>{tx.drainNote(p.drainVelocity, p.dischargeVolumeM3, p.receiverM3)}</td>
                     </tr>
                     <tr>
-                      <td style={tdLeft}>Гидропневмобак</td>
-                      <td style={tdVal}>{p.vesselTotalM3} м³</td>
-                      <td style={tdNote}>против разрыва потока при остановке</td>
+                      <td style={tdLeft}>{tx.vessel}</td>
+                      <td style={tdVal}>{p.vesselTotalM3} m³</td>
+                      <td style={tdNote}>{tx.vesselNote}</td>
                     </tr>
                     <tr>
-                      <td style={tdLeft}>Вантузы двойного действия</td>
+                      <td style={tdLeft}>{tx.airValves}</td>
                       <td style={{ ...tdVal, color: p.airValveDnMm < p.airValveDnRequiredMm ? "#ffcf8a" : undefined }}>
-                        {p.airValveCount} шт. DN{p.airValveDnMm}
-                        {p.airValveDnMm < p.airValveDnRequiredMm ? ` → нужен DN${p.airValveDnRequiredMm}` : ""}
+                        {p.airValveCount} {tx.pcs} DN{p.airValveDnMm}
+                        {p.airValveDnMm < p.airValveDnRequiredMm ? tx.needDn(p.airValveDnRequiredMm) : ""}
                       </td>
-                      <td style={tdNote}>в верхних точках и через каждые 700 м</td>
+                      <td style={tdNote}>{tx.airValvesNote}</td>
                     </tr>
                     <tr>
-                      <td style={tdLeft}>Обратный клапан у насоса</td>
-                      <td style={tdVal}>с демпфированием</td>
-                      <td style={tdNote}>захлопка примет удар целиком</td>
+                      <td style={tdLeft}>{tx.checkValve}</td>
+                      <td style={tdVal}>{tx.checkValveVal}</td>
+                      <td style={tdNote}>{tx.checkValveNote}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -525,7 +704,7 @@ function SegmentPageContent() {
 
             {res.warnings.length > 0 && (
               <section style={card}>
-                <div style={sectionTitle}>НА ЧТО ОБРАТИТЬ ВНИМАНИЕ</div>
+                <div style={sectionTitle}>{tx.warnings}</div>
                 {res.warnings.map((w, i) => (
                   <div key={i} style={{ ...warnBox, marginBottom: i === res.warnings.length - 1 ? 0 : 12 }}>
                     {w}
@@ -536,7 +715,7 @@ function SegmentPageContent() {
 
             <section style={card}>
               <button style={ghost} onClick={() => setShowAssumptions((v) => !v)}>
-                {showAssumptions ? "Скрыть допущения" : "Что принято в расчёте"}
+                {showAssumptions ? tx.hideAssumptions : tx.showAssumptions}
               </button>
               {showAssumptions && (
                 <ul style={{ ...notes, marginTop: 14 }}>
@@ -552,9 +731,9 @@ function SegmentPageContent() {
         )}
 
         <p style={{ ...hint, marginTop: 24 }}>
-          Есть продольный профиль трассы с отметками по пикетам?{" "}
+          {tx.footerQ}{" "}
           <a href="/engineering/analysis/pipeline" style={link}>
-            Расширенный расчёт с расстановкой станций
+            {tx.footerLink}
           </a>
           .
         </p>

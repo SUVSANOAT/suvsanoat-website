@@ -12,23 +12,23 @@
  * центру под знаком, под ним перечень расчётов и вход. Никакой
  * анимации и никаких обещаний — титульный лист, а не реклама.
  *
- * ЧТО БЕРЁТСЯ ИЗ БАЗЫ, А ЧТО НАПИСАНО ЗДЕСЬ
+ * ЯЗЫК ОДИН НА ВЕСЬ САЙТ
  *
- * Знак, цвет и имя организации — из бренда: страница одна на всех
- * заказчиков, второй такой же под другой логотип не делается.
- * Полное наименование учреждения — из бренда (поле «подпись»), потому
- * что у каждого оно своё и с большой буквы до буквы.
+ * Переключатель наверху не свой: он переключает тот же язык, что и
+ * остальные страницы (LanguageContext, хранится у человека в
+ * браузере). Выбрал узбекский здесь — узбекский останется и в
+ * расчётах, и после перехода по ссылке. Отдельная память языка для
+ * одной страницы разошлась бы с остальным сайтом в первый же день.
  *
- * ОПИСАНИЕ И КОНТАКТЫ
- *
- * Блоки ниже пустые намеренно. Описание филиала и его телефоны —
- * сведения об организации, и придумывать их нельзя: неверный телефон
- * на официальной странице хуже, чем его отсутствие. Как только текст
- * дадут — он вписывается в ABOUT и CONTACTS, и блоки появляются сами.
+ * Наименование учреждения не переводится и остаётся на узбекском при
+ * любом выборе: официальное название госучреждения пишется так, как
+ * оно записано в документах, а не так, как удобно читателю.
  * ================================================================== */
 
 import { CSSProperties, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "../LanguageContext";
+
 /**
  * Только оформление. Срок доступа и служебная запись о договоре сюда
  * не передаются намеренно: всё, что получает страница, видно в её
@@ -41,25 +41,16 @@ export type LandingBrand = {
   contact: string;
 };
 
-/* ---------- то, что заполняется по данным организации ---------- */
+/* ---------- наименование учреждения ---------- */
 
-/** Наименование учреждения. Строки идут сверху вниз, как на бланке. */
 const NAME_LINES: { text: string; style: "quoted" | "caps" | "plain" }[] = [
   { text: "“Kommunal loyiha ilmiy-tadqiqot instituti”", style: "quoted" },
   { text: "DAVLAT MUASSASASI", style: "caps" },
   { text: "G‘arbiy mintaqalararo filiali", style: "plain" },
 ];
 
-/* Короткое описание филиала. Пусто — блок не показывается.
-   Форма записи «null as …» не случайна: при обычной аннотации
-   компилятор сводит тип константы к null, и обращение к полям внутри
-   условия перестаёт проходить проверку типов. */
-const ABOUT = null as { uz: string; ru: string } | null;
+/* ---------- перечень расчётов ---------- */
 
-/** Контакты филиала. Пусто — блок не показывается. */
-const CONTACTS: { label: string; value: string }[] = [];
-
-/** Перечень расчётов. Подписи взяты из раздела, не сочинены заново. */
 const TOOLS: { href: string; uz: string; ru: string }[] = [
   {
     href: "/engineering/analysis/pipeline",
@@ -98,9 +89,19 @@ const TOOLS: { href: string; uz: string; ru: string }[] = [
   },
 ];
 
-const DISCLAIMER = {
-  uz: "Dastlabki natija ishchi loyiha hisoblanmaydi. Yakuniy yechimlar dastlabki ma’lumotlar muhandis tomonidan tekshirilgandan so‘ng qabul qilinadi.",
-  ru: "Предварительный результат не является рабочим проектом. Окончательные решения принимаются после проверки исходных данных инженером.",
+const T = {
+  uz: {
+    login: "Kirish",
+    section: "Muhandislik hisoblari",
+    disclaimer:
+      "Dastlabki natija ishchi loyiha hisoblanmaydi. Yakuniy yechimlar dastlabki ma’lumotlar muhandis tomonidan tekshirilgandan so‘ng qabul qilinadi.",
+  },
+  ru: {
+    login: "Войти",
+    section: "Инженерные расчёты",
+    disclaimer:
+      "Предварительный результат не является рабочим проектом. Окончательные решения принимаются после проверки исходных данных инженером.",
+  },
 };
 
 /* ---------- цвета бланка ---------- */
@@ -112,18 +113,53 @@ const RULE = "#dbe4ea";
 
 export default function BrandLanding({ brand }: { brand: LandingBrand }) {
   const router = useRouter();
+  const { language, setLanguage } = useLanguage();
   const [logoOk, setLogoOk] = useState(true);
   const accent = brand.accent || "#0273d1";
 
+  /* На этом листе два языка. Английский и китайский, выбранные на
+     общем сайте, показываются по-русски — но выбор не сбрасывается:
+     человек уйдёт в расчёты с тем языком, который поставил. */
+  const uz = language === "uz";
+  const t = uz ? T.uz : T.ru;
+
   return (
     <main style={page}>
-      {/* ВЕРХНЯЯ ПОЛОСА: только вход. Ничего лишнего — страница
+      {/* ВЕРХНЯЯ ПОЛОСА: язык и вход. Ничего лишнего — страница
           закрыта, и первое действие здесь одно. */}
       <div style={{ ...topBar, borderColor: RULE }}>
         <span style={{ ...topMark, color: FAINT }}>{brand.contact}</span>
-        <button type="button" onClick={() => router.push("/engineering/login")} style={{ ...loginBtn, background: accent }}>
-          Kirish / Войти
-        </button>
+
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ display: "inline-flex", border: `1px solid ${RULE}`, borderRadius: 4, overflow: "hidden" }}>
+            {(["uz", "ru"] as const).map((code) => {
+              const on = code === (uz ? "uz" : "ru");
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLanguage(code)}
+                  style={{
+                    border: 0,
+                    background: on ? accent : "transparent",
+                    color: on ? "#fff" : FAINT,
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    letterSpacing: "0.1em",
+                    cursor: "pointer",
+                  }}
+                >
+                  {code.toUpperCase()}
+                </button>
+              );
+            })}
+          </span>
+
+          <button type="button" onClick={() => router.push("/engineering/login")} style={{ ...loginBtn, background: accent }}>
+            {t.login}
+          </button>
+        </span>
       </div>
 
       {/* ТИТУЛ: знак и наименование по центру */}
@@ -149,31 +185,18 @@ export default function BrandLanding({ brand }: { brand: LandingBrand }) {
             {l.text}
           </div>
         ))}
-
-        {ABOUT && (
-          <p style={about}>
-            {ABOUT.uz}
-            <br />
-            <span style={{ color: FAINT }}>{ABOUT.ru}</span>
-          </p>
-        )}
       </section>
 
       {/* ПЕРЕЧЕНЬ РАСЧЁТОВ */}
       <section style={section}>
-        <div style={{ ...sectionLabel, color: accent }}>
-          Muhandislik hisoblari <span style={{ color: FAINT }}>· Инженерные расчёты</span>
-        </div>
+        <div style={{ ...sectionLabel, color: accent }}>{t.section}</div>
 
         <ol style={list}>
-          {TOOLS.map((t, i) => (
-            <li key={t.href} style={{ ...row, borderColor: RULE }}>
-              <a href={t.href} style={rowLink}>
+          {TOOLS.map((x, i) => (
+            <li key={x.href} style={{ ...row, borderColor: RULE }}>
+              <a href={x.href} style={rowLink}>
                 <span style={{ ...num, color: accent }}>{String(i + 1).padStart(2, "0")}</span>
-                <span>
-                  <span style={rowUz}>{t.uz}</span>
-                  <span style={rowRu}>{t.ru}</span>
-                </span>
+                <span style={rowText}>{uz ? x.uz : x.ru}</span>
                 <span style={{ ...arrow, color: accent }}>→</span>
               </a>
             </li>
@@ -181,21 +204,9 @@ export default function BrandLanding({ brand }: { brand: LandingBrand }) {
         </ol>
       </section>
 
-      {/* КОНТАКТЫ И ОГОВОРКА */}
+      {/* ОГОВОРКА О СТАТУСЕ РЕЗУЛЬТАТА */}
       <footer style={{ ...footer, borderColor: RULE }}>
-        {CONTACTS.length > 0 && (
-          <div style={contacts}>
-            {CONTACTS.map((c) => (
-              <div key={c.label} style={{ marginBottom: 6 }}>
-                <span style={{ color: FAINT, marginRight: 8 }}>{c.label}</span>
-                <span>{c.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <p style={note}>{DISCLAIMER.uz}</p>
-        <p style={{ ...note, color: FAINT }}>{DISCLAIMER.ru}</p>
+        <p style={note}>{t.disclaimer}</p>
       </footer>
     </main>
   );
@@ -248,7 +259,6 @@ const nameCaps: CSSProperties = {
   margin: "14px 0 10px",
 };
 const namePlain: CSSProperties = { fontSize: "clamp(15px, 2vw, 19px)", fontWeight: 500 };
-const about: CSSProperties = { maxWidth: 680, margin: "26px auto 0", fontSize: 15, lineHeight: 1.7 };
 const section: CSSProperties = { maxWidth: 980, margin: "0 auto", paddingTop: 64 };
 const sectionLabel: CSSProperties = {
   fontSize: 12,
@@ -268,9 +278,7 @@ const rowLink: CSSProperties = {
   color: "inherit",
 };
 const num: CSSProperties = { fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", minWidth: 28 };
-const rowUz: CSSProperties = { display: "block", fontSize: 16, fontWeight: 600, lineHeight: 1.4 };
-const rowRu: CSSProperties = { display: "block", fontSize: 13, color: FAINT, marginTop: 3, lineHeight: 1.4 };
+const rowText: CSSProperties = { fontSize: 16, fontWeight: 600, lineHeight: 1.4 };
 const arrow: CSSProperties = { marginLeft: "auto", fontSize: 18 };
 const footer: CSSProperties = { maxWidth: 980, margin: "56px auto 0", paddingTop: 26, borderTop: "1px solid" };
-const contacts: CSSProperties = { fontSize: 14, lineHeight: 1.7, marginBottom: 22 };
-const note: CSSProperties = { fontSize: 12.5, lineHeight: 1.65, margin: "0 0 6px", maxWidth: 780 };
+const note: CSSProperties = { fontSize: 12.5, lineHeight: 1.65, margin: 0, maxWidth: 780, color: FAINT };
