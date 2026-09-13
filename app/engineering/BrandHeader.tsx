@@ -36,6 +36,27 @@ export type Brand = {
   login?: string;
 };
 
+/**
+ * Бренд для страниц: печатная версия PDF собирается в браузере, и ей
+ * тоже нужен знак владельца. Запрос тот же, что у шапки.
+ */
+export function useBrand(): Brand | null {
+  const [brand, setBrand] = useState<Brand | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/brand")
+      .then((r) => r.json())
+      .then((j: { ok: boolean; brand?: Brand }) => {
+        if (alive && j.ok && j.brand) setBrand(j.brand);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return brand;
+}
+
 export default function BrandHeader() {
   const [brand, setBrand] = useState<Brand | null>(null);
   /* Файл логотипа может не найтись — путь берётся из базы и его никто

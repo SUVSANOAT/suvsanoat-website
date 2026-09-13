@@ -19,6 +19,7 @@ import { CSSProperties, useMemo, useState } from "react";
 import { calculateSegment, type SegmentResult } from "../../../../calculations/surge-protection";
 import { STEEL_PIPES, WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
 import { buildSegmentReportHtml } from "../../../../calculations/main-report";
+import { useBrand } from "../../BrandHeader";
 import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
@@ -57,6 +58,8 @@ function SegmentPageContent() {
   const [objectName, setObjectName] = useState("");
   const [busy, setBusy] = useState(false);
   const [fileError, setFileError] = useState("");
+
+  const brand = useBrand();
 
   const num = (x: string) => Number(String(x).replace(",", ".")) || 0;
   const qM3H = flowUnit === "h" ? num(flow) : num(flow) / 24;
@@ -197,6 +200,7 @@ function SegmentPageContent() {
     if (!res) return;
     setFileError("");
     const html = buildSegmentReportHtml({
+      brand: brand ? { title: brand.title, subtitle: brand.subtitle, logoUrl: brand.logo_url } : undefined,
       object: objectName || undefined,
       material,
       lining,

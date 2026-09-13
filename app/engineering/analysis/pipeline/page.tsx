@@ -43,6 +43,7 @@ import {
 } from "../../../../calculations/water-main-input";
 import { buildMainSpecification, stageProtection as buildStages, type MainSpecStage } from "../../../../calculations/main-spec";
 import { buildMainReportHtml } from "../../../../calculations/main-report";
+import { useBrand } from "../../BrandHeader";
 import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
@@ -114,6 +115,8 @@ function PipelinePageContent() {
   const [sectionSpacing, setSectionSpacing] = useState("2000");
   const [busy, setBusy] = useState(false);
   const [fileError, setFileError] = useState("");
+
+  const brand = useBrand();
 
   const num = (v: string) => Number(String(v).replace(",", ".")) || 0;
 
@@ -490,6 +493,7 @@ function PipelinePageContent() {
     if (!res) return;
     setFileError("");
     const html = buildMainReportHtml({
+      brand: brand ? { title: brand.title, subtitle: brand.subtitle, logoUrl: brand.logo_url } : undefined,
       object: objectName || undefined,
       material,
       lining,

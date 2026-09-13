@@ -34,6 +34,7 @@ import {
 } from "../../../../calculations/water-demand";
 import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../../calculations/water-main";
 import { buildReportHtml } from "../../../../calculations/water-report";
+import { useBrand } from "../../BrandHeader";
 import { buildSpecification, SPEC } from "../../../../calculations/water-spec";
 import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
@@ -108,6 +109,8 @@ function WaterNetworkContent() {
   const [lining, setLining] = useState<Lining>("cement");
   const [fireNode, setFireNode] = useState("");
   const [reservePct, setReservePct] = useState(String(SPEC.installReservePct.value));
+
+  const brand = useBrand();
 
   const num = (x: string) => Number(String(x).replace(",", ".")) || 0;
 
@@ -363,6 +366,7 @@ function WaterNetworkContent() {
     const peopleByNode: Record<string, number | undefined> = {};
     parsed?.nodes.forEach((n) => (peopleByNode[n.id] = n.people));
     const html = buildReportHtml({
+      brand: brand ? { title: brand.title, subtitle: brand.subtitle, logoUrl: brand.logo_url } : undefined,
       object: objectName || undefined,
       settlement,
       terrain,

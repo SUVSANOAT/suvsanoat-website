@@ -29,7 +29,14 @@ import type { MainSpecStage } from "./main-spec";
 export type ReportBrand = {
   title: string;
   subtitle?: string;
+  /** байты логотипа — для .docx, картинка кладётся внутрь файла */
   logo?: { data: Uint8Array; ext: "png" | "jpeg"; widthMm: number; heightMm: number } | null;
+  /**
+   * Адрес логотипа — для печатной версии PDF, которую собирает сам
+   * браузер: тащить туда байты незачем, файл уже лежит на сайте.
+   */
+  logoUrl?: string;
+  logoWidthMm?: number;
 };
 
 /** Шапка документа: логотип, название владельца, подзаголовок. */
@@ -689,7 +696,7 @@ export function segmentReportDocxMeta(r: SegmentReportInput) {
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function renderReportHtml(blocks: DocxBlock[], title: string): string {
+export function renderReportHtml(blocks: DocxBlock[], title: string, logo?: { url: string; widthMm?: number }): string {
   const body = blocks
     .map((bl) => {
       if (bl.t === "h") return `<h${bl.level + 1}>${esc(bl.text)}</h${bl.level + 1}>`;
@@ -715,6 +722,12 @@ export function renderReportHtml(blocks: DocxBlock[], title: string): string {
     })
     .join("\n");
 
+  /* Логотип для печати вставляется картинкой по адресу: файл уже лежит
+     на сайте, и браузер возьмёт его сам. Байты сюда тащить незачем. */
+  const logoHtml = logo?.url
+    ? `<p style="text-align:center;margin:0 0 6pt"><img src="${esc(logo.url)}" style="width:${logo.widthMm ?? 34}mm"></p>`
+    : "";
+
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <title>${esc(title)}</title>
 <style>
@@ -736,15 +749,17 @@ thead { display: table-header-group; }
 .pagebreak { page-break-after: always; }
 @media screen { body { max-width: 190mm; margin: 20px auto; padding: 0 12px; } }
 </style></head><body>
-${body}
+${logoHtml}${body}
 <script>window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });</script>
 </body></html>`;
 }
 
 export function buildMainReportHtml(r: MainReportInput): string {
-  return renderReportHtml(buildMainReportBlocks(r), "Гидравлический расчёт напорного водовода");
+  const logo = r.brand?.logoUrl ? { url: r.brand.logoUrl, widthMm: r.brand.logoWidthMm } : undefined;
+  return renderReportHtml(buildMainReportBlocks(r), "Гидравлический расчёт напорного водовода", logo);
 }
 
 export function buildSegmentReportHtml(r: SegmentReportInput): string {
-  return renderReportHtml(buildSegmentReportBlocks(r), "Расчёт участка водовода");
+  const logo = r.brand?.logoUrl ? { url: r.brand.logoUrl, widthMm: r.brand.logoWidthMm } : undefined;
+  return renderReportHtml(buildSegmentReportBlocks(r), "Расчёт участка водовода", logo);
 }

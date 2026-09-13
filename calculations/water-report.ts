@@ -31,6 +31,9 @@ export type ReportBrand = {
   title: string;
   subtitle?: string;
   logo?: { data: Uint8Array; ext: "png" | "jpeg"; widthMm: number; heightMm: number } | null;
+  /** адрес логотипа для печатной версии PDF */
+  logoUrl?: string;
+  logoWidthMm?: number;
 };
 
 export type ReportInput = {
@@ -352,6 +355,10 @@ export function buildReportHtml(r: ReportInput): string {
     })
     .join("\n");
 
+  const logoHtml = r.brand?.logoUrl
+    ? `<p style="text-align:center;margin:0 0 6pt"><img src="${esc(r.brand.logoUrl)}" style="width:${r.brand.logoWidthMm ?? 34}mm"></p>`
+    : "";
+
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <title>Гидравлический расчёт водопроводной сети</title>
 <style>
@@ -373,7 +380,7 @@ thead { display: table-header-group; }
 .pagebreak { page-break-after: always; }
 @media screen { body { max-width: 190mm; margin: 20px auto; padding: 0 12px; } }
 </style></head><body>
-${body}
+${logoHtml}${body}
 <script>window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 400); });</script>
 </body></html>`;
 }

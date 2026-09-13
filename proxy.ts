@@ -11,11 +11,13 @@ import { SESSION_COOKIE, verifySession } from "./lib/session";
  *    страница входа: через них приходят заявки, и закрыв их, раздел
  *    перестанет продаваться.
  *
- * 2. РЕЖИМ «ТОЛЬКО ИНЖИНИРИНГ». Когда SITE_MODE=engineering, сборка
- *    отдаёт лишь расчётный раздел: корень и все остальные страницы
- *    уводятся на /engineering. Так второй домен показывает только то,
- *    за что заплачено, — каталог, производство и маркетинг туда не
- *    попадают.
+ * 2. РЕЖИМ «ТОЛЬКО ИНЖИНИРИНГ». Включается двумя способами:
+ *    SITE_MODE=engineering — для всей сборки (отдельный проект), либо
+ *    ENGINEERING_HOSTS=адрес1,адрес2 — для перечисленных доменов той
+ *    же сборки. Второй способ проще: один проект, один домен, одна
+ *    переменная — и на этом домене корень и все посторонние страницы
+ *    уводятся на /engineering. Каталог, производство и маркетинг туда
+ *    не попадают.
  *
  *    Это ОДИН код и ОДИН репозиторий, просто две сборки с разными
  *    переменными. Копировать раздел во второй проект нельзя: копии
@@ -54,9 +56,18 @@ export const config = {
   matcher: ["/((?!_next/static|_next/image|.*\\.[a-zA-Z0-9]{2,5}$).*)"],
 };
 
+/** домен запроса без порта и регистра */
+function hostOf(request: NextRequest): string {
+  return (request.headers.get("host") ?? "").trim().toLowerCase().split(":")[0];
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const engineeringOnly = process.env.SITE_MODE === "engineering";
+  const hosts = (process.env.ENGINEERING_HOSTS ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  const engineeringOnly = process.env.SITE_MODE === "engineering" || hosts.includes(hostOf(request));
 
   /* ---------------- режим одного раздела ---------------- */
   if (engineeringOnly && !ENGINEERING_ALLOWED.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p))) {

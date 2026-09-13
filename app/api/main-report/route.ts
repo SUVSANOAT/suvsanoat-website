@@ -30,7 +30,7 @@ import {
   segmentReportDocxMeta,
 } from "../../../calculations/main-report";
 import { sessionFromRequest } from "../../../lib/session";
-import { getBrand, userBrandSlug } from "../../../lib/brands";
+import { getBrand, getBrandByHost, userBrandSlug } from "../../../lib/brands";
 import { loadBrandLogo } from "../../../lib/brand-logo";
 import { dbUrl } from "../../../lib/auth";
 
@@ -83,9 +83,14 @@ function docxResponse(bytes: Uint8Array, filename: string) {
  * его заказал. Если база недоступна, документ всё равно собирается,
  * просто под своим знаком: отчёт важнее оформления.
  */
-async function reportBrand(login: string) {
+async function reportBrand(login: string, host: string | null) {
   try {
-    const brand = await getBrand(dbUrl() ? await userBrandSlug(login) : null);
+    const slug = dbUrl() ? await userBrandSlug(login) : null;
+    /* Если у человека своего бренда нет, берётся бренд домена: на
+       отдельном адресе отчёт обязан выходить под его знаком, а не под
+       нашим. */
+    const byHost = slug ? null : await getBrandByHost(host);
+    const brand = byHost ?? (await getBrand(slug));
     return { title: brand.title, subtitle: brand.subtitle, logo: await loadBrandLogo(brand.logo_url) };
   } catch {
     return undefined;
@@ -143,7 +148,7 @@ export async function POST(request: Request) {
         pumpEff: num(body.pumpEff),
         motorEff: num(body.motorEff),
       });
-      const input = { object, material, lining, qM3H, geoLiftM, pipeLengthM, startElevM: num(body.startElevM), seg, brand: await reportBrand(session.u) };
+      const input = { object, material, lining, qM3H, geoLiftM, pipeLengthM, startElevM: num(body.startElevM), seg, brand: await reportBrand(session.u, request.headers.get("host")) };
       const docx = buildDocxFile(buildSegmentReportBlocks(input), segmentReportDocxMeta(input));
       return docxResponse(docx, "SUVSANOAT_raschet_uchastka_vodovoda.docx");
     }
@@ -199,7 +204,7 @@ export async function POST(request: Request) {
       sectionSpacingM: num(body.sectionSpacingM),
     });
 
-    const input = { object, material, lining, qM3Day, hoursPerDay, lines, res, stages, spec, tariffPerKWh: num(body.tariffPerKWh), brand: await reportBrand(session.u) };
+    const input = { object, material, lining, qM3Day, hoursPerDay, lines, res, stages, spec, tariffPerKWh: num(body.tariffPerKWh), brand: await reportBrand(session.u, request.headers.get("host")) };
     const docx = buildDocxFile(buildMainReportBlocks(input), mainReportDocxMeta(input));
     return docxResponse(docx, "SUVSANOAT_raschet_napornogo_vodovoda.docx");
   } catch (e) {

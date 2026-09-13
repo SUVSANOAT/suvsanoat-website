@@ -36,7 +36,7 @@ import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../calculatio
 import { buildReportBlocks, reportDocxMeta } from "../../../calculations/water-report";
 import { buildSpecification } from "../../../calculations/water-spec";
 import { sessionFromRequest } from "../../../lib/session";
-import { getBrand, userBrandSlug } from "../../../lib/brands";
+import { getBrand, getBrandByHost, userBrandSlug } from "../../../lib/brands";
 import { loadBrandLogo } from "../../../lib/brand-logo";
 import { dbUrl } from "../../../lib/auth";
 
@@ -94,9 +94,14 @@ function parseLinks(raw: unknown): NetLink[] {
   return out;
 }
 
-async function reportBrand(login: string) {
+async function reportBrand(login: string, host: string | null) {
   try {
-    const brand = await getBrand(dbUrl() ? await userBrandSlug(login) : null);
+    const slug = dbUrl() ? await userBrandSlug(login) : null;
+    /* Если у человека своего бренда нет, берётся бренд домена: на
+       отдельном адресе отчёт обязан выходить под его знаком, а не под
+       нашим. */
+    const byHost = slug ? null : await getBrandByHost(host);
+    const brand = byHost ?? (await getBrand(slug));
     return { title: brand.title, subtitle: brand.subtitle, logo: await loadBrandLogo(brand.logo_url) };
   } catch {
     return undefined;
@@ -178,7 +183,7 @@ export async function POST(request: Request) {
     nodes.forEach((n) => (peopleByNode[n.id] = n.people));
 
     const report = {
-      brand: await reportBrand(session.u),
+      brand: await reportBrand(session.u, request.headers.get("host")),
       object: String(body.object ?? "").slice(0, 160) || undefined,
       settlement,
       terrain,
