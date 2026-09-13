@@ -74,8 +74,8 @@ export default function RequireAuth({ children, title = "Проверяем до
 
 const page: CSSProperties = {
   minHeight: "100vh",
-  background: "#06151d",
-  color: "#f4f7f8",
+  background: "var(--sv-bg)",
+  color: "var(--sv-ink)",
   fontFamily: "Arial, Helvetica, sans-serif",
   display: "flex",
   alignItems: "center",
@@ -85,20 +85,20 @@ const page: CSSProperties = {
 
 const box: CSSProperties = {
   width: "min(560px, 100%)",
-  background: "#081b24",
-  border: "1px solid #1c3742",
+  background: "var(--sv-card)",
+  border: "1px solid var(--sv-line)",
   borderRadius: 12,
   padding: 28,
 };
 
-const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 11, fontWeight: 800, letterSpacing: "3px" };
+const eyebrow: CSSProperties = { color: "var(--sv-accent)", fontSize: 11, fontWeight: 800, letterSpacing: "3px" };
 const h1: CSSProperties = { fontSize: 26, margin: "14px 0 0" };
-const text: CSSProperties = { color: "#8ca4ad", fontSize: 15, lineHeight: 1.7, marginTop: 14 };
+const text: CSSProperties = { color: "var(--sv-muted)", fontSize: 15, lineHeight: 1.7, marginTop: 14 };
 const button: CSSProperties = {
   display: "inline-block",
   marginTop: 18,
-  background: "#0f5f73",
-  color: "#eaf7fa",
+  background: "var(--sv-primary)",
+  color: "var(--sv-primary-ink)",
   borderRadius: 10,
   padding: "11px 20px",
   fontSize: 15,

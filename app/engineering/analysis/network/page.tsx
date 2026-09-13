@@ -402,7 +402,7 @@ function NetworkPageContent() {
                 (POINT, подписи отметок текстом, горизонтали) и снимет отметку земли в каждом
                 колодце по ближайшим точкам. Трасса берётся из полилинии — выберите её ниже.
                 <br />
-                <b style={{ color: "#b7cbd3" }}>Формат: DXF (ASCII).</b> DWG приложить можно — программа
+                <b style={{ color: "var(--sv-th)" }}>Формат: DXF (ASCII).</b> DWG приложить можно — программа
                 его опознает и назовёт версию, но прочитать не сможет: это закрытый двоичный формат
                 Autodesk. Из AutoCAD, NanoCAD или ZWCAD сохраните «Файл → Сохранить как → DXF», это
                 несколько секунд и чертёж не меняется.
@@ -411,7 +411,7 @@ function NetworkPageContent() {
 
               {dxf && (
                 <div style={{ marginTop: 16 }}>
-                  <p style={{ ...hint, color: dxf.points.length ? "#9fd6b4" : "#ffcf8a" }}>
+                  <p style={{ ...hint, color: dxf.points.length ? "var(--sv-ok3)" : "var(--sv-warn-ink)" }}>
                     Прочитано: {dxf.points.length} точек с высотами, {dxf.polylines.length} полилиний.
                     Слои: {dxf.layers.slice(0, 8).join(", ") || "—"}
                     {dxf.layers.length > 8 ? " …" : ""}
@@ -457,7 +457,7 @@ function NetworkPageContent() {
           )}
 
           {nodes.length > 0 && (
-            <p style={{ ...hint, color: "#9fd6b4" }}>
+            <p style={{ ...hint, color: "var(--sv-ok3)" }}>
               Прочитано: {nodes.length} колодцев, {links.length} участков
               {traceLength(nodes) > 0 ? `, длина трассы ${traceLength(nodes)} м` : ""}. Конечная точка —{" "}
               {outfallId}.
@@ -558,17 +558,17 @@ function NetworkPageContent() {
                         </td>
                         <td style={td}>{s.lengthM}</td>
                         <td style={td}>{s.qCalcLps}</td>
-                        <td style={{ ...td, color: "#8ca4ad" }}>{s.qInfiltrationLps > 0 ? s.qInfiltrationLps : "—"}</td>
+                        <td style={{ ...td, color: "var(--sv-muted)" }}>{s.qInfiltrationLps > 0 ? s.qInfiltrationLps : "—"}</td>
                         <td style={td}>{s.kMax}</td>
-                        <td style={{ ...td, color: s.fixed ? "#9fd0ff" : "#e7eef1" }}>{s.dnMm}</td>
+                        <td style={{ ...td, color: s.fixed ? "var(--sv-accent)" : "var(--sv-ink2)" }}>{s.dnMm}</td>
                         <td style={td}>{s.slope.toFixed(4)}</td>
-                        <td style={{ ...td, color: s.velocity < s.vMinRequired ? "#ffcf8a" : "#e7eef1" }}>
+                        <td style={{ ...td, color: s.velocity < s.vMinRequired ? "var(--sv-warn-ink)" : "var(--sv-ink2)" }}>
                           {s.velocity.toFixed(2)}
                         </td>
                         <td style={td}>{s.fill.toFixed(2)}</td>
                         <td style={td}>{s.invertStart.toFixed(2)}</td>
                         <td style={td}>{s.invertEnd.toFixed(2)}</td>
-                        <td style={{ ...td, color: s.depthEnd > 6 ? "#ffcf8a" : "#e7eef1" }}>{s.depthEnd.toFixed(2)}</td>
+                        <td style={{ ...td, color: s.depthEnd > 6 ? "var(--sv-warn-ink)" : "var(--sv-ink2)" }}>{s.depthEnd.toFixed(2)}</td>
                         <td style={td}>{s.dropM > 0 ? s.dropM.toFixed(2) : "—"}</td>
                       </tr>
                     ))}
@@ -602,14 +602,14 @@ function NetworkPageContent() {
                   style={{ ...inputStyle, minWidth: 260 }}
                 />
               </div>
-              {fileError && <span style={{ color: "#ff9d8a", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
+              {fileError && <span style={{ color: "var(--sv-bad)", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
             </section>
 
             {/* НАПОРНЫЙ УЧАСТОК ОТ КНС */}
             <section style={card}>
               <button type="button" onClick={() => setPumpOpen(!pumpOpen)} style={toggleRow}>
                 <span style={sectionTitle}>НАПОРНЫЙ УЧАСТОК ОТ КНС</span>
-                <span style={{ color: "#5fb6c9", fontSize: 13 }}>{pumpOpen ? "свернуть" : "посчитать"}</span>
+                <span style={{ color: "var(--sv-accent)", fontSize: 13 }}>{pumpOpen ? "свернуть" : "посчитать"}</span>
               </button>
 
               {!pumpOpen && (
@@ -691,7 +691,7 @@ function NetworkPageContent() {
                               <tbody>
                                 {pump.options.map((o) => (
                                   <tr key={o.dnMm}>
-                                    <td style={{ ...td, color: o.dnMm === pump.dnMm ? "#7ee0a1" : "#e7eef1" }}>{o.dnMm}</td>
+                                    <td style={{ ...td, color: o.dnMm === pump.dnMm ? "var(--sv-ok2)" : "var(--sv-ink2)" }}>{o.dnMm}</td>
                                     <td style={td}>{o.velocity}</td>
                                     <td style={td}>{o.headM}</td>
                                     <td style={td}>{o.motorKW}</td>
@@ -723,16 +723,16 @@ function NetworkPageContent() {
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, marginTop: 10 }}>
                             <span>Скорость волны: <b>{hammer.waveSpeedMs} м/с</b>, фаза удара <b>{hammer.phaseS} с</b></span>
-                            <span>Прибавка по Жуковскому: <b>{hammer.joukowskyM} м</b> → наибольший напор <b style={{ color: hammer.overPressure ? "#ffb74d" : "#7ee0a1" }}>{hammer.maxHeadM} м</b> при PN {pumpPn} м</span>
+                            <span>Прибавка по Жуковскому: <b>{hammer.joukowskyM} м</b> → наибольший напор <b style={{ color: hammer.overPressure ? "var(--sv-warn2)" : "var(--sv-ok2)" }}>{hammer.maxHeadM} м</b> при PN {pumpPn} м</span>
                             <span>
                               При остановке напор у насоса падает до{" "}
-                              <b style={{ color: hammer.columnSeparation ? "#ff9d8a" : "#7ee0a1" }}>{hammer.minHeadM} м</b>
-                              {hammer.minHeadHighPointM !== undefined ? <>, в высокой точке до <b style={{ color: hammer.columnSeparation ? "#ff9d8a" : "#7ee0a1" }}>{hammer.minHeadHighPointM} м</b></> : null}
+                              <b style={{ color: hammer.columnSeparation ? "var(--sv-bad)" : "var(--sv-ok2)" }}>{hammer.minHeadM} м</b>
+                              {hammer.minHeadHighPointM !== undefined ? <>, в высокой точке до <b style={{ color: hammer.columnSeparation ? "var(--sv-bad)" : "var(--sv-ok2)" }}>{hammer.minHeadHighPointM} м</b></> : null}
                             </span>
                           </div>
                           <div style={{ marginTop: 10 }}>
                             {hammer.protection.map((p) => (
-                              <div key={p} style={{ fontSize: 13, color: "#cfdde3", lineHeight: 1.55, paddingLeft: 10, borderLeft: "2px solid #5fb6c9", marginBottom: 8 }}>{p}</div>
+                              <div key={p} style={{ fontSize: 13, color: "var(--sv-ink3)", lineHeight: 1.55, paddingLeft: 10, borderLeft: "2px solid var(--sv-accent)", marginBottom: 8 }}>{p}</div>
                             ))}
                           </div>
                           {hammer.warnings.map((w) => (
@@ -758,7 +758,7 @@ function NetworkPageContent() {
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, marginTop: 10 }}>
                             <span>
-                              Пусков в час при худшем притоке: <b style={{ color: cycling.ok ? "#7ee0a1" : "#ffb74d" }}>{cycling.startsPerPump}</b> на насос
+                              Пусков в час при худшем притоке: <b style={{ color: cycling.ok ? "var(--sv-ok2)" : "var(--sv-warn2)" }}>{cycling.startsPerPump}</b> на насос
                               {" "}при допустимых <b>{cycling.allowedStarts}</b> для двигателя {pump.motorKW} кВт; цикл не короче <b>{cycling.minCycleMin} мин</b>
                             </span>
                             <span>Требуемый рабочий объём: <b>{cycling.requiredWorkingM3} м³</b></span>
@@ -842,7 +842,7 @@ function FilePick({
       <button type="button" style={pickButton} onClick={() => ref.current?.click()}>
         {label}
       </button>
-      <span style={{ color: name ? "#9fd6b4" : "#5c7280", fontSize: 13 }}>
+      <span style={{ color: name ? "var(--sv-ok3)" : "var(--sv-faint)", fontSize: 13 }}>
         {name || "файл не выбран"}
       </span>
     </div>
@@ -865,9 +865,9 @@ const toggleRow: CSSProperties = {
 };
 
 const pickButton: CSSProperties = {
-  background: "#0f5f73",
+  background: "var(--sv-primary)",
   border: 0,
-  color: "#eaf7fa",
+  color: "var(--sv-primary-ink)",
   borderRadius: 10,
   padding: "11px 20px",
   fontSize: 14,
@@ -875,32 +875,32 @@ const pickButton: CSSProperties = {
   cursor: "pointer",
 };
 
-const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
+const page: CSSProperties = { minHeight: "100vh", background: "var(--sv-bg)", color: "var(--sv-ink)", fontFamily: "Arial, Helvetica, sans-serif" };
 const container: CSSProperties = { width: "min(1250px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
-const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
+const eyebrow: CSSProperties = { color: "var(--sv-accent)", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
 const title: CSSProperties = { fontSize: "clamp(30px, 5vw, 52px)", lineHeight: 1.1, margin: "18px 0 0" };
-const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "#8ca4ad", fontSize: 17, lineHeight: 1.7 };
-const card: CSSProperties = { background: "#081b24", border: "1px solid #1c3742", borderRadius: 12, padding: 22, marginBottom: 18 };
-const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 13.5, lineHeight: 1.7, marginTop: 0 };
+const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "var(--sv-muted)", fontSize: 17, lineHeight: 1.7 };
+const card: CSSProperties = { background: "var(--sv-card)", border: "1px solid var(--sv-line)", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "var(--sv-faint2)", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 13.5, lineHeight: 1.7, marginTop: 0 };
 const tabs: CSSProperties = { display: "flex", gap: 8, marginBottom: 16 };
-const tab: CSSProperties = { background: "transparent", border: "1px solid #1c3742", color: "#8ca4ad", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" };
-const tabOn: CSSProperties = { ...tab, borderColor: "#2a5b68", color: "#5fb6c9", background: "#06151d" };
-const textarea: CSSProperties = { width: "100%", background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
-const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" };
+const tab: CSSProperties = { background: "transparent", border: "1px solid var(--sv-line)", color: "var(--sv-muted)", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" };
+const tabOn: CSSProperties = { ...tab, borderColor: "var(--sv-accent-line)", color: "var(--sv-accent)", background: "var(--sv-bg)" };
+const textarea: CSSProperties = { width: "100%", background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" };
 const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
-const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12 };
-const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11, lineHeight: 1.4 };
-const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
+const fieldLabel: CSSProperties = { color: "var(--sv-muted)", fontSize: 12 };
+const fieldHint: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, lineHeight: 1.4 };
+const inputStyle: CSSProperties = { background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: "10px 12px", fontSize: 15, outline: "none" };
 const table: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
-const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
-const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
+const th: CSSProperties = { color: "var(--sv-th)", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line)", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line-soft)", whiteSpace: "nowrap", color: "var(--sv-ink2)" };
 const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 130 };
-const segWarn: CSSProperties = { color: "#ffcf8a", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
-const totalsRow: CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", color: "#b7cbd3", fontSize: 14, margin: "18px 0" };
-const secondary: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 10, padding: "12px 20px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
-const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
-const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
-const problemList: CSSProperties = { marginTop: 14, paddingLeft: 18, color: "#ffcf8a", fontSize: 13, lineHeight: 1.6 };
-const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
+const segWarn: CSSProperties = { color: "var(--sv-warn-ink)", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
+const totalsRow: CSSProperties = { display: "flex", gap: 24, flexWrap: "wrap", color: "var(--sv-th)", fontSize: 14, margin: "18px 0" };
+const secondary: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 10, padding: "12px 20px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+const primary: CSSProperties = { background: "var(--sv-primary)", border: 0, color: "var(--sv-primary-ink)", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "var(--sv-muted)", fontSize: 13, lineHeight: 1.65 };
+const problemList: CSSProperties = { marginTop: 14, paddingLeft: 18, color: "var(--sv-warn-ink)", fontSize: 13, lineHeight: 1.6 };
+const warnBox: CSSProperties = { background: "var(--sv-warn-bg)", border: "1px solid var(--sv-warn-line)", borderRadius: 10, padding: 16, color: "var(--sv-warn-ink)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };

@@ -85,11 +85,11 @@ const GROUPS: { title: string; note?: string; fields: FieldDef[] }[] = [
 ];
 
 const LEVELS: Record<FindingLevel, { title: string; color: string; back: string }> = {
-  fail: { title: "НЕ СРАБОТАЕТ", color: "#ff9d8a", back: "#2a1512" },
-  norm: { title: "НЕ ПО НОРМЕ", color: "#ffcf8a", back: "#2a2112" },
-  doubt: { title: "ТРЕБУЕТ ПОЯСНЕНИЯ", color: "#9fd0ff", back: "#12202a" },
-  ok: { title: "СООТВЕТСТВУЕТ", color: "#9fd6b4", back: "#122a1c" },
-  nodata: { title: "НЕТ ДАННЫХ", color: "#8ca4ad", back: "#12202a" },
+  fail: { title: "НЕ СРАБОТАЕТ", color: "var(--sv-bad)", back: "var(--sv-warn-bg)" },
+  norm: { title: "НЕ ПО НОРМЕ", color: "var(--sv-warn-ink)", back: "var(--sv-warn-bg)" },
+  doubt: { title: "ТРЕБУЕТ ПОЯСНЕНИЯ", color: "var(--sv-accent)", back: "var(--sv-bg2)" },
+  ok: { title: "СООТВЕТСТВУЕТ", color: "var(--sv-ok3)", back: "var(--sv-bg2)" },
+  nodata: { title: "НЕТ ДАННЫХ", color: "var(--sv-muted)", back: "var(--sv-bg2)" },
 };
 
 const ORDER: FindingLevel[] = ["fail", "norm", "doubt", "nodata", "ok"];
@@ -200,7 +200,7 @@ function AuditPageContent() {
             </label>
             <label style={{ ...field, justifyContent: "center" }}>
               <span style={fieldLabel}>Иловые площадки на площадке</span>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#b7cbd3", fontSize: 14 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--sv-th)", fontSize: 14 }}>
                 <input type="checkbox" checked={sludgeBeds} onChange={(e) => setSludgeBeds(e.target.checked)} />
                 есть
               </label>
@@ -216,7 +216,7 @@ function AuditPageContent() {
           <>
             <section style={{ ...card, marginTop: 30 }}>
               <div style={sectionTitle}>ЗАКЛЮЧЕНИЕ</div>
-              <p style={{ color: "#e7eef1", fontSize: 16, lineHeight: 1.7, margin: 0 }}>{result.summary}</p>
+              <p style={{ color: "var(--sv-ink2)", fontSize: 16, lineHeight: 1.7, margin: 0 }}>{result.summary}</p>
               <div style={countRow}>
                 {ORDER.map((lvl) =>
                   result.counts[lvl] > 0 ? (
@@ -238,20 +238,20 @@ function AuditPageContent() {
               return (
                 <section key={f.key} style={{ ...findingCard, borderColor: L.color + "44" }}>
                   <div style={{ ...badge, color: L.color, background: L.back }}>{L.title}</div>
-                  <div style={{ color: "#e7eef1", fontWeight: 700, fontSize: 16, margin: "10px 0 12px" }}>
+                  <div style={{ color: "var(--sv-ink2)", fontWeight: 700, fontSize: 16, margin: "10px 0 12px" }}>
                     {f.subject}
                   </div>
                   <div style={twoCol}>
                     <div>
                       <div style={smallLabel}>ЗАЯВЛЕНО В ПРОЕКТЕ</div>
-                      <div style={{ color: "#e7eef1", fontSize: 15 }}>{f.declared}</div>
+                      <div style={{ color: "var(--sv-ink2)", fontSize: 15 }}>{f.declared}</div>
                     </div>
                     <div>
                       <div style={smallLabel}>ПО НОРМЕ / ПО РАСЧЁТУ</div>
-                      <div style={{ color: "#e7eef1", fontSize: 15 }}>{f.required}</div>
+                      <div style={{ color: "var(--sv-ink2)", fontSize: 15 }}>{f.required}</div>
                     </div>
                   </div>
-                  <p style={{ color: "#b7cbd3", fontSize: 14, lineHeight: 1.7, margin: "14px 0 0" }}>
+                  <p style={{ color: "var(--sv-th)", fontSize: 14, lineHeight: 1.7, margin: "14px 0 0" }}>
                     {f.consequence}
                   </p>
                   {f.ref && <div style={refLine}>{f.ref}</div>}
@@ -269,8 +269,8 @@ function AuditPageContent() {
 
 const page: CSSProperties = {
   minHeight: "100vh",
-  background: "#06151d",
-  color: "#f4f7f8",
+  background: "var(--sv-bg)",
+  color: "var(--sv-ink)",
   fontFamily: "Arial, Helvetica, sans-serif",
 };
 
@@ -281,7 +281,7 @@ const container: CSSProperties = {
 };
 
 const eyebrow: CSSProperties = {
-  color: "#5fb6c9",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: "3px",
@@ -297,21 +297,21 @@ const lead: CSSProperties = {
   maxWidth: 820,
   marginTop: 25,
   marginBottom: 40,
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 17,
   lineHeight: 1.7,
 };
 
 const card: CSSProperties = {
-  background: "#081b24",
-  border: "1px solid #1c3742",
+  background: "var(--sv-card)",
+  border: "1px solid var(--sv-line)",
   borderRadius: 12,
   padding: 22,
   marginBottom: 18,
 };
 
 const sectionTitle: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: "2px",
@@ -326,27 +326,27 @@ const grid: CSSProperties = {
 
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
 
-const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12, letterSpacing: "0.5px" };
+const fieldLabel: CSSProperties = { color: "var(--sv-muted)", fontSize: 12, letterSpacing: "0.5px" };
 
-const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11 };
+const fieldHint: CSSProperties = { color: "var(--sv-faint)", fontSize: 11 };
 
 const inputStyle: CSSProperties = {
-  background: "#06151d",
-  border: "1px solid #1c3742",
+  background: "var(--sv-bg)",
+  border: "1px solid var(--sv-line)",
   borderRadius: 8,
-  color: "#f4f7f8",
+  color: "var(--sv-ink)",
   padding: "10px 12px",
   fontSize: 15,
   outline: "none",
 };
 
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 13, lineHeight: 1.7 };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 13, lineHeight: 1.7 };
 
 const runButton: CSSProperties = {
   marginTop: 12,
-  background: "#0f5f73",
+  background: "var(--sv-primary)",
   border: 0,
-  color: "#eaf7fa",
+  color: "var(--sv-primary-ink)",
   borderRadius: 10,
   padding: "14px 26px",
   fontSize: 16,
@@ -365,8 +365,8 @@ const chip: CSSProperties = {
 };
 
 const findingCard: CSSProperties = {
-  background: "#081b24",
-  border: "1px solid #1c3742",
+  background: "var(--sv-card)",
+  border: "1px solid var(--sv-line)",
   borderRadius: 12,
   padding: 20,
   marginBottom: 12,
@@ -388,7 +388,7 @@ const twoCol: CSSProperties = {
 };
 
 const smallLabel: CSSProperties = {
-  color: "#5c7280",
+  color: "var(--sv-faint)",
   fontSize: 11,
   letterSpacing: "1px",
   marginBottom: 5,
@@ -396,6 +396,6 @@ const smallLabel: CSSProperties = {
 
 const refLine: CSSProperties = {
   marginTop: 12,
-  color: "#5c7280",
+  color: "var(--sv-faint)",
   fontSize: 12,
 };

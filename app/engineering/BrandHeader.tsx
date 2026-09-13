@@ -110,7 +110,7 @@ export default function BrandHeader() {
       <div style={right}>
         {brand.login && <div style={meta}>Вход: {brand.login}</div>}
         {brand.active_until && (
-          <div style={{ ...meta, color: soon ? "#ffcf8a" : "#5c7280" }}>
+          <div style={{ ...meta, color: soon ? "var(--sv-warn-ink)" : "var(--sv-faint)" }}>
             Доступ до {new Date(brand.active_until).toLocaleDateString("ru-RU")}
             {brand.daysLeft !== null && brand.daysLeft >= 0 ? ` — осталось ${brand.daysLeft} дн.` : " — истёк"}
           </div>
@@ -126,15 +126,15 @@ const wrap: CSSProperties = {
   alignItems: "center",
   gap: 18,
   flexWrap: "wrap",
-  background: "#081b24",
-  border: "1px solid #1c3742",
+  background: "var(--sv-card)",
+  border: "1px solid var(--sv-line)",
   borderLeftWidth: 4,
   borderRadius: 12,
   padding: "16px 20px",
   marginBottom: 22,
 };
 const plate: CSSProperties = {
-  background: "#ffffff",
+  background: "var(--sv-plate)",
   borderRadius: 10,
   padding: "8px 12px",
   display: "flex",
@@ -143,6 +143,6 @@ const plate: CSSProperties = {
 };
 const logo: CSSProperties = { height: 56, width: "auto", display: "block" };
 const title: CSSProperties = { fontSize: 20, fontWeight: 800, letterSpacing: "1px" };
-const subtitle: CSSProperties = { color: "#8ca4ad", fontSize: 13, marginTop: 4, lineHeight: 1.5 };
+const subtitle: CSSProperties = { color: "var(--sv-muted)", fontSize: 13, marginTop: 4, lineHeight: 1.5 };
 const right: CSSProperties = { textAlign: "right", minWidth: 180 };
-const meta: CSSProperties = { color: "#5c7280", fontSize: 12, lineHeight: 1.8 };
+const meta: CSSProperties = { color: "var(--sv-faint)", fontSize: 12, lineHeight: 1.8 };

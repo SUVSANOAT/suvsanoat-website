@@ -200,8 +200,8 @@ export default function ProjectsPanel({
                 {rows.map((p) => (
                   <tr key={p.id} style={p.id === currentId ? { background: "#0d2a33" } : undefined}>
                     <td style={td}>{p.name}</td>
-                    <td style={{ ...td, color: "#8ca4ad" }}>{p.object || "—"}</td>
-                    <td style={{ ...td, color: "#8ca4ad", whiteSpace: "nowrap" }}>{when(p.updated_at)}</td>
+                    <td style={{ ...td, color: "var(--sv-muted)" }}>{p.object || "—"}</td>
+                    <td style={{ ...td, color: "var(--sv-muted)", whiteSpace: "nowrap" }}>{when(p.updated_at)}</td>
                     <td style={{ ...td, whiteSpace: "nowrap" }}>
                       <button style={smallBtn} onClick={() => void load(p.id)} disabled={busy}>
                         Открыть
@@ -221,14 +221,14 @@ export default function ProjectsPanel({
   );
 }
 
-const card: CSSProperties = { background: "#081b24", border: "1px solid #24444f", borderRadius: 12, padding: 22, marginBottom: 18 };
-const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px" };
-const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
-const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
-const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
-const smallBtn: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, cursor: "pointer", marginRight: 8 };
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 12.5, lineHeight: 1.6 };
-const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "left", padding: "9px 10px", borderBottom: "1px solid #1c3742" };
-const td: CSSProperties = { textAlign: "left", padding: "9px 10px", borderBottom: "1px solid #102831", color: "#e7eef1" };
-const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 12, color: "#ffcf8a", fontSize: 13, marginTop: 12 };
+const card: CSSProperties = { background: "var(--sv-card)", border: "1px solid var(--sv-card-line)", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "var(--sv-faint2)", fontSize: 12, fontWeight: 800, letterSpacing: "2px" };
+const inputStyle: CSSProperties = { background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: "10px 12px", fontSize: 15, outline: "none" };
+const primary: CSSProperties = { background: "var(--sv-primary)", border: 0, color: "var(--sv-primary-ink)", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const smallBtn: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, cursor: "pointer", marginRight: 8 };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 12.5, lineHeight: 1.6 };
+const th: CSSProperties = { color: "var(--sv-th)", fontSize: 12, fontWeight: 700, textAlign: "left", padding: "9px 10px", borderBottom: "1px solid var(--sv-line)" };
+const td: CSSProperties = { textAlign: "left", padding: "9px 10px", borderBottom: "1px solid var(--sv-line-soft)", color: "var(--sv-ink2)" };
+const warnBox: CSSProperties = { background: "var(--sv-warn-bg)", border: "1px solid var(--sv-warn-line)", borderRadius: 10, padding: 12, color: "var(--sv-warn-ink)", fontSize: 13, marginTop: 12 };
 const okBox: CSSProperties = { background: "#0d2a20", border: "1px solid #1d4a38", borderRadius: 10, padding: 12, color: "#8fe0bb", fontSize: 13, marginTop: 12 };

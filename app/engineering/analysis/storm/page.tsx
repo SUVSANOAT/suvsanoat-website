@@ -257,7 +257,7 @@ function StormPageContent() {
 
         {ready && (
           <>
-            <section style={{ ...card, borderColor: "#2a5b68" }}>
+            <section style={{ ...card, borderColor: "var(--sv-accent-line)" }}>
               <div style={sectionTitle}>РЕЗУЛЬТАТ</div>
               <div style={bigRow}>
                 <div>
@@ -265,12 +265,12 @@ function StormPageContent() {
                   <div style={bigValue}>
                     {res.qLps} <span style={unit}>л/с</span>
                   </div>
-                  <div style={{ color: "#8ca4ad", fontSize: 13 }}>{res.qM3H} м³/ч</div>
+                  <div style={{ color: "var(--sv-muted)", fontSize: 13 }}>{res.qM3H} м³/ч</div>
                 </div>
                 <div>
                   <div style={smallLabel}>ПАРАМЕТР A</div>
                   <div style={bigValue}>{res.A}</div>
-                  <div style={{ color: "#8ca4ad", fontSize: 13 }}>n = {res.n}, m_r = {res.mr}, γ = {res.gamma}</div>
+                  <div style={{ color: "var(--sv-muted)", fontSize: 13 }}>n = {res.n}, m_r = {res.mr}, γ = {res.gamma}</div>
                 </div>
                 <div>
                   <div style={smallLabel}>КОЭФФИЦИЕНТ СТОКА</div>
@@ -281,7 +281,7 @@ function StormPageContent() {
                   <div style={bigValue}>
                     {res.tR} <span style={unit}>мин</span>
                   </div>
-                  <div style={{ color: "#8ca4ad", fontSize: 13 }}>
+                  <div style={{ color: "var(--sv-muted)", fontSize: 13 }}>
                     {res.tCon} + {res.tCan} + {res.tPipe}
                   </div>
                 </div>
@@ -329,7 +329,7 @@ function StormPageContent() {
               </div>
 
               {netNodes?.problems.length ? (
-                <ul style={{ marginTop: 14, paddingLeft: 18, color: "#ffcf8a", fontSize: 13, lineHeight: 1.6 }}>
+                <ul style={{ marginTop: 14, paddingLeft: 18, color: "var(--sv-warn-ink)", fontSize: 13, lineHeight: 1.6 }}>
                   {netNodes.problems.map((x) => (
                     <li key={x}>{x}</li>
                   ))}
@@ -371,7 +371,7 @@ function StormPageContent() {
                     </table>
                   </div>
 
-                  <div style={{ color: "#b7cbd3", fontSize: 14, margin: "16px 0" }}>
+                  <div style={{ color: "var(--sv-th)", fontSize: 14, margin: "16px 0" }}>
                     Площадь водосбора всего <b>{netRes.totalAreaHa} га</b>, расход в выпуске{" "}
                     <b>{netRes.outfallQLps} л/с</b>, наибольшая глубина <b>{netRes.maxDepthM} м</b>
                     {netRes.maxDepthAt ? ` в ${netRes.maxDepthAt}` : ""}.
@@ -380,7 +380,7 @@ function StormPageContent() {
                   <button type="button" style={primary} onClick={downloadPackage} disabled={busy}>
                     {busy ? "Собираю комплект…" : "Скачать ведомость и чертежи (ZIP)"}
                   </button>
-                  {fileError && <span style={{ color: "#ff9d8a", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
+                  {fileError && <span style={{ color: "var(--sv-bad)", fontSize: 13, marginLeft: 12 }}>{fileError}</span>}
                 </>
               )}
             </section>
@@ -412,30 +412,30 @@ function StormPageContent() {
 
 /* ---------------------------- стили ---------------------------- */
 
-const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
+const page: CSSProperties = { minHeight: "100vh", background: "var(--sv-bg)", color: "var(--sv-ink)", fontFamily: "Arial, Helvetica, sans-serif" };
 const container: CSSProperties = { width: "min(1150px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
-const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
+const eyebrow: CSSProperties = { color: "var(--sv-accent)", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
 const title: CSSProperties = { fontSize: "clamp(30px, 5vw, 52px)", lineHeight: 1.1, margin: "18px 0 0" };
-const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "#8ca4ad", fontSize: 17, lineHeight: 1.7 };
-const card: CSSProperties = { background: "#081b24", border: "1px solid #1c3742", borderRadius: 12, padding: 22, marginBottom: 18 };
-const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
+const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "var(--sv-muted)", fontSize: 17, lineHeight: 1.7 };
+const card: CSSProperties = { background: "var(--sv-card)", border: "1px solid var(--sv-line)", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "var(--sv-faint2)", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
 const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
-const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12 };
-const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11, lineHeight: 1.4 };
-const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 12.5, lineHeight: 1.7 };
+const fieldLabel: CSSProperties = { color: "var(--sv-muted)", fontSize: 12 };
+const fieldHint: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, lineHeight: 1.4 };
+const inputStyle: CSSProperties = { background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: "10px 12px", fontSize: 15, outline: "none" };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 12.5, lineHeight: 1.7 };
 const bigRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20 };
-const smallLabel: CSSProperties = { color: "#5c7280", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
-const bigValue: CSSProperties = { color: "#e7eef1", fontSize: 30, fontWeight: 700 };
-const unit: CSSProperties = { fontSize: 15, color: "#8ca4ad", fontWeight: 400 };
-const textarea: CSSProperties = { width: "100%", background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
-const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
-const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
+const smallLabel: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
+const bigValue: CSSProperties = { color: "var(--sv-ink2)", fontSize: 30, fontWeight: 700 };
+const unit: CSSProperties = { fontSize: 15, color: "var(--sv-muted)", fontWeight: 400 };
+const textarea: CSSProperties = { width: "100%", background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const primary: CSSProperties = { background: "var(--sv-primary)", border: 0, color: "var(--sv-primary-ink)", borderRadius: 10, padding: "12px 22px", fontSize: 15, fontWeight: 700, cursor: "pointer" };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
-const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
-const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
+const th: CSSProperties = { color: "var(--sv-th)", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line)", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line-soft)", whiteSpace: "nowrap", color: "var(--sv-ink2)" };
 const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 130 };
-const segWarn: CSSProperties = { color: "#ffcf8a", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
-const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
-const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
+const segWarn: CSSProperties = { color: "var(--sv-warn-ink)", fontSize: 11.5, lineHeight: 1.5, marginTop: 4, maxWidth: 420, whiteSpace: "normal" };
+const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "var(--sv-muted)", fontSize: 13, lineHeight: 1.65 };
+const warnBox: CSSProperties = { background: "var(--sv-warn-bg)", border: "1px solid var(--sv-warn-line)", borderRadius: 10, padding: 16, color: "var(--sv-warn-ink)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };

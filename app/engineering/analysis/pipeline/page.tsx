@@ -748,7 +748,7 @@ function PipelinePageContent() {
         </section>
 
         {/* ---------------- ЭКОНОМИКА ---------------- */}
-        <section style={{ ...card, borderColor: hasEconomics ? "#2a5b68" : "#1c3742" }}>
+        <section style={{ ...card, borderColor: hasEconomics ? "var(--sv-accent-line)" : "var(--sv-line)" }}>
           <div style={sectionTitle}>ЦЕНЫ — ИХ ЗАДАЁТЕ ВЫ</div>
           <p style={{ ...hint, marginTop: 0 }}>
             Диаметр водовода — это выбор между стоимостью трубы один раз и стоимостью электричества
@@ -856,7 +856,7 @@ function PipelinePageContent() {
         {res && (
           <>
             {/* ---------------- ВЫГРУЗКА ---------------- */}
-            <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <section style={{ ...card, borderColor: "var(--sv-card-line)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ ...sectionTitle, margin: 0 }}>СКАЧАТЬ РАСЧЁТ</div>
               <input
                 value={objectName}
@@ -1027,7 +1027,7 @@ function PipelinePageContent() {
                         o.totalCost === Math.min(...res.options.filter((x) => x.ok && x.totalCost !== undefined).map((x) => x.totalCost as number));
                       return (
                         <tr key={o.outerMm} style={{ opacity: o.ok ? 1 : 0.45 }}>
-                          <td style={{ ...tdLeft, color: best ? "#7fe0c0" : o.outerMm === res.outerMm ? "#5fb6c9" : undefined }}>
+                          <td style={{ ...tdLeft, color: best ? "var(--sv-ok2)" : o.outerMm === res.outerMm ? "var(--sv-accent)" : undefined }}>
                             {o.outerMm}×{o.wallMm}
                             {o.outerMm === res.outerMm ? " — принят" : ""}
                             {best ? " — дешевле всего" : ""}
@@ -1086,9 +1086,9 @@ function PipelinePageContent() {
                         <td style={td}>{h.waveSpeedMs}</td>
                         <td style={td}>{h.phaseS}</td>
                         <td style={td}>{h.joukowskyM}</td>
-                        <td style={{ ...td, color: h.peakBar > res.pnBar ? "#ffcf8a" : undefined }}>{h.peakBar}</td>
-                        <td style={{ ...td, color: h.minMarginM < 0 ? "#ffcf8a" : undefined }}>{h.minMarginM}</td>
-                        <td style={{ ...td, color: h.separationSharePct > 0 ? "#ffcf8a" : undefined }}>{h.separationSharePct}</td>
+                        <td style={{ ...td, color: h.peakBar > res.pnBar ? "var(--sv-warn-ink)" : undefined }}>{h.peakBar}</td>
+                        <td style={{ ...td, color: h.minMarginM < 0 ? "var(--sv-warn-ink)" : undefined }}>{h.minMarginM}</td>
+                        <td style={{ ...td, color: h.separationSharePct > 0 ? "var(--sv-warn-ink)" : undefined }}>{h.separationSharePct}</td>
                         <td style={td}>{h.worstAt}</td>
                       </tr>
                     ))}
@@ -1143,7 +1143,7 @@ function PipelinePageContent() {
                           <td style={td}>{x.lengthM}</td>
                           <td style={td}>{x.liftM}</td>
                           <td style={td}>{x.seg.requiredHeadM}</td>
-                          <td style={{ ...td, color: x.seg.peakBar > res.pnBar ? "#ffcf8a" : undefined }}>{x.seg.peakBar}</td>
+                          <td style={{ ...td, color: x.seg.peakBar > res.pnBar ? "var(--sv-warn-ink)" : undefined }}>{x.seg.peakBar}</td>
                           <td style={{ ...td, textAlign: "left" }}>
                             {x.name}, отм. {x.elev} м
                           </td>
@@ -1190,11 +1190,11 @@ function PipelinePageContent() {
                         <tbody>
                           {worstStage.seg.materials.map((m) => (
                             <tr key={m.kind} style={{ opacity: m.suitable ? 1 : 0.5 }}>
-                              <td style={{ ...tdLeft, color: m.note === "принят в расчёт" ? "#5fb6c9" : undefined }}>{m.label}</td>
+                              <td style={{ ...tdLeft, color: m.note === "принят в расчёт" ? "var(--sv-accent)" : undefined }}>{m.label}</td>
                               <td style={td}>{m.waveSpeedMs}</td>
                               <td style={td}>{m.surgeM}</td>
                               <td style={td}>{m.peakBar}</td>
-                              <td style={{ ...td, textAlign: "left", whiteSpace: "normal", color: "#8ca4ad" }}>
+                              <td style={{ ...td, textAlign: "left", whiteSpace: "normal", color: "var(--sv-muted)" }}>
                                 {m.suitable ? m.note || "проходит по классу давления" : m.note}
                               </td>
                             </tr>
@@ -1293,14 +1293,14 @@ function PipelinePageContent() {
                   </thead>
                   <tbody>
                     {(showNodes ? res.nodes : res.nodes.filter((n, i) => n.station || n.peak || i % 5 === 0)).map((n, i) => (
-                      <tr key={i} style={{ background: n.station ? "#0c2530" : undefined }}>
+                      <tr key={i} style={{ background: n.station ? "var(--sv-bg2)" : undefined }}>
                         <td style={tdLeft}>{n.piket}</td>
                         <td style={td}>{n.groundM}</td>
                         <td style={td}>{n.axisM}</td>
                         <td style={td}>{n.eglM}</td>
                         <td style={td}>{n.hglM}</td>
                         <td style={td}>{n.staticM}</td>
-                        <td style={{ ...td, color: n.pressureBar > res.pnBar ? "#ffcf8a" : undefined }}>{n.pressureBar}</td>
+                        <td style={{ ...td, color: n.pressureBar > res.pnBar ? "var(--sv-warn-ink)" : undefined }}>{n.pressureBar}</td>
                         <td style={td}>{n.stage}</td>
                         <td style={tdLeft}>
                           {n.station ?? ""}
@@ -1354,7 +1354,7 @@ function PipelinePageContent() {
                           <td style={{ ...td, textAlign: "left", whiteSpace: "normal" }}>{r.type}</td>
                           <td style={td}>{r.unit}</td>
                           <td style={{ ...td, fontWeight: 700 }}>{r.qty}</td>
-                          <td style={{ ...td, textAlign: "left", whiteSpace: "normal", color: "#8ca4ad", fontSize: 12 }}>{r.note}</td>
+                          <td style={{ ...td, textAlign: "left", whiteSpace: "normal", color: "var(--sv-muted)", fontSize: 12 }}>{r.note}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1366,7 +1366,7 @@ function PipelinePageContent() {
                     {spec.formulas.map((x, i) => (
                       <li key={i} style={{ marginBottom: 8 }}>
                         <b>{x.label}:</b> {x.formula} = <b>{x.result}</b>
-                        {x.source ? <span style={{ color: "#5c7280" }}> — {x.source}</span> : null}
+                        {x.source ? <span style={{ color: "var(--sv-faint)" }}> — {x.source}</span> : null}
                       </li>
                     ))}
                   </ul>
@@ -1397,29 +1397,29 @@ function PipelinePageContent() {
   );
 }
 
-const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
+const page: CSSProperties = { minHeight: "100vh", background: "var(--sv-bg)", color: "var(--sv-ink)", fontFamily: "Arial, Helvetica, sans-serif" };
 const container: CSSProperties = { width: "min(1150px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
-const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
+const eyebrow: CSSProperties = { color: "var(--sv-accent)", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
 const title: CSSProperties = { fontSize: "clamp(30px, 5vw, 52px)", lineHeight: 1.1, margin: "18px 0 0" };
-const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "#8ca4ad", fontSize: 17, lineHeight: 1.7 };
-const card: CSSProperties = { background: "#081b24", border: "1px solid #1c3742", borderRadius: 12, padding: 22, marginBottom: 18 };
-const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
+const lead: CSSProperties = { maxWidth: 860, marginTop: 25, marginBottom: 40, color: "var(--sv-muted)", fontSize: 17, lineHeight: 1.7 };
+const card: CSSProperties = { background: "var(--sv-card)", border: "1px solid var(--sv-line)", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "var(--sv-faint2)", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
 const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
-const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12 };
-const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11, lineHeight: 1.4 };
-const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 12.5, lineHeight: 1.7 };
+const fieldLabel: CSSProperties = { color: "var(--sv-muted)", fontSize: 12 };
+const fieldHint: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, lineHeight: 1.4 };
+const inputStyle: CSSProperties = { background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: "10px 12px", fontSize: 15, outline: "none" };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 12.5, lineHeight: 1.7 };
 const bigRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20 };
-const smallLabel: CSSProperties = { color: "#5c7280", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
-const bigValue: CSSProperties = { color: "#e7eef1", fontSize: 30, fontWeight: 700 };
-const unit: CSSProperties = { fontSize: 15, color: "#8ca4ad", fontWeight: 400 };
-const textarea: CSSProperties = { width: "100%", background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
-const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
-const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
+const smallLabel: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
+const bigValue: CSSProperties = { color: "var(--sv-ink2)", fontSize: 30, fontWeight: 700 };
+const unit: CSSProperties = { fontSize: 15, color: "var(--sv-muted)", fontWeight: 400 };
+const textarea: CSSProperties = { width: "100%", background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const primary: CSSProperties = { background: "var(--sv-primary)", border: 0, color: "var(--sv-primary-ink)", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
-const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
-const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
+const th: CSSProperties = { color: "var(--sv-th)", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line)", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line-soft)", whiteSpace: "nowrap", color: "var(--sv-ink2)" };
 const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 130 };
-const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
-const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
+const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "var(--sv-muted)", fontSize: 13, lineHeight: 1.65 };
+const warnBox: CSSProperties = { background: "var(--sv-warn-bg)", border: "1px solid var(--sv-warn-line)", borderRadius: 10, padding: 16, color: "var(--sv-warn-ink)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };

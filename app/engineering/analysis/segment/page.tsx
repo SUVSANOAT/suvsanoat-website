@@ -530,7 +530,7 @@ function SegmentPageContent() {
         {fileError && <div style={warnBox}>{fileError}</div>}
 
         {res && (
-          <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <section style={{ ...card, borderColor: "var(--sv-card-line)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ ...sectionTitle, margin: 0 }}>{tx.download}</div>
             <input
               value={objectName}
@@ -603,7 +603,7 @@ function SegmentPageContent() {
                   <tbody>
                     {res.materials.map((m) => (
                       <tr key={m.kind} style={{ opacity: m.suitable ? 1 : 0.45 }}>
-                        <td style={{ ...tdLeft, color: m.accepted ? "#5fb6c9" : undefined }}>{m.label}</td>
+                        <td style={{ ...tdLeft, color: m.accepted ? "var(--sv-accent)" : undefined }}>{m.label}</td>
                         <td style={td}>{m.peakBar}</td>
                         <td style={tdNote}>{m.suitable ? m.note : tx.notFit}</td>
                       </tr>
@@ -618,7 +618,7 @@ function SegmentPageContent() {
               <div style={sectionTitle}>{tx.s3}</div>
               <div style={bigRow}>
                 <div>
-                  <div style={{ ...bigValue, color: res.peakBar > res.pnBar ? "#ffcf8a" : "#e7eef1" }}>
+                  <div style={{ ...bigValue, color: res.peakBar > res.pnBar ? "var(--sv-warn-ink)" : "var(--sv-ink2)" }}>
                     {res.peakBar} <span style={unit}>bar</span>
                   </div>
                   <div style={fieldHint}>{tx.peakNote}, +{res.surgeM} {lang === "uz" ? "m" : "м"}</div>
@@ -636,7 +636,7 @@ function SegmentPageContent() {
                   <div style={fieldHint}>{tx.phase}</div>
                 </div>
                 <div>
-                  <div style={{ ...bigValue, color: res.separation ? "#ffcf8a" : "#e7eef1" }}>
+                  <div style={{ ...bigValue, color: res.separation ? "var(--sv-warn-ink)" : "var(--sv-ink2)" }}>
                     {res.minHeadM} <span style={unit}>{lang === "uz" ? "m" : "м"}</span>
                   </div>
                   <div style={fieldHint}>{res.separation ? tx.separation : tx.minHead}</div>
@@ -673,7 +673,7 @@ function SegmentPageContent() {
                     </tr>
                     <tr>
                       <td style={tdLeft}>{tx.drainRow}</td>
-                      <td style={{ ...tdVal, color: p.drainDnMm < p.drainDnRequiredMm ? "#ffcf8a" : undefined }}>
+                      <td style={{ ...tdVal, color: p.drainDnMm < p.drainDnRequiredMm ? "var(--sv-warn-ink)" : undefined }}>
                         DN{p.drainDnMm}
                         {p.drainDnMm !== p.drainDnRequiredMm ? tx.needDn(p.drainDnRequiredMm) : ""}
                       </td>
@@ -686,7 +686,7 @@ function SegmentPageContent() {
                     </tr>
                     <tr>
                       <td style={tdLeft}>{tx.airValves}</td>
-                      <td style={{ ...tdVal, color: p.airValveDnMm < p.airValveDnRequiredMm ? "#ffcf8a" : undefined }}>
+                      <td style={{ ...tdVal, color: p.airValveDnMm < p.airValveDnRequiredMm ? "var(--sv-warn-ink)" : undefined }}>
                         {p.airValveCount} {tx.pcs} DN{p.airValveDnMm}
                         {p.airValveDnMm < p.airValveDnRequiredMm ? tx.needDn(p.airValveDnRequiredMm) : ""}
                       </td>
@@ -742,30 +742,30 @@ function SegmentPageContent() {
   );
 }
 
-const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
+const page: CSSProperties = { minHeight: "100vh", background: "var(--sv-bg)", color: "var(--sv-ink)", fontFamily: "Arial, Helvetica, sans-serif" };
 const container: CSSProperties = { width: "min(1000px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
-const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
+const eyebrow: CSSProperties = { color: "var(--sv-accent)", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
 const title: CSSProperties = { fontSize: "clamp(30px, 5vw, 48px)", lineHeight: 1.1, margin: "18px 0 0" };
-const lead: CSSProperties = { maxWidth: 760, marginTop: 20, marginBottom: 32, color: "#8ca4ad", fontSize: 17, lineHeight: 1.7 };
-const link: CSSProperties = { color: "#5fb6c9" };
-const card: CSSProperties = { background: "#081b24", border: "1px solid #1c3742", borderRadius: 12, padding: 22, marginBottom: 18 };
-const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
+const lead: CSSProperties = { maxWidth: 760, marginTop: 20, marginBottom: 32, color: "var(--sv-muted)", fontSize: 17, lineHeight: 1.7 };
+const link: CSSProperties = { color: "var(--sv-accent)" };
+const card: CSSProperties = { background: "var(--sv-card)", border: "1px solid var(--sv-line)", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "var(--sv-faint2)", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
 const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
-const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12 };
-const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11, lineHeight: 1.4 };
-const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 12.5, lineHeight: 1.7 };
+const fieldLabel: CSSProperties = { color: "var(--sv-muted)", fontSize: 12 };
+const fieldHint: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, lineHeight: 1.4 };
+const inputStyle: CSSProperties = { background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: "10px 12px", fontSize: 15, outline: "none" };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 12.5, lineHeight: 1.7 };
 const bigRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 20 };
-const bigValue: CSSProperties = { color: "#e7eef1", fontSize: 30, fontWeight: 700 };
-const unit: CSSProperties = { fontSize: 15, color: "#8ca4ad", fontWeight: 400 };
-const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
-const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
+const bigValue: CSSProperties = { color: "var(--sv-ink2)", fontSize: 30, fontWeight: 700 };
+const unit: CSSProperties = { fontSize: 15, color: "var(--sv-muted)", fontWeight: 400 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const primary: CSSProperties = { background: "var(--sv-primary)", border: 0, color: "var(--sv-primary-ink)", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
-const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
-const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
-const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 150, whiteSpace: "normal", color: "#8ca4ad" };
-const tdVal: CSSProperties = { ...td, textAlign: "left", color: "#e7eef1", fontWeight: 700, minWidth: 140 };
-const tdNote: CSSProperties = { ...td, textAlign: "left", color: "#8ca4ad", whiteSpace: "normal", fontSize: 12.5, lineHeight: 1.5 };
-const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
-const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
+const th: CSSProperties = { color: "var(--sv-th)", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line)", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line-soft)", whiteSpace: "nowrap", color: "var(--sv-ink2)" };
+const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 150, whiteSpace: "normal", color: "var(--sv-muted)" };
+const tdVal: CSSProperties = { ...td, textAlign: "left", color: "var(--sv-ink2)", fontWeight: 700, minWidth: 140 };
+const tdNote: CSSProperties = { ...td, textAlign: "left", color: "var(--sv-muted)", whiteSpace: "normal", fontSize: 12.5, lineHeight: 1.5 };
+const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "var(--sv-muted)", fontSize: 13, lineHeight: 1.65 };
+const warnBox: CSSProperties = { background: "var(--sv-warn-bg)", border: "1px solid var(--sv-warn-line)", borderRadius: 10, padding: 16, color: "var(--sv-warn-ink)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };

@@ -414,7 +414,7 @@ function WaterNetworkContent() {
         </div>
 
         {ready && (
-          <section style={{ ...card, borderColor: "#24444f", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <section style={{ ...card, borderColor: "var(--sv-card-line)", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ ...sectionTitle, margin: 0 }}>СКАЧАТЬ РАСЧЁТ</div>
             <button style={busy ? tabDisabled : primary} onClick={downloadWord}>
               {busy ? "Собирается…" : "Word (.docx)"}
@@ -669,7 +669,7 @@ function WaterNetworkContent() {
                 <Big v={net.totalDemandLps} u="л/с" l="отбор всего" />
                 <div>
                   <div style={smallLabel}>НАПОР В ПОРЯДКЕ</div>
-                  <div style={{ ...bigValue, color: net.nodes.every((n) => n.ok) ? "#7fe0c0" : "#ffcf8a" }}>
+                  <div style={{ ...bigValue, color: net.nodes.every((n) => n.ok) ? "var(--sv-ok2)" : "var(--sv-warn-ink)" }}>
                     {net.nodes.filter((n) => n.ok).length} из {net.nodes.length}
                   </div>
                 </div>
@@ -698,9 +698,9 @@ function WaterNetworkContent() {
                       <tr key={l.id}>
                         <td style={tdLeft}>{l.from} → {l.to}</td>
                         <td style={td}>{l.lengthM}</td>
-                        <td style={{ ...td, color: l.dnAuto ? "#5fb6c9" : undefined }}>{l.dnMm}{l.dnAuto ? " *" : ""}</td>
+                        <td style={{ ...td, color: l.dnAuto ? "var(--sv-accent)" : undefined }}>{l.dnMm}{l.dnAuto ? " *" : ""}</td>
                         <td style={td}>{l.qLps}</td>
-                        <td style={{ ...td, color: l.velocity > 2 || (l.velocity > 0 && l.velocity < 0.5) ? "#ffcf8a" : undefined }}>{l.velocity}</td>
+                        <td style={{ ...td, color: l.velocity > 2 || (l.velocity > 0 && l.velocity < 0.5) ? "var(--sv-warn-ink)" : undefined }}>{l.velocity}</td>
                         <td style={td}>{l.gradientMPerKm}</td>
                         <td style={td}>{l.headlossM}</td>
                         <td style={tdNote}>{l.bridge && net.kind === "looped" ? "мост — кольцо не дублирует" : ""}</td>
@@ -732,7 +732,7 @@ function WaterNetworkContent() {
                         <td style={td}>{n.groundM}</td>
                         <td style={td}>{n.demandLps}</td>
                         <td style={td}>{n.hglM}</td>
-                        <td style={{ ...td, color: n.ok ? undefined : "#ffcf8a" }}>{n.freeHeadM}</td>
+                        <td style={{ ...td, color: n.ok ? undefined : "var(--sv-warn-ink)" }}>{n.freeHeadM}</td>
                         <td style={td}>{n.requiredM}</td>
                       </tr>
                     ))}
@@ -757,9 +757,9 @@ function WaterNetworkContent() {
                       {net.emergency.map((e) => (
                         <tr key={e.linkId}>
                           <td style={tdLeft}>{e.linkId}</td>
-                          <td style={{ ...td, color: e.worstFreeHeadM < 10 ? "#ffcf8a" : undefined }}>{e.worstFreeHeadM}</td>
+                          <td style={{ ...td, color: e.worstFreeHeadM < 10 ? "var(--sv-warn-ink)" : undefined }}>{e.worstFreeHeadM}</td>
                           <td style={tdLeft}>{e.worstNode}</td>
-                          <td style={{ ...tdLeft, color: e.cutOff.length ? "#ffcf8a" : undefined }}>{e.cutOff.join(", ") || "—"}</td>
+                          <td style={{ ...tdLeft, color: e.cutOff.length ? "var(--sv-warn-ink)" : undefined }}>{e.cutOff.join(", ") || "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -782,7 +782,7 @@ function WaterNetworkContent() {
                 <Big v={demand.fire.volumeM3} u="м³" l="неприкосновенный запас, 3 ч" />
                 <div>
                   <div style={smallLabel}>УСЛОВИЕ 10 М</div>
-                  <div style={{ ...bigValue, color: fire.ok ? "#7fe0c0" : "#ffcf8a" }}>{fire.ok ? "проходит" : "не проходит"}</div>
+                  <div style={{ ...bigValue, color: fire.ok ? "var(--sv-ok2)" : "var(--sv-warn-ink)" }}>{fire.ok ? "проходит" : "не проходит"}</div>
                   <div style={fieldHint}>{fire.worst ? `худший узел ${fire.worst.id}: ${fire.worst.freeHeadM} м` : ""}</div>
                 </div>
               </div>
@@ -811,11 +811,11 @@ function WaterNetworkContent() {
                   </thead>
                   <tbody>
                     {fire.net.nodes.map((n) => (
-                      <tr key={n.id} style={{ background: fire.fireNodes.includes(n.id) ? "#2a2112" : undefined }}>
+                      <tr key={n.id} style={{ background: fire.fireNodes.includes(n.id) ? "var(--sv-warn-bg)" : undefined }}>
                         <td style={tdLeft}>{n.id}</td>
                         <td style={td}>{n.demandLps}</td>
                         <td style={td}>{n.hglM}</td>
-                        <td style={{ ...td, color: n.freeHeadM < 10 && n.id !== effectiveSource ? "#ffcf8a" : undefined }}>{n.freeHeadM}</td>
+                        <td style={{ ...td, color: n.freeHeadM < 10 && n.id !== effectiveSource ? "var(--sv-warn-ink)" : undefined }}>{n.freeHeadM}</td>
                         <td style={tdNote}>{fire.fireNodes.includes(n.id) ? "пожар здесь" : ""}</td>
                       </tr>
                     ))}
@@ -842,7 +842,7 @@ function WaterNetworkContent() {
                         <td style={tdLeft}>{l.from} → {l.to}</td>
                         <td style={td}>{l.dnMm}</td>
                         <td style={td}>{l.qLps}</td>
-                        <td style={{ ...td, color: l.velocity > 2.5 ? "#ffcf8a" : undefined }}>{l.velocity}</td>
+                        <td style={{ ...td, color: l.velocity > 2.5 ? "var(--sv-warn-ink)" : undefined }}>{l.velocity}</td>
                         <td style={td}>{l.headlossM}</td>
                       </tr>
                     ))}
@@ -873,7 +873,7 @@ function WaterNetworkContent() {
                     {equip.nodes.map((n) => (
                       <tr key={n.id}>
                         <td style={tdLeft}>{n.id}</td>
-                        <td style={{ ...tdLeft, whiteSpace: "normal", color: "#e7eef1" }}>{n.items.join("; ")}</td>
+                        <td style={{ ...tdLeft, whiteSpace: "normal", color: "var(--sv-ink2)" }}>{n.items.join("; ")}</td>
                         <td style={tdNote}>{n.reasons.join("; ")}</td>
                       </tr>
                     ))}
@@ -942,15 +942,15 @@ function WaterNetworkContent() {
                     {spec.rows.map((x, i) => {
                       const newGroup = i === 0 || spec.rows[i - 1].group !== x.group;
                       return (
-                        <tr key={x.no} style={newGroup ? { borderTop: "2px solid #1c3742" } : undefined}>
+                        <tr key={x.no} style={newGroup ? { borderTop: "2px solid var(--sv-line)" } : undefined}>
                           <td style={tdLeft}>{x.no}</td>
-                          <td style={{ ...tdLeft, color: "#e7eef1", minWidth: 190 }}>
+                          <td style={{ ...tdLeft, color: "var(--sv-ink2)", minWidth: 190 }}>
                             {newGroup && <div style={{ ...smallLabel, marginBottom: 4 }}>{x.group.toUpperCase()}</div>}
                             {x.name}
                           </td>
                           <td style={tdLeft}>{x.type}</td>
                           <td style={td}>{x.unit}</td>
-                          <td style={{ ...td, color: "#e7eef1", fontWeight: 700 }}>{x.qty}</td>
+                          <td style={{ ...td, color: "var(--sv-ink2)", fontWeight: 700 }}>{x.qty}</td>
                           <td style={tdNote}>{x.note}</td>
                         </tr>
                       );
@@ -988,7 +988,7 @@ function Big({ v, u, l }: { v: number | string; u: string; l: string }) {
 
 function Formulas({ items }: { items: Formula[] }) {
   return (
-    <section style={{ ...card, borderColor: "#24444f" }}>
+    <section style={{ ...card, borderColor: "var(--sv-card-line)" }}>
       <div style={sectionTitle}>ФОРМУЛЫ</div>
       <div style={{ overflowX: "auto" }}>
         <table style={tableStyle}>
@@ -996,8 +996,8 @@ function Formulas({ items }: { items: Formula[] }) {
             {items.map((f, i) => (
               <tr key={i}>
                 <td style={{ ...tdLeft, minWidth: 180, whiteSpace: "normal" }}>{f.label}</td>
-                <td style={{ ...tdLeft, fontFamily: "Consolas, monospace", color: "#cfe3ea", whiteSpace: "normal" }}>{f.formula}</td>
-                <td style={{ ...tdLeft, color: "#e7eef1", fontWeight: 700, whiteSpace: "normal" }}>{f.result}</td>
+                <td style={{ ...tdLeft, fontFamily: "Consolas, monospace", color: "var(--sv-ink3)", whiteSpace: "normal" }}>{f.formula}</td>
+                <td style={{ ...tdLeft, color: "var(--sv-ink2)", fontWeight: 700, whiteSpace: "normal" }}>{f.result}</td>
                 <td style={tdNote}>{f.source ?? ""}</td>
               </tr>
             ))}
@@ -1042,34 +1042,34 @@ function Assumptions({ items }: { items: string[] }) {
   );
 }
 
-const page: CSSProperties = { minHeight: "100vh", background: "#06151d", color: "#f4f7f8", fontFamily: "Arial, Helvetica, sans-serif" };
+const page: CSSProperties = { minHeight: "100vh", background: "var(--sv-bg)", color: "var(--sv-ink)", fontFamily: "Arial, Helvetica, sans-serif" };
 const container: CSSProperties = { width: "min(1150px, calc(100% - 32px))", margin: "0 auto", padding: "60px 0 100px" };
-const eyebrow: CSSProperties = { color: "#5fb6c9", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
+const eyebrow: CSSProperties = { color: "var(--sv-accent)", fontSize: 12, fontWeight: 800, letterSpacing: "3px" };
 const title: CSSProperties = { fontSize: "clamp(30px, 5vw, 48px)", lineHeight: 1.1, margin: "18px 0 0" };
-const lead: CSSProperties = { maxWidth: 860, marginTop: 20, marginBottom: 28, color: "#8ca4ad", fontSize: 17, lineHeight: 1.7 };
+const lead: CSSProperties = { maxWidth: 860, marginTop: 20, marginBottom: 28, color: "var(--sv-muted)", fontSize: 17, lineHeight: 1.7 };
 const tabs: CSSProperties = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 };
-const tabBtn: CSSProperties = { background: "transparent", border: "1px solid #1c3742", color: "#8ca4ad", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
-const tabActive: CSSProperties = { ...tabBtn, background: "#0f5f73", borderColor: "#0f5f73", color: "#eaf7fa", fontWeight: 700 };
+const tabBtn: CSSProperties = { background: "transparent", border: "1px solid var(--sv-line)", color: "var(--sv-muted)", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const tabActive: CSSProperties = { ...tabBtn, background: "var(--sv-primary)", borderColor: "var(--sv-primary)", color: "var(--sv-primary-ink)", fontWeight: 700 };
 const tabDisabled: CSSProperties = { ...tabBtn, opacity: 0.35, cursor: "default" };
-const card: CSSProperties = { background: "#081b24", border: "1px solid #1c3742", borderRadius: 12, padding: 22, marginBottom: 18 };
-const sectionTitle: CSSProperties = { color: "#657983", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
+const card: CSSProperties = { background: "var(--sv-card)", border: "1px solid var(--sv-line)", borderRadius: 12, padding: 22, marginBottom: 18 };
+const sectionTitle: CSSProperties = { color: "var(--sv-faint2)", fontSize: 12, fontWeight: 800, letterSpacing: "2px", marginBottom: 18 };
 const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 14 };
 const field: CSSProperties = { display: "flex", flexDirection: "column", gap: 6 };
-const fieldLabel: CSSProperties = { color: "#8ca4ad", fontSize: 12, marginBottom: 6 };
-const fieldHint: CSSProperties = { color: "#5c7280", fontSize: 11, lineHeight: 1.4 };
-const inputStyle: CSSProperties = { background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: "10px 12px", fontSize: 15, outline: "none" };
-const textarea: CSSProperties = { width: "100%", background: "#06151d", border: "1px solid #1c3742", borderRadius: 8, color: "#f4f7f8", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
-const hint: CSSProperties = { color: "#8ca4ad", fontSize: 12.5, lineHeight: 1.7 };
+const fieldLabel: CSSProperties = { color: "var(--sv-muted)", fontSize: 12, marginBottom: 6 };
+const fieldHint: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, lineHeight: 1.4 };
+const inputStyle: CSSProperties = { background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: "10px 12px", fontSize: 15, outline: "none" };
+const textarea: CSSProperties = { width: "100%", background: "var(--sv-bg)", border: "1px solid var(--sv-line)", borderRadius: 8, color: "var(--sv-ink)", padding: 12, fontSize: 14, fontFamily: "Consolas, monospace", marginBottom: 12 };
+const hint: CSSProperties = { color: "var(--sv-muted)", fontSize: 12.5, lineHeight: 1.7 };
 const bigRow: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 20 };
-const smallLabel: CSSProperties = { color: "#5c7280", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
-const bigValue: CSSProperties = { color: "#e7eef1", fontSize: 28, fontWeight: 700 };
-const unit: CSSProperties = { fontSize: 15, color: "#8ca4ad", fontWeight: 400 };
-const ghost: CSSProperties = { background: "transparent", border: "1px solid #2a5b68", color: "#5fb6c9", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
-const primary: CSSProperties = { background: "#0f5f73", border: 0, color: "#eaf7fa", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
+const smallLabel: CSSProperties = { color: "var(--sv-faint)", fontSize: 11, letterSpacing: "1px", marginBottom: 6 };
+const bigValue: CSSProperties = { color: "var(--sv-ink2)", fontSize: 28, fontWeight: 700 };
+const unit: CSSProperties = { fontSize: 15, color: "var(--sv-muted)", fontWeight: 400 };
+const ghost: CSSProperties = { background: "transparent", border: "1px solid var(--sv-accent-line)", color: "var(--sv-accent)", borderRadius: 8, padding: "10px 16px", fontSize: 13, cursor: "pointer" };
+const primary: CSSProperties = { background: "var(--sv-primary)", border: 0, color: "var(--sv-primary-ink)", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" };
 const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
-const th: CSSProperties = { color: "#b7cbd3", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #1c3742", whiteSpace: "nowrap" };
-const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid #102831", whiteSpace: "nowrap", color: "#e7eef1" };
+const th: CSSProperties = { color: "var(--sv-th)", fontSize: 12, fontWeight: 700, textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line)", whiteSpace: "nowrap" };
+const td: CSSProperties = { textAlign: "right", padding: "9px 10px", borderBottom: "1px solid var(--sv-line-soft)", whiteSpace: "nowrap", color: "var(--sv-ink2)" };
 const tdLeft: CSSProperties = { ...td, textAlign: "left", minWidth: 90 };
-const tdNote: CSSProperties = { ...td, textAlign: "left", color: "#8ca4ad", whiteSpace: "normal", fontSize: 12.5, lineHeight: 1.5 };
-const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "#8ca4ad", fontSize: 13, lineHeight: 1.65 };
-const warnBox: CSSProperties = { background: "#2a2112", border: "1px solid #4a3a1c", borderRadius: 10, padding: 16, color: "#ffcf8a", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };
+const tdNote: CSSProperties = { ...td, textAlign: "left", color: "var(--sv-muted)", whiteSpace: "normal", fontSize: 12.5, lineHeight: 1.5 };
+const notes: CSSProperties = { margin: 0, paddingLeft: 18, color: "var(--sv-muted)", fontSize: 13, lineHeight: 1.65 };
+const warnBox: CSSProperties = { background: "var(--sv-warn-bg)", border: "1px solid var(--sv-warn-line)", borderRadius: 10, padding: 16, color: "var(--sv-warn-ink)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 14 };

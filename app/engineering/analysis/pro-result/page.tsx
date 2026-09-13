@@ -84,11 +84,11 @@ import NoteView from "./NoteView";
  * браузера (print-стили ниже). DXF и ИИ-записка — отдельные кнопки.
  * ================================================================== */
 
-const BG = "#06151d";
+const BG = "var(--sv-bg)";
 const PANEL = "rgba(255,255,255,0.04)";
 const LINE = "rgba(255,255,255,0.12)";
-const ACCENT = "#3ec3e6";
-const FAINT = "#8fa6b1";
+const ACCENT = "var(--sv-accent)";
+const FAINT = "var(--sv-muted)";
 
 const KEY_ORDER: PollutantKey[] = ["cod", "bod", "ss", "fats", "petro", "tn", "tp", "surf"];
 
@@ -612,9 +612,9 @@ type StageCalc = {
 };
 
 const SUPPLY_COLOR: Record<Item["supply"], string> = {
-  own: "#9ccc65",
-  either: "#ffd54f",
-  supply: "#8fa6b1",
+  own: "var(--sv-ok)",
+  either: "var(--sv-warn2)",
+  supply: "var(--sv-muted)",
 };
 
 function supplyText(supply: Item["supply"], U: UiStrings): string {
@@ -1595,14 +1595,14 @@ function ProResultContent() {
 
   if (!industry || !calc) {
     return (
-      <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: 60 }}>
+      <main style={{ minHeight: "100vh", background: BG, color: "var(--sv-ink)", padding: 60 }}>
         <p>{U.notFound} <a href="/engineering/analysis" style={{ color: ACCENT }}>{U.startOver}</a></p>
       </main>
     );
   }
 
   return (
-    <main className="proResult" style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: "60px 24px 110px" }}>
+    <main className="proResult" style={{ minHeight: "100vh", background: BG, color: "var(--sv-ink)", padding: "60px 24px 110px" }}>
       <style>{`
         @media print {
           .proResult { background: #fff !important; color: #111 !important; padding: 10mm !important; }
@@ -1634,11 +1634,11 @@ function ProResultContent() {
           {object && <>{U.objectWord}: {object} · </>}
           Расход {fmt(Q)} м³/сут · режим {hours} ч/сут · {fmt(calc.Qh, 1)} м³/ч
         </p>
-        <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
+        <p style={{ color: "var(--sv-ink3)", fontSize: 13, margin: "0 0 8px" }}>
           {U.scaleLine}: <b>{t(SCALE_LABEL[calc.scale], language)}</b>.
         </p>
         {calc.hasBio && (
-          <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
+          <p style={{ color: "var(--sv-ink3)", fontSize: 13, margin: "0 0 8px" }}>
             {t(TX.techTitle, language)}:{" "}
             <b>{calc.tech ? t(TECHNOLOGY_LABEL[calc.tech], language) : t(TX.techByAuto, language)}</b>
             {calc.tech && (
@@ -1650,11 +1650,11 @@ function ProResultContent() {
           </p>
         )}
         {discharge && (
-          <p style={{ color: "#cfdde3", fontSize: 13, margin: "0 0 8px" }}>
+          <p style={{ color: "var(--sv-ink3)", fontSize: 13, margin: "0 0 8px" }}>
             {U.dischargeTo}: <b>{t(discharge.name, language)}</b>. {U.targetsFrom} — {customTu ? U.byYourTu : t(discharge.source, language)}.
           </p>
         )}
-        <p style={{ color: lab ? "#9ccc65" : "#ffb74d", fontSize: 13, margin: "0 0 26px" }}>
+        <p style={{ color: lab ? "var(--sv-ok)" : "var(--sv-warn2)", fontSize: 13, margin: "0 0 26px" }}>
           {lab
             ? U.labSource
             : `${U.refSource} (${industry.sources.map((x) => t(x, language)).join("; ")}). ${U.refTail}`}
@@ -1683,7 +1683,7 @@ function ProResultContent() {
         {/* ОСОБЫЕ ЗАГРЯЗНИТЕЛИ */}
         {industry.special && (
           <div style={{ border: "1px solid rgba(255,183,77,0.4)", background: "rgba(255,183,77,0.06)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 10 }}>{U.specialTitle}</div>
+            <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "var(--sv-warn2)", marginBottom: 10 }}>{U.specialTitle}</div>
             {industry.special.map((spec) => (
               <p key={t(spec.label, language)} style={{ fontSize: 13, lineHeight: 1.6, margin: "0 0 8px" }}>
                 <b>{t(spec.label, language)}</b> ({spec.range[0]}–{spec.range[1]} {t(spec.unit, language)}): {t(spec.note, language)}
@@ -1704,7 +1704,7 @@ function ProResultContent() {
                     — {techByRequirement ? t(TX.techByRequirement, language) : t(TX.techByEngineer, language)}
                   </span>
                 </p>
-                <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
+                <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "0 0 8px", lineHeight: 1.6 }}>
                   {t(TECHNOLOGY_DESCRIPTION[calc.tech], language)}
                 </p>
                 <p style={{ fontSize: 13, margin: "0 0 8px", lineHeight: 1.6 }}>
@@ -1724,7 +1724,7 @@ function ProResultContent() {
                 {/* температурный режим расчёта: из него следует и объём
                     биологии (годовая), и расход воздуха (летняя) */}
                 {calc.techResult && (
-                  <p style={{ fontSize: 12.5, color: "#cfdde3", margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: 0, lineHeight: 1.6 }}>
                     {U.tempRegime}:{" "}
                     {t(
                       tempRegimeLine(
@@ -1738,7 +1738,7 @@ function ProResultContent() {
                 )}
               </>
             ) : (
-              <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.6 }}>{t(TX.techAuto, language)}</p>
+              <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: 0, lineHeight: 1.6 }}>{t(TX.techAuto, language)}</p>
             )}
 
             {/* требование обязательной мембранной очистки либо отступление от него;
@@ -1757,7 +1757,7 @@ function ProResultContent() {
                   style={{
                     fontSize: 12,
                     letterSpacing: "0.1em",
-                    color: mbrWaiver ? "#ffb74d" : ACCENT,
+                    color: mbrWaiver ? "var(--sv-warn2)" : ACCENT,
                     marginBottom: 8,
                   }}
                 >
@@ -1779,7 +1779,7 @@ function ProResultContent() {
                   padding: "12px 14px",
                 }}
               >
-                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "var(--sv-warn2)", marginBottom: 8 }}>
                   {U.tempWinterTitle}
                 </div>
                 <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
@@ -1815,7 +1815,7 @@ function ProResultContent() {
                   padding: "12px 14px",
                 }}
               >
-                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "var(--sv-warn2)", marginBottom: 8 }}>
                   {t(TX.membraneChecks, language)}
                 </div>
                 {calc.membraneNotes.map((w, i) => (
@@ -1826,7 +1826,7 @@ function ProResultContent() {
 
             {calc.techWarnings.length > 0 && (
               <div style={{ marginTop: 14, border: "1px solid rgba(255,183,77,0.4)", background: "rgba(255,183,77,0.06)", borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>{t(TX.techWarnings, language)}</div>
+                <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "var(--sv-warn2)", marginBottom: 8 }}>{t(TX.techWarnings, language)}</div>
                 {calc.techWarnings.map((w, i) => (
                   <p key={i} style={{ fontSize: 12.5, lineHeight: 1.6, margin: "0 0 6px" }}>• {w}</p>
                 ))}
@@ -1852,7 +1852,7 @@ function ProResultContent() {
                   {stage.items.length} {U.itemsCount}
                 </span>
               </div>
-              <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.55 }}>{t(info.what, language)}</p>
+              <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "0 0 8px", lineHeight: 1.55 }}>{t(info.what, language)}</p>
               {stage.sizing.map((line, i) => (
                 <p key={i} style={{ fontSize: 13, margin: "0 0 4px", lineHeight: 1.55 }}>— {line}</p>
               ))}
@@ -1864,7 +1864,7 @@ function ProResultContent() {
                   <span style={{ fontSize: 11, color: FAINT }}>{U.ownProduct}:</span>
                   {stage.picks.map((pick, i) => (
                     <a key={i} href={`/products/${pick.model.slug}`}
-                      style={{ border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "8px 14px", color: "#eaf6fa", textDecoration: "none", fontSize: 13 }}>
+                      style={{ border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "8px 14px", color: "var(--sv-accent-soft)", textDecoration: "none", fontSize: 13 }}>
                       {pick.count > 1 ? `${pick.count} × ` : ""}<b>{pick.model.code}</b>
                       {pick.note ? <span style={{ color: FAINT }}> · {pick.note}</span> : null}
                     </a>
@@ -1881,7 +1881,7 @@ function ProResultContent() {
             <b style={{ fontSize: 16 }}>{U.commonTitle}</b>
             <span style={{ fontSize: 11, color: FAINT }}>{calc.common.length} {U.itemsCount}</span>
           </div>
-          <p style={{ fontSize: 13, color: "#cfdde3", margin: 0, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: 0, lineHeight: 1.55 }}>
             {U.commonLead}
           </p>
           <ItemTable items={calc.common} U={U} />
@@ -1894,7 +1894,7 @@ function ProResultContent() {
 
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
           <b style={{ fontSize: 16 }}>{U.basinsTitle}</b>
-          <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
+          <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "8px 0 10px", lineHeight: 1.55 }}>
             {t(
               M.civilBasins(
                 a.basinDepth,
@@ -1947,7 +1947,7 @@ function ProResultContent() {
         {/* ================= ТРУБОПРОВОДЫ ================= */}
         <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
           <b style={{ fontSize: 16 }}>{U.pipesTitle}</b>
-          <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 10px", lineHeight: 1.55 }}>
+          <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "8px 0 10px", lineHeight: 1.55 }}>
             Диаметры подобраны по расходу и расчётной скорости: самотёчные {a.velGravity} м/с, напорные {a.velPressure} м/с,
             воздуховоды {a.velAir} м/с. Длины — ориентировочные, по габаритам площадки; точные даёт генплан.
           </p>
@@ -2014,7 +2014,7 @@ function ProResultContent() {
               ))}
             </>
           ) : (
-            <p style={{ fontSize: 13, color: "#cfdde3", margin: "10px 0 0", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "10px 0 0", lineHeight: 1.6 }}>
               Для очистных сооружений промпредприятий и поверхностного стока размер зоны устанавливается по согласованию с органами санэпиднадзора ({KMK_2_04_03_19_DOC.code}, табл. 1, прим. 8).
             </p>
           )}
@@ -2112,7 +2112,7 @@ function ProResultContent() {
                 Осадок: {opex.sludgeDryKgDay} кг сухого вещества в сутки, обезвоженного {opex.cakeM3Day} м³/сут.
               </p>
               {opex.warnings.map((w) => (
-                <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+                <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
               ))}
             </div>
           );
@@ -2168,10 +2168,10 @@ function ProResultContent() {
               {pid.interlocks.map((l) => (
                 <div key={l.name} style={{ borderLeft: `2px solid ${ACCENT}`, paddingLeft: 12, marginBottom: 12 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>{l.name}</div>
-                  <div style={{ fontSize: 12.5, color: "#cfdde3", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 12.5, color: "var(--sv-ink3)", lineHeight: 1.6 }}>
                     Когда: {l.when}. Что: {l.action}.
                   </div>
-                  <div style={{ fontSize: 12.5, color: "#ffb74d", lineHeight: 1.6 }}>Без неё: {l.ifAbsent}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sv-warn2)", lineHeight: 1.6 }}>Без неё: {l.ifAbsent}</div>
                 </div>
               ))}
 
@@ -2243,7 +2243,7 @@ function ProResultContent() {
                   ))}
                 </div>
                 {rg.warnings.map((w) => (
-                  <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+                  <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
                 ))}
                 {rg.assumptions.map((a) => (
                   <p key={a} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{a}</p>
@@ -2281,7 +2281,7 @@ function ProResultContent() {
                       <tr key={r.name}>
                         <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.name}</td>
                         <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{r.units}</td>
-                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap", color: r.ok ? "#9ccc65" : "#ffb74d" }}>
+                        <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap", color: r.ok ? "var(--sv-ok)" : "var(--sv-warn2)" }}>
                           {r.units > 1 ? `${r.overloadPct} %` : "работа прекращается"}
                         </td>
                         <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT, lineHeight: 1.5 }}>{r.comment}</td>
@@ -2291,7 +2291,7 @@ function ProResultContent() {
                 </table>
               </div>
               {out.warnings.map((w) => (
-                <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+                <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
               ))}
 
               <b style={{ fontSize: 14, display: "block", margin: "18px 0 8px" }}>Порядок пуска</b>
@@ -2300,7 +2300,7 @@ function ProResultContent() {
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>
                     {s.step} — {s.howLong}
                   </div>
-                  <div style={{ fontSize: 12.5, color: "#cfdde3", lineHeight: 1.6 }}>{s.what}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--sv-ink3)", lineHeight: 1.6 }}>{s.what}</div>
                 </div>
               ))}
               {out.assumptions.map((a) => (
@@ -2357,12 +2357,12 @@ function ProResultContent() {
 
                 <div style={{ border: `1px solid ${st.uplift.ok ? "rgba(156,204,101,0.4)" : "rgba(255,183,77,0.45)"}`, background: st.uplift.ok ? "rgba(156,204,101,0.06)" : "rgba(255,183,77,0.07)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Проверка на всплытие</div>
-                  <div style={{ fontSize: 12.5, color: "#cfdde3", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 12.5, color: "var(--sv-ink3)", lineHeight: 1.6 }}>
                     Выталкивающая сила {st.uplift.buoyancyT} т, вес конструкции {st.uplift.weightT} т
                     {st.uplift.soilOnLedgeT > 0 ? `, грунт на выступе ${st.uplift.soilOnLedgeT} т` : ""}, коэффициент{" "}
                     <b>{st.uplift.factor}</b>.
                   </div>
-                  <div style={{ fontSize: 12.5, color: st.uplift.ok ? "#9ccc65" : "#ffb74d", lineHeight: 1.6, marginTop: 6 }}>{st.uplift.comment}</div>
+                  <div style={{ fontSize: 12.5, color: st.uplift.ok ? "var(--sv-ok)" : "var(--sv-warn2)", lineHeight: 1.6, marginTop: 6 }}>{st.uplift.comment}</div>
                 </div>
 
                 <div style={{ overflowX: "auto" }}>
@@ -2379,7 +2379,7 @@ function ProResultContent() {
                         <tr key={w.caseName}>
                           <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{w.caseName}</td>
                           <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{w.momentKNm}</td>
-                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: w.ok ? "#9ccc65" : "#ffb74d" }}>{w.h0RequiredMm} мм</td>
+                          <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: w.ok ? "var(--sv-ok)" : "var(--sv-warn2)" }}>{w.h0RequiredMm} мм</td>
                           <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top" }}>{w.h0Mm} мм</td>
                           <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", whiteSpace: "nowrap" }}>{w.asCm2} см²/м</td>
                           <td style={{ padding: "7px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", verticalAlign: "top", color: FAINT }}>{w.bars}</td>
@@ -2389,11 +2389,11 @@ function ProResultContent() {
                   </table>
                 </div>
 
-                <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "12px 0 0", lineHeight: 1.6 }}>
+                <p style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: "12px 0 0", lineHeight: 1.6 }}>
                   Минимальные толщины по практике для этой высоты: стена {st.minWallMm} мм, днище {st.minSlabMm} мм.
                 </p>
                 {st.warnings.map((w) => (
-                  <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+                  <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
                 ))}
                 {st.assumptions.map((s) => (
                   <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
@@ -2505,7 +2505,7 @@ function ProResultContent() {
                               <input value={bg[k] ?? ""} onChange={(e) => setBg((m) => ({ ...m, [k]: e.target.value }))} inputMode="decimal" placeholder="—" style={{ ...inp, width: 90 }} />
                             </td>
                             <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", whiteSpace: "nowrap" }}>{chk ? `${chk.allowedMgL} мг/л` : "—"}</td>
-                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", color: chk ? (chk.ok ? "#9ccc65" : "#ffb74d") : FAINT, lineHeight: 1.5 }}>
+                            <td style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", color: chk ? (chk.ok ? "var(--sv-ok)" : "var(--sv-warn2)") : FAINT, lineHeight: 1.5 }}>
                               {chk ? chk.comment : "введите ПДК"}
                             </td>
                           </tr>
@@ -2531,14 +2531,14 @@ function ProResultContent() {
                       ))}
                     </div>
                     {dc.warnings.map((w) => (
-                      <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
+                      <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "8px 0 0", lineHeight: 1.6 }}>{w}</p>
                     ))}
                     {dc.assumptions.map((s) => (
                       <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
                     ))}
                   </>
                 ) : (
-                  <p style={{ fontSize: 12.5, color: "#ffb74d", margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: 0, lineHeight: 1.6 }}>
                     Расход, глубина и скорость водотока не заданы — разбавление не посчитано. Эти три числа берутся
                     с гидрологического поста по расчётному водотоку; без них условие сброса определить нельзя, и
                     подставлять вместо них правдоподобные значения я не буду.
@@ -2621,25 +2621,25 @@ function ProResultContent() {
 
                 <div style={{ border: `1px solid ${sq.freeboardOk ? "rgba(156,204,101,0.4)" : "rgba(255,183,77,0.45)"}`, background: sq.freeboardOk ? "rgba(156,204,101,0.06)" : "rgba(255,183,77,0.07)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 4 }}>Свободный борт против волны</div>
-                  <div style={{ fontSize: 12.5, color: sq.freeboardOk ? "#9ccc65" : "#ffb74d", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 12.5, color: sq.freeboardOk ? "var(--sv-ok)" : "var(--sv-warn2)", lineHeight: 1.6 }}>
                     Волна {sq.waveM} м, борт {sq.freeboardM} м —{" "}
                     {sq.freeboardOk ? "перелива не будет." : "воду перельёт через стену."}
                   </div>
                 </div>
 
                 {sq.anchors && (
-                  <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 12px", lineHeight: 1.6 }}>
+                  <p style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: "0 0 12px", lineHeight: 1.6 }}>
                     <b>Закрепление оборудования</b> (пример на 1200 кг): {sq.anchors.comment}
                   </p>
                 )}
 
                 <b style={{ fontSize: 14, display: "block", margin: "6px 0 8px" }}>Что должно быть в проекте</b>
                 {sq.measures.map((m) => (
-                  <p key={m} style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 8px", paddingLeft: 12, borderLeft: `2px solid ${ACCENT}`, lineHeight: 1.6 }}>{m}</p>
+                  <p key={m} style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: "0 0 8px", paddingLeft: 12, borderLeft: `2px solid ${ACCENT}`, lineHeight: 1.6 }}>{m}</p>
                 ))}
 
                 {sq.warnings.map((w) => (
-                  <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+                  <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
                 ))}
                 {sq.assumptions.map((s) => (
                   <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
@@ -2710,7 +2710,7 @@ function ProResultContent() {
                 </table>
               </div>
               {hv.warnings.map((w) => (
-                <p key={w} style={{ fontSize: 12.5, color: "#ffb74d", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
+                <p key={w} style={{ fontSize: 12.5, color: "var(--sv-warn2)", margin: "10px 0 0", lineHeight: 1.6 }}>{w}</p>
               ))}
               {hv.assumptions.map((s) => (
                 <p key={s} style={{ fontSize: 12, color: FAINT, margin: "6px 0 0", lineHeight: 1.6 }}>{s}</p>
@@ -2723,7 +2723,7 @@ function ProResultContent() {
         {drawings && (
           <div className="stageCard" style={{ border: `1px solid ${LINE}`, background: PANEL, borderRadius: 12, padding: "18px 20px", marginBottom: 12 }}>
             <b style={{ fontSize: 16 }}>{U.drawTitle}</b>
-            <p style={{ fontSize: 13, color: "#cfdde3", margin: "8px 0 12px", lineHeight: 1.55 }}>{U.drawLead}</p>
+            <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "8px 0 12px", lineHeight: 1.55 }}>{U.drawLead}</p>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 12 }}>
               <div style={{ fontSize: 13 }}>
@@ -2738,16 +2738,16 @@ function ProResultContent() {
             </div>
 
             {drawings.layout.generated ? (
-              <p style={{ fontSize: 13, color: "#9ccc65", margin: "0 0 10px", lineHeight: 1.6 }}>{U.drawUnlimited}</p>
+              <p style={{ fontSize: 13, color: "var(--sv-ok)", margin: "0 0 10px", lineHeight: 1.6 }}>{U.drawUnlimited}</p>
             ) : drawings.layout.fits ? (
-              <p style={{ fontSize: 13, color: "#9ccc65", margin: "0 0 10px", lineHeight: 1.6 }}>{U.drawFits}</p>
+              <p style={{ fontSize: 13, color: "var(--sv-ok)", margin: "0 0 10px", lineHeight: 1.6 }}>{U.drawFits}</p>
             ) : (
               <div style={{ border: "1px solid rgba(255,183,77,0.45)", background: "rgba(255,183,77,0.07)", borderRadius: 10, padding: "12px 14px", margin: "0 0 12px" }}>
-                <div style={{ fontSize: 13, color: "#ffb74d", marginBottom: 8 }}>
+                <div style={{ fontSize: 13, color: "var(--sv-warn2)", marginBottom: 8 }}>
                   {U.drawDeficit}: <b>{fmt(drawings.layout.deficitM2)}</b> {U.unitM2}
                 </div>
                 {drawings.layout.hint.map((h, i) => (
-                  <p key={i} style={{ fontSize: 12, color: "#cfdde3", margin: "0 0 5px", lineHeight: 1.55 }}>— {h}</p>
+                  <p key={i} style={{ fontSize: 12, color: "var(--sv-ink3)", margin: "0 0 5px", lineHeight: 1.55 }}>— {h}</p>
                 ))}
               </div>
             )}
@@ -2764,7 +2764,7 @@ function ProResultContent() {
             </ol>
 
             <button type="button" onClick={downloadPackage} disabled={zipBusy} className="noPrint"
-              style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: zipBusy ? "wait" : "pointer", background: zipBusy ? "#2a6d80" : ACCENT, color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+              style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: zipBusy ? "wait" : "pointer", background: zipBusy ? "var(--sv-accent-line2)" : ACCENT, color: "var(--sv-bg2)", fontSize: 15, fontWeight: 700 }}>
               {zipBusy ? U.drawBusy : U.drawButton}
             </button>
 
@@ -2780,11 +2780,11 @@ function ProResultContent() {
                   {U.drawInvoiceNo} <b>{invoice.invoiceNo}</b> · {U.drawAmount}:{" "}
                   <b style={{ fontSize: 18 }}>{fmt(invoice.amount)}</b> {U.drawCurrency}
                 </p>
-                <p style={{ fontSize: 13, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
+                <p style={{ fontSize: 13, color: "var(--sv-ink3)", margin: "0 0 8px", lineHeight: 1.6 }}>
                   {U.objectWord}: {invoice.object} · {fmt(invoice.q)} {U.unitM3Day}
                 </p>
                 {invoice.lines.map((line, i) => (
-                  <p key={i} style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 6px", lineHeight: 1.6 }}>— {line}</p>
+                  <p key={i} style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: "0 0 6px", lineHeight: 1.6 }}>— {line}</p>
                 ))}
                 <div style={{ fontSize: 12.5, margin: "12px 0 0", lineHeight: 1.7 }}>
                   <div style={{ color: FAINT, fontSize: 11, letterSpacing: "0.08em", marginBottom: 4 }}>{U.drawPayee}</div>
@@ -2798,10 +2798,10 @@ function ProResultContent() {
                       {invoice.payee.contact && <div>{invoice.payee.contact}</div>}
                     </>
                   ) : (
-                    <div style={{ color: "#ffb74d" }}>{U.drawPayeePending}</div>
+                    <div style={{ color: "var(--sv-warn2)" }}>{U.drawPayeePending}</div>
                   )}
                 </div>
-                <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "12px 0 0", lineHeight: 1.6 }}>{U.drawPendingNote}</p>
+                <p style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: "12px 0 0", lineHeight: 1.6 }}>{U.drawPendingNote}</p>
                 <button type="button" disabled title={U.drawCardSoon}
                   style={{ marginTop: 12, padding: "10px 20px", borderRadius: 8, border: `1px dashed ${LINE}`, background: "transparent", color: FAINT, fontSize: 13, cursor: "not-allowed" }}>
                   {U.drawCardSoon}
@@ -2824,24 +2824,24 @@ function ProResultContent() {
         {/* ТЕХНИЧЕСКАЯ ЗАПИСКА */}
         {note && (
           <div id="techNote" className="stageCard"
-            style={{ border: `1px solid ${note.source === "ai" ? "#9ccc65" : LINE}`, background: PANEL, borderRadius: 12, padding: "22px 24px", margin: "0 0 24px" }}>
+            style={{ border: `1px solid ${note.source === "ai" ? "var(--sv-ok)" : LINE}`, background: PANEL, borderRadius: 12, padding: "22px 24px", margin: "0 0 24px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-              <div style={{ fontSize: 12, letterSpacing: "0.1em", color: note.source === "ai" ? "#9ccc65" : ACCENT }}>
+              <div style={{ fontSize: 12, letterSpacing: "0.1em", color: note.source === "ai" ? "var(--sv-ok)" : ACCENT }}>
                 {note.source === "ai" ? U.noteAiBadge : U.noteTemplateBadge}
               </div>
               <div className="noPrint" style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={downloadNote}
-                  style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "#eaf6fa", fontSize: 12, cursor: "pointer" }}>
+                  style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "var(--sv-accent-soft)", fontSize: 12, cursor: "pointer" }}>
                   {U.noteDownload}
                 </button>
                 <button type="button" onClick={() => window.print()}
-                  style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "#eaf6fa", fontSize: 12, cursor: "pointer" }}>
+                  style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${LINE}`, background: "transparent", color: "var(--sv-accent-soft)", fontSize: 12, cursor: "pointer" }}>
                   {U.notePdf}
                 </button>
               </div>
             </div>
             {note.source === "template" && (
-              <p className="noPrint" style={{ fontSize: 12, color: "#ffb74d", margin: "0 0 12px" }}>
+              <p className="noPrint" style={{ fontSize: 12, color: "var(--sv-warn2)", margin: "0 0 12px" }}>
                 {t(TX.noteFallbackPre, language)}{note.reason ? ` (${note.reason})` : ""}{t(TX.noteFallbackTail, language)}
               </p>
             )}
@@ -2852,62 +2852,62 @@ function ProResultContent() {
         {/* ДЕЙСТВИЯ */}
         <div className="noPrint" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10 }}>
           <button type="button" onClick={makeNote} disabled={noteBusy}
-            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: noteBusy ? "wait" : "pointer", background: noteBusy ? "#2a6d80" : "#9ccc65", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: noteBusy ? "wait" : "pointer", background: noteBusy ? "var(--sv-accent-line2)" : "var(--sv-ok)", color: "var(--sv-bg2)", fontSize: 15, fontWeight: 700 }}>
             {noteBusy ? U.btnNoteBusy : note ? U.btnNoteAgain : U.btnNote}
           </button>
           <button type="button" onClick={() => window.print()}
-            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: "pointer", background: ACCENT, color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: "pointer", background: ACCENT, color: "var(--sv-bg2)", fontSize: 15, fontWeight: 700 }}>
             {U.btnPdf}
           </button>
           <button type="button" onClick={downloadNoteDocx} disabled={docBusy}
-            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: docBusy ? "wait" : "pointer", background: docBusy ? "#2a6d80" : "#7fb1e0", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: docBusy ? "wait" : "pointer", background: docBusy ? "var(--sv-accent-line2)" : "#7fb1e0", color: "var(--sv-bg2)", fontSize: 15, fontWeight: 700 }}>
             {docBusy ? U.btnNoteDocxBusy : U.btnNoteDocx}
           </button>
           <button type="button" onClick={downloadManualDocx} disabled={manBusy}
-            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: manBusy ? "wait" : "pointer", background: manBusy ? "#2a6d80" : "#c9b6e8", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: manBusy ? "wait" : "pointer", background: manBusy ? "var(--sv-accent-line2)" : "#c9b6e8", color: "var(--sv-bg2)", fontSize: 15, fontWeight: 700 }}>
             {manBusy ? U.btnManualDocxBusy : U.btnManualDocx}
           </button>
           <button type="button" onClick={downloadSpecXlsx} disabled={xlsBusy}
-            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: xlsBusy ? "wait" : "pointer", background: xlsBusy ? "#2a6d80" : "#8fce9a", color: "#06232e", fontSize: 15, fontWeight: 700 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: 0, cursor: xlsBusy ? "wait" : "pointer", background: xlsBusy ? "var(--sv-accent-line2)" : "#8fce9a", color: "var(--sv-bg2)", fontSize: 15, fontWeight: 700 }}>
             {xlsBusy ? U.btnSpecXlsxBusy : U.btnSpecXlsx}
           </button>
           <button type="button" onClick={dxfScheme}
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "var(--sv-accent-soft)", fontSize: 15, fontWeight: 600 }}>
             {U.btnDxfScheme}
           </button>
           <button type="button" onClick={dxfPid}
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "var(--sv-accent-soft)", fontSize: 15, fontWeight: 600 }}>
             Схема автоматизации DXF
           </button>
           <button type="button" onClick={dxfModels}
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: "pointer", background: "transparent", color: "var(--sv-accent-soft)", fontSize: 15, fontWeight: 600 }}>
             {U.btnDxfModels}
           </button>
           <button type="button" onClick={downloadPackage} disabled={zipBusy}
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: zipBusy ? "wait" : "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15, fontWeight: 600 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${ACCENT}`, cursor: zipBusy ? "wait" : "pointer", background: "transparent", color: "var(--sv-accent-soft)", fontSize: 15, fontWeight: 600 }}>
             {zipBusy ? U.drawBusy : U.drawButton}
           </button>
           <button type="button" onClick={printScheme}
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "var(--sv-accent-soft)", fontSize: 15 }}>
             {U.btnPrintScheme}
           </button>
           <button type="button" onClick={printModels}
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "#eaf6fa", fontSize: 15 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, cursor: "pointer", background: "transparent", color: "var(--sv-accent-soft)", fontSize: 15 }}>
             {U.btnPrintModels}
           </button>
           {fileError ? (
             <span style={{ color: "#e5a54b", fontSize: 13, alignSelf: "center" }}>{fileError}</span>
           ) : null}
           <a href="/engineering/assumptions"
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "var(--sv-accent-soft)", textDecoration: "none", fontSize: 15 }}>
             {U.btnAssumptions}
           </a>
           <a href="/designers"
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "var(--sv-accent-soft)", textDecoration: "none", fontSize: 15 }}>
             {U.btnForms}
           </a>
           <a href="/#contacts"
-            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "#eaf6fa", textDecoration: "none", fontSize: 15 }}>
+            style={{ padding: "13px 26px", borderRadius: 10, border: `1px solid ${LINE}`, color: "var(--sv-accent-soft)", textDecoration: "none", fontSize: 15 }}>
             {U.btnQuote}
           </a>
         </div>
