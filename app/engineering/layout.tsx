@@ -78,6 +78,17 @@ export async function generateMetadata(): Promise<Metadata> {
         type: "website",
         images: image,
       },
+      /* Telegram и часть мессенджеров читают не только og:, но и
+         twitter:. Эти теги задаются в корневой раскладке сайта и
+         остаются нашими, если их не перекрыть здесь: получается
+         карточка, где имя уже его, а заголовок и картинка ещё наши —
+         ровно то, что мы убирали. */
+      twitter: {
+        card: "summary_large_image",
+        title: brand.title,
+        description: brand.subtitle,
+        images: image.map((x) => x.url),
+      },
       /* Отдельный адрес — приватный инструмент, в выдаче ему не место. */
       robots: { index: false, follow: false },
     };
