@@ -153,6 +153,32 @@ export async function getBrandByHost(host: string | null | undefined): Promise<B
   return rows[0] ?? null;
 }
 
+/* ------------------------------------------------------------------
+ * ТОТ ЖЕ ЗАПРОС, НО БЕЗ ПОХОДА В БАЗУ НА КАЖДЫЙ ЗАХОД
+ *
+ * Бренд домена спрашивают на открытых страницах — на витрине и на
+ * входе, то есть любым посетителем. Меняется он раз в месяцы, а
+ * заходов много, и база одна на весь сайт. Держим ответ в памяти
+ * минуту: посетители до базы не доходят, а правка в админке видна
+ * почти сразу.
+ *
+ * Память своя у каждого работающего экземпляра — это не общий кэш и
+ * не замена ему; задача здесь только одна: не превращать просмотр
+ * страницы в запрос к базе.
+ * ------------------------------------------------------------------ */
+const HOST_CACHE_MS = 60_000;
+const hostCache = new Map<string, { at: number; brand: Brand | null }>();
+
+export async function getBrandByHostCached(host: string | null | undefined): Promise<Brand | null> {
+  const key = normalizeHost(host);
+  if (!key) return null;
+  const hit = hostCache.get(key);
+  if (hit && Date.now() - hit.at < HOST_CACHE_MS) return hit.brand;
+  const brand = await getBrandByHost(key);
+  hostCache.set(key, { at: Date.now(), brand });
+  return brand;
+}
+
 export async function setUserBrand(login: string, slug: string | null): Promise<void> {
   await ensureBrandsSchema();
   const sql = db();

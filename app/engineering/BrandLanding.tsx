@@ -29,7 +29,17 @@
 
 import { CSSProperties, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Brand } from "./BrandHeader";
+/**
+ * Только оформление. Срок доступа и служебная запись о договоре сюда
+ * не передаются намеренно: всё, что получает страница, видно в её
+ * исходном коде.
+ */
+export type LandingBrand = {
+  title: string;
+  logo_url: string;
+  accent: string;
+  contact: string;
+};
 
 /* ---------- то, что заполняется по данным организации ---------- */
 
@@ -100,7 +110,7 @@ const INK = "#12222c";
 const FAINT = "#63798a";
 const RULE = "#dbe4ea";
 
-export default function BrandLanding({ brand }: { brand: Brand }) {
+export default function BrandLanding({ brand }: { brand: LandingBrand }) {
   const router = useRouter();
   const [logoOk, setLogoOk] = useState(true);
   const accent = brand.accent || "#0273d1";

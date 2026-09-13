@@ -19,26 +19,9 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { brandDaysLeft, brandExpired, getBrand, getBrandByHost, userBrandSlug, type Brand } from "../../../lib/brands";
+import { brandDaysLeft, brandExpired, getBrand, getBrandByHost, getBrandByHostCached, userBrandSlug } from "../../../lib/brands";
 import { dbUrl } from "../../../lib/auth";
 import { sessionFromRequest } from "../../../lib/session";
-
-/* Открытый маршрут вызывается с витрины, то есть любым посетителем.
-   Ходить за этим в базу на каждый просмотр незачем и небезопасно:
-   бренд домена меняется раз в месяцы. Держим ответ в памяти минуту —
-   этого хватает, чтобы поток посетителей не доходил до базы, и
-   правка бренда в админке становится видна почти сразу. */
-const HOST_CACHE_MS = 60_000;
-const hostCache = new Map<string, { at: number; brand: Brand }>();
-
-async function hostBrandCached(host: string | null): Promise<Brand> {
-  const key = (host ?? "").trim().toLowerCase();
-  const hit = hostCache.get(key);
-  if (hit && Date.now() - hit.at < HOST_CACHE_MS) return hit.brand;
-  const brand = (dbUrl() ? await getBrandByHost(key) : null) ?? (await getBrand(null));
-  hostCache.set(key, { at: Date.now(), brand });
-  return brand;
-}
 
 export async function GET(request: Request) {
   const session = await sessionFromRequest(request);
@@ -51,7 +34,7 @@ export async function GET(request: Request) {
      о бланке, и на открытой странице им делать нечего. */
   if (!session) {
     try {
-      const brand = await hostBrandCached(request.headers.get("host"));
+      const brand = (dbUrl() ? await getBrandByHostCached(request.headers.get("host")) : null) ?? (await getBrand(null));
       return Response.json({
         ok: true,
         brand: {
@@ -69,9 +52,10 @@ export async function GET(request: Request) {
     } catch (e) {
       console.error("brand GET (anon):", e);
       const brand = await getBrand(null);
+      const { note: _note, host: _host, ...open } = brand;
       return Response.json({
         ok: true,
-        brand: { ...brand, active_until: null, daysLeft: null, expired: false },
+        brand: { ...open, active_until: null, daysLeft: null, expired: false },
       });
     }
   }
@@ -84,10 +68,20 @@ export async function GET(request: Request) {
     const slug = dbUrl() ? await userBrandSlug(session.u) : null;
     const byHost = slug ? null : await getBrandByHost(request.headers.get("host"));
     const brand = byHost ?? (await getBrand(slug));
+    /* Поля перечислены поимённо, а не «всё, что есть». В записи о
+       бренде лежит и служебная заметка о договоре — её видеть
+       пользователю незачем, а при «...brand» она уезжала в браузер
+       вместе с оформлением. */
     return Response.json({
       ok: true,
       brand: {
-        ...brand,
+        slug: brand.slug,
+        title: brand.title,
+        subtitle: brand.subtitle,
+        logo_url: brand.logo_url,
+        accent: brand.accent,
+        contact: brand.contact,
+        active_until: brand.active_until,
         daysLeft: brandDaysLeft(brand),
         expired: brandExpired(brand),
         login: session.u,
@@ -98,6 +92,7 @@ export async function GET(request: Request) {
     /* Бренд — оформление, а не расчёт: если база недоступна, раздел
        обязан работать, просто под своим знаком. */
     const brand = await getBrand(null);
-    return Response.json({ ok: true, brand: { ...brand, daysLeft: null, expired: false, login: session.u } });
+    const { note: _note, host: _host, ...open } = brand;
+    return Response.json({ ok: true, brand: { ...open, daysLeft: null, expired: false, login: session.u } });
   }
 }
