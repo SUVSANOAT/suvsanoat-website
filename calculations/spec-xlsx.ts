@@ -37,6 +37,8 @@ const num = (v: number): XCell => ({ v, s: "num" });
 export type SpecWorkbookInput = {
   /** заголовок листа: «Водовод …» или «Водопроводная сеть …» */
   heading: string;
+  /** кто выдал ведомость; пусто — подпись без имени */
+  company?: string;
   object?: string;
   spec: SpecResult;
   /** допущения расчёта — на лист оснований */
@@ -55,7 +57,7 @@ export function buildSpecSheets(input: SpecWorkbookInput): XSheet[] {
 
   rows.push([title(input.heading)]);
   if (input.object) rows.push([t(input.object)]);
-  rows.push([note(`Ведомость материалов и оборудования. Дата расчёта ${dateStr}. SUVSANOAT`)]);
+  rows.push([note(`Ведомость материалов и оборудования. Дата расчёта ${dateStr}.${input.company ? ` ${input.company}` : ""}`)]);
   rows.push([
     note(
       "Колонка «Цена за единицу» заполняется вручную: цены подставляются на день закупки. " +

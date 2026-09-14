@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 import TechnologyCompare from "./TechnologyCompare";
 
 type Technology = {
@@ -151,11 +152,12 @@ function Loading() {
 
 
 function SuvsanoatBrandHeader() {
+  const db = useDocBrand();
   return (
     <header
       style={{
-        border: "1px solid #174454",
-        background: "#071b24",
+        border: "1px solid var(--sv-accent-line)",
+        background: "var(--sv-card)",
         borderRadius: 14,
         padding: "18px 24px",
         marginBottom: 46,
@@ -166,9 +168,9 @@ function SuvsanoatBrandHeader() {
         flexWrap: "wrap",
       }}
     >
-      <img
-        src="/suvsanoat-logo.png"
-        alt="SUVSANOAT ENGINEERING SYSTEMS"
+      {db.logo && <img
+        src={db.logo}
+        alt={db.name}
         style={{
           display: "block",
           width: "auto",
@@ -176,7 +178,7 @@ function SuvsanoatBrandHeader() {
           maxWidth: "100%",
           objectFit: "contain",
         }}
-      />
+      />}
 
       <div
         style={{
@@ -189,65 +191,66 @@ function SuvsanoatBrandHeader() {
           lineHeight: 1.5,
         }}
       >
-        <a
-          href="https://www.suvsanoat.uz"
+        {db.site && <a
+          href={`https://${db.site}`}
           target="_blank"
           rel="noreferrer"
           style={{
-            color: "#00d9ff",
+            color: "var(--sv-accent)",
             fontWeight: 800,
             textDecoration: "none",
           }}
         >
-          www.suvsanoat.uz
-        </a>
+          {db.site}
+        </a>}
 
-        <a
-          href="tel:+998773043400"
+        {db.phone && <a
+          href={`tel:${db.phone.replace(/[^+\d]/g, "")}`}
           style={{
-            color: "#b7cbd3",
+            color: "var(--sv-th)",
             textDecoration: "none",
             whiteSpace: "nowrap",
           }}
         >
-          +998 77 304 34 00
-        </a>
+          {db.phone}
+        </a>}
 
-        <a
-          href="mailto:suvsanoat@gmail.com"
+        {db.email && <a
+          href={`mailto:${db.email}`}
           style={{
-            color: "#b7cbd3",
+            color: "var(--sv-th)",
             textDecoration: "none",
             whiteSpace: "nowrap",
           }}
         >
-          suvsanoat@gmail.com
-        </a>
+          {db.email}
+        </a>}
       </div>
     </header>
   );
 }
 
 function SuvsanoatBrandFooter() {
+  const db = useDocBrand();
   return (
     <footer
       style={{
         marginTop: 56,
         paddingTop: 22,
-        borderTop: "1px solid #173640",
+        borderTop: "1px solid var(--sv-line)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         gap: 18,
         flexWrap: "wrap",
-        color: "#66808b",
+        color: "var(--sv-faint)",
         fontSize: 12,
         lineHeight: 1.6,
       }}
     >
       <div>
-        <strong style={{ color: "#b7cbd3" }}>
-          SUVSANOAT ENGINEERING SYSTEMS
+        <strong style={{ color: "var(--sv-th)" }}>
+          {[db.name, db.line2].filter(Boolean).join(" ")}
         </strong>
         <div>
           Предварительный инженерный подбор технологии очистки.
@@ -255,19 +258,19 @@ function SuvsanoatBrandFooter() {
       </div>
 
       <div style={{ textAlign: "right" }}>
-        <a
-          href="https://www.suvsanoat.uz"
+        {db.site && <a
+          href={`https://${db.site}`}
           target="_blank"
           rel="noreferrer"
           style={{
-            color: "#00d9ff",
+            color: "var(--sv-accent)",
             fontWeight: 700,
             textDecoration: "none",
           }}
         >
-          www.suvsanoat.uz
-        </a>
-        <div>+998 77 304 34 00 · suvsanoat@gmail.com</div>
+          {db.site}
+        </a>}
+        <div>{[db.phone, db.email].filter(Boolean).join(" · ")}</div>
       </div>
     </footer>
   );
@@ -1849,8 +1852,8 @@ function DataItem({
 
 const page: CSSProperties = {
   minHeight: "100vh",
-  background: "#06151d",
-  color: "#f4f7f8",
+  background: "var(--sv-bg)",
+  color: "var(--sv-ink)",
   fontFamily:
     "Arial, Helvetica, sans-serif",
 };
@@ -1866,7 +1869,7 @@ const container: CSSProperties = {
 const backButton: CSSProperties = {
   border: 0,
   background: "transparent",
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   padding: 0,
   marginBottom: 40,
   fontSize: 15,
@@ -1874,7 +1877,7 @@ const backButton: CSSProperties = {
 };
 
 const eyebrow: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: "3px",
@@ -1894,7 +1897,7 @@ const lead: CSSProperties = {
   maxWidth: 820,
   marginTop: 25,
   marginBottom: 40,
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 18,
   lineHeight: 1.7,
 };
@@ -1906,9 +1909,9 @@ const infoCard: CSSProperties = {
   gap: 12,
   padding: 18,
   marginBottom: 25,
-  background: "#081b24",
+  background: "var(--sv-card)",
   border:
-    "1px solid #1c3742",
+    "1px solid var(--sv-line)",
   borderRadius: 12,
 };
 
@@ -1922,23 +1925,23 @@ const infoItem: CSSProperties = {
 };
 
 const infoLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.5px",
 };
 
 const dataCard: CSSProperties = {
-  background: "#081b24",
+  background: "var(--sv-card)",
   border:
-    "1px solid #1c3742",
+    "1px solid var(--sv-line)",
   borderRadius: 12,
   padding: 22,
   marginBottom: 35,
 };
 
 const sectionTitle: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: "2px",
@@ -1966,14 +1969,14 @@ const dataItem: CSSProperties = {
 };
 
 const dataItemLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.5px",
 };
 
 const dataItemValue: CSSProperties = {
-  color: "#f4f7f8",
+  color: "var(--sv-ink)",
   fontSize: 14,
 };
 
@@ -2002,7 +2005,7 @@ const recommendationText: CSSProperties = {
   maxWidth: 800,
   margin:
     "14px 0 28px",
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 15,
   lineHeight: 1.7,
 };
@@ -2021,7 +2024,7 @@ const field: CSSProperties = {
 };
 
 const fieldLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.4px",
@@ -2035,8 +2038,8 @@ const selectStyle: CSSProperties = {
   border:
     "1px solid #294752",
   borderRadius: 7,
-  background: "#06151d",
-  color: "#f4f7f8",
+  background: "var(--sv-bg)",
+  color: "var(--sv-ink)",
   fontSize: 14,
   outline: "none",
 };
@@ -2081,7 +2084,7 @@ const topResult: CSSProperties = {
 };
 
 const resultSmallLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.6px",
@@ -2089,7 +2092,7 @@ const resultSmallLabel: CSSProperties = {
 };
 
 const resultTechnology: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 46,
   fontWeight: 800,
   letterSpacing: "-2px",
@@ -2107,20 +2110,20 @@ const scoreBlock: CSSProperties = {
   textAlign: "center",
   padding: 16,
   border:
-    "1px solid #1c3742",
+    "1px solid var(--sv-line)",
   borderRadius: 10,
-  background: "#081b24",
+  background: "var(--sv-card)",
 };
 
 const scoreNumber: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 40,
   fontWeight: 800,
   lineHeight: 1,
 };
 
 const scoreLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.5px",
@@ -2150,7 +2153,7 @@ const reasonItem: CSSProperties = {
 };
 
 const reasonMark: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontWeight: 800,
 };
 
@@ -2182,7 +2185,7 @@ const warningItem: CSSProperties = {
 const alternativeTitle: CSSProperties = {
   marginTop: 30,
   marginBottom: 14,
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.6px",
@@ -2200,15 +2203,15 @@ const alternativeCard: CSSProperties = {
   textAlign: "left",
   padding: 18,
   border:
-    "1px solid #1c3742",
+    "1px solid var(--sv-line)",
   borderRadius: 9,
-  background: "#081b24",
+  background: "var(--sv-card)",
   color: "#ffffff",
   cursor: "pointer",
 };
 
 const alternativeScore: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 24,
   fontWeight: 800,
 };
@@ -2227,7 +2230,7 @@ const alternativeSubtitle: CSSProperties = {
 
 const alternativeAction: CSSProperties = {
   marginTop: 15,
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
 };
@@ -2256,9 +2259,9 @@ const technologyCard: CSSProperties = {
   appearance: "none",
   textAlign: "left",
   border:
-    "1px solid #1c3742",
+    "1px solid var(--sv-line)",
   borderRadius: 14,
-  background: "#081b24",
+  background: "var(--sv-card)",
   color: "#ffffff",
   padding: 25,
   minHeight: 245,
@@ -2269,15 +2272,15 @@ const technologyCard: CSSProperties = {
 
 const technologyCardSelected: CSSProperties = {
   border:
-    "1px solid #00d9ff",
+    "1px solid var(--sv-accent)",
   background:
-    "radial-gradient(circle at top right, #0b303d 0%, #081b24 65%)",
+    "radial-gradient(circle at top right, #0b303d 0%, var(--sv-card) 65%)",
   boxShadow:
     "0 0 0 1px rgba(0,217,255,.08)",
 };
 
 const technologyCategory: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.5px",
@@ -2285,7 +2288,7 @@ const technologyCategory: CSSProperties = {
 };
 
 const technologyTitle: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 30,
   fontWeight: 800,
   marginBottom: 7,
@@ -2299,7 +2302,7 @@ const technologySubtitle: CSSProperties = {
 };
 
 const technologyDescription: CSSProperties = {
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 13,
   lineHeight: 1.65,
   margin: 0,
@@ -2312,8 +2315,8 @@ const technologyFooter: CSSProperties = {
   marginTop: 20,
   paddingTop: 15,
   borderTop:
-    "1px solid #1c3742",
-  color: "#00d9ff",
+    "1px solid var(--sv-line)",
+  color: "var(--sv-accent)",
   fontSize: 13,
   fontWeight: 800,
 };
@@ -2333,7 +2336,7 @@ const selectedCard: CSSProperties = {
 };
 
 const selectedLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "2px",
@@ -2341,7 +2344,7 @@ const selectedLabel: CSSProperties = {
 };
 
 const selectedTitle: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 34,
   fontWeight: 800,
 };
@@ -2354,7 +2357,7 @@ const selectedSubtitle: CSSProperties = {
 };
 
 const selectedDescription: CSSProperties = {
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 14,
   lineHeight: 1.7,
   maxWidth: 800,
@@ -2391,7 +2394,7 @@ const secondaryButton: CSSProperties = {
     "1px solid #29444e",
   borderRadius: 7,
   background: "transparent",
-  color: "#f4f7f8",
+  color: "var(--sv-ink)",
   padding:
     "18px 24px",
   fontSize: 15,

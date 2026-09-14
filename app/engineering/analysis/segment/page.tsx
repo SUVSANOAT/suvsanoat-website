@@ -207,6 +207,18 @@ const TX = {
   },
 };
 
+/**
+ * Имя файла берётся из ответа сервера, а не пишется здесь: сервер
+ * знает, под чьим брендом выдан документ, а страница — нет. Раньше имя
+ * было вписано в код, и проектировщик по купленному доступу скачивал
+ * файл с нашим именем в названии.
+ */
+function fileNameFrom(r: Response, fallback: string): string {
+  const cd = r.headers.get("content-disposition") ?? "";
+  const m = cd.match(/filename="([^"]+)"/);
+  return m ? m[1] : fallback;
+}
+
 export default function SegmentPage() {
   return (
     <RequireAuth>
@@ -376,7 +388,7 @@ function SegmentPageContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_raschet_uchastka_vodovoda.docx";
+      a.download = fileNameFrom(r, "raschet_uchastka_vodovoda.docx");
       a.click();
       URL.revokeObjectURL(href);
     } catch {

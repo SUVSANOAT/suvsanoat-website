@@ -16,6 +16,8 @@ import { calculateNetwork, type NetworkInput, type NetworkLink, type NetworkNode
 import { buildNetworkNoteDocx } from "../../../calculations/network-docx";
 import { calculatePumpMain, type PipeKind } from "../../../calculations/pump-main";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/file-prefix";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const MAX_BODY_BYTES = 512 * 1024;
 const MAX_NODES = 500;
@@ -69,9 +71,13 @@ const SOURCES = ["survey", "google", "assumed"] as const;
 const KINDS = ["steel", "plastic", "castIron"] as const;
 
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
+
+  /* Имя владельца доступа — для названия файла и подписей документа. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -149,7 +155,7 @@ export async function POST(request: Request) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="SUVSANOAT_zapiska_set.docx"`,
+        "Content-Disposition": `attachment; filename="${filePrefix(brand.title)}_zapiska_set.docx"`,
         "Content-Length": String(docx.byteLength),
         "Cache-Control": "no-store",
       },

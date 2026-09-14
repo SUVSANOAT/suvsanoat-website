@@ -31,6 +31,8 @@ import {
   type OrderStatus,
 } from "../../../lib/orders";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/file-prefix";
+import { resolveBrand } from "../../../lib/report-brand";
 
 /** предел размера тела запроса: контур участка длинным не бывает */
 const MAX_BODY_BYTES = 256 * 1024;
@@ -163,13 +165,15 @@ async function readBody(request: Request): Promise<{ body: Record<string, unknow
  * ВЫДАЧА КОМПЛЕКТА
  * ------------------------------------------------------------------ */
 
-function zipResponse(input: DrawingInput, opts: PackageOptions): Response {
+/* Имя организации приходит параметром: комплект выдаётся под тем,
+   у кого доступ, а эта функция про бренд ничего не знает. */
+function zipResponse(input: DrawingInput, opts: PackageOptions, company: string): Response {
   const pkg = buildPackage(input, opts);
   const zip = pkg.zip();
   /* копия в собственный ArrayBuffer — корректное тело ответа */
   const buffer = new ArrayBuffer(zip.byteLength);
   new Uint8Array(buffer).set(zip);
-  const name = `SUVSANOAT_chertezhi_${fileSlug(pkg.objectCode) || "obj"}_${Math.round(input.q)}m3.zip`;
+  const name = `${filePrefix(company)}_chertezhi_${fileSlug(pkg.objectCode) || "obj"}_${Math.round(input.q)}m3.zip`;
   return new Response(buffer, {
     headers: {
       "Content-Type": "application/zip",
@@ -185,6 +189,9 @@ export async function POST(request: Request) {
   const session = await sessionFromRequest(request);
   if (!session) return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
 
+  /* Имя владельца доступа — для названия файла и подписей документа. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
+
   const read = await readBody(request);
   if ("error" in read) return Response.json({ ok: false, error: read.error }, { status: 400 });
 
@@ -198,7 +205,7 @@ export async function POST(request: Request) {
      постоянно. Заказ при этом не создаётся. */
   if (session.r === "admin") {
     try {
-      return zipResponse(input, opts);
+      return zipResponse(input, opts, brand.title);
     } catch (e) {
       console.error("drawings build (admin):", e);
       return Response.json({ ok: false, error: "Не удалось собрать комплект чертежей." }, { status: 500 });
@@ -209,7 +216,7 @@ export async function POST(request: Request) {
   if (!dbUrl()) {
     console.warn("drawings: база не подключена (DATABASE_URL / POSTGRES_URL) — комплект выдан без оплаты");
     try {
-      return zipResponse(input, opts);
+      return zipResponse(input, opts, brand.title);
     } catch (e) {
       console.error("drawings build:", e);
       return Response.json({ ok: false, error: "Не удалось собрать комплект чертежей." }, { status: 500 });
@@ -221,7 +228,7 @@ export async function POST(request: Request) {
     if (!isPaid(order)) {
       return Response.json({ ok: false, status: order.status, invoice: invoiceFor(order) }, { status: 402 });
     }
-    const response = zipResponse(input, opts);
+    const response = zipResponse(input, opts, brand.title);
     await markIssued(order.id).catch((e) => console.error("drawings markIssued:", e));
     return response;
   } catch (e) {

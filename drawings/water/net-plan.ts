@@ -34,6 +34,8 @@ export type NetPlanMeta = {
   object: string;
   no?: string;
   index?: number;
+  /** разработчик в штампе; пусто — наш */
+  firm?: { name: string; subtitle?: string; contact?: string };
   rev?: string;
   date?: string;
   stage?: string;
@@ -129,6 +131,7 @@ export function netPlanSheet(nodes: NetNode[], net: WaterNetworkResult, meta: Ne
     no: meta.no ?? sheetNo(objectCode(meta.object), "M", meta.index ?? 1),
     title: hasXY ? "План водопроводной сети" : "Схема водопроводной сети",
     object: meta.object,
+    firm: meta.firm,
     scale,
     rev: meta.rev,
     date: meta.date,

@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+
+import { getBrandByHostCached } from "../../../lib/brands";
+import { dbUrl } from "../../../lib/auth";
 
 import BrandHeader from "../BrandHeader";
 import EngineeringTheme from "../Theme";
 
-export const metadata: Metadata = {
+const HOME: Metadata = {
   title: "Расчёт очистных сооружений онлайн по нормам Узбекистана",
   description:
     "Пошаговый расчёт очистных сооружений: расчётные расходы и коэффициенты неравномерности по ҚМҚ 2.04.03-19 (КМК 2.04.03-19, взамен КМК 2.04.03-97), органическая и азотная нагрузка, подбор технологии и спецификация оборудования. Бесплатно, без регистрации.",
@@ -21,6 +25,30 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
 };
+
+/* Заголовок страниц расчёта — под тем же именем, что и всё
+   остальное. Страницы закрыты входом, но ссылку на расчёт человек
+   пересылает коллеге, и в карточке не должно быть чужой конторы. */
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const brand = dbUrl() ? await getBrandByHostCached((await headers()).get("host")) : null;
+    if (!brand) return HOME;
+    const name = (brand.full_name || "").split("\n").map((x) => x.trim()).filter(Boolean).join(" ") || brand.title;
+    return {
+      title: { absolute: name },
+      description: brand.subtitle,
+      authors: [{ name: brand.title }],
+      creator: brand.title,
+      publisher: brand.title,
+      keywords: [],
+      openGraph: { title: name, description: brand.subtitle, siteName: brand.title, type: "website" },
+      twitter: { card: "summary", title: name, description: brand.subtitle },
+      robots: { index: false, follow: false },
+    };
+  } catch {
+    return HOME;
+  }
+}
 
 /* ==================================================================
  * ШАПКА БРЕНДА — ОДНА НА ВЕСЬ РАЗДЕЛ

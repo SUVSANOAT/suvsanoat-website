@@ -39,6 +39,18 @@ import { buildSpecification, SPEC } from "../../../../calculations/water-spec";
 import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
+/**
+ * Имя файла берётся из ответа сервера, а не пишется здесь: сервер
+ * знает, под чьим брендом выдан документ, а страница — нет. Раньше имя
+ * было вписано в код, и проектировщик по купленному доступу скачивал
+ * файл с нашим именем в названии.
+ */
+function fileNameFrom(r: Response, fallback: string): string {
+  const cd = r.headers.get("content-disposition") ?? "";
+  const m = cd.match(/filename="([^"]+)"/);
+  return m ? m[1] : fallback;
+}
+
 export default function WaterNetworkPage() {
   return (
     <RequireAuth>
@@ -290,7 +302,7 @@ function WaterNetworkContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_raschet_vodoprovodnoy_seti.docx";
+      a.download = fileNameFrom(r, "raschet_vodoprovodnoy_seti.docx");
       a.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -320,7 +332,7 @@ function WaterNetworkContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_vedomost_vodoprovodnoy_seti.xlsx";
+      a.download = fileNameFrom(r, "vedomost_vodoprovodnoy_seti.xlsx");
       a.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -350,7 +362,7 @@ function WaterNetworkContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_chertezhi_vodoprovodnoy_seti.zip";
+      a.download = fileNameFrom(r, "chertezhi_vodoprovodnoy_seti.zip");
       a.click();
       URL.revokeObjectURL(href);
     } catch {

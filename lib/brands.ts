@@ -237,3 +237,18 @@ export function brandDaysLeft(b: Brand, now = new Date()): number | null {
   return Math.ceil((until.getTime() - now.getTime()) / 86400000);
 }
 
+export { filePrefix } from "./file-prefix";
+
+/* ==================================================================
+ * ИМЯ ВЛАДЕЛЬЦА В ДОКУМЕНТАХ
+ *
+ * Документ, чертёж и имя скачиваемого файла — то же самое, что знак
+ * в шапке: они уходят заказчику и его заказчикам. Пока имя было
+ * вписано в код, проектировщик получал файл «SUVSANOAT_raschet…» со
+ * штампом нашего завода. Здесь имя берётся из бренда.
+ * ================================================================== */
+
+/** Блок разработчика для штампа чертежа. */
+export function brandFirm(brand: Brand): { name: string; subtitle: string; contact: string } {
+  return { name: brand.title, subtitle: brand.subtitle, contact: brand.contact };
+}

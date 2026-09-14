@@ -47,6 +47,18 @@ import { useBrand } from "../../BrandHeader";
 import ProjectsPanel from "../ProjectsPanel";
 import RequireAuth from "../../RequireAuth";
 
+/**
+ * Имя файла берётся из ответа сервера, а не пишется здесь: сервер
+ * знает, под чьим брендом выдан документ, а страница — нет. Раньше имя
+ * было вписано в код, и проектировщик по купленному доступу скачивал
+ * файл с нашим именем в названии.
+ */
+function fileNameFrom(r: Response, fallback: string): string {
+  const cd = r.headers.get("content-disposition") ?? "";
+  const m = cd.match(/filename="([^"]+)"/);
+  return m ? m[1] : fallback;
+}
+
 export default function PipelinePage() {
   return (
     <RequireAuth>
@@ -419,7 +431,7 @@ function PipelinePageContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_raschet_napornogo_vodovoda.docx";
+      a.download = fileNameFrom(r, "raschet_napornogo_vodovoda.docx");
       a.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -449,7 +461,7 @@ function PipelinePageContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_vedomost_napornogo_vodovoda.xlsx";
+      a.download = fileNameFrom(r, "vedomost_napornogo_vodovoda.xlsx");
       a.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -479,7 +491,7 @@ function PipelinePageContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_chertezhi_vodovoda.zip";
+      a.download = fileNameFrom(r, "chertezhi_vodovoda.zip");
       a.click();
       URL.revokeObjectURL(href);
     } catch {

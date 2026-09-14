@@ -18,6 +18,8 @@ export const maxDuration = 60;
 import { calculateNetwork, type NetworkInput, type NetworkNode, type NetworkLink } from "../../../calculations/network";
 import { buildNetworkWorkbook } from "../../../calculations/network-xlsx";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/file-prefix";
+import { resolveBrand } from "../../../lib/report-brand";
 
 /** предел размера тела: сеть на тысячу колодцев — это уже не онлайн-расчёт */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -67,9 +69,13 @@ const CATEGORIES = ["city-over-100k", "city-under-100k", "town-under-50k"] as co
 const SOURCES = ["survey", "google", "assumed"] as const;
 
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
+
+  /* Имя владельца доступа — для названия файла и подписей документа. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -122,7 +128,7 @@ export async function POST(request: Request) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="SUVSANOAT_vedomost_seti_${nodes.length}uzlov.xlsx"`,
+        "Content-Disposition": `attachment; filename="${filePrefix(brand.title)}_vedomost_seti_${nodes.length}uzlov.xlsx"`,
         "Content-Length": String(xlsx.byteLength),
         "Cache-Control": "no-store",
       },

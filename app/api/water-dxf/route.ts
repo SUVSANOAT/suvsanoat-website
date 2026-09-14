@@ -25,6 +25,8 @@ import { mainProfileSheets } from "../../../drawings/water/main-profile";
 import { netPlanSheet } from "../../../drawings/water/net-plan";
 import { makeZip, type ZipEntry } from "../../../drawings/core/zip";
 import { sessionFromRequest } from "../../../lib/session";
+import { brandFirm, filePrefix } from "../../../lib/brands";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_POINTS = 5000;
@@ -116,9 +118,16 @@ function zipResponse(entries: ZipEntry[], filename: string) {
 }
 
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
+
+  /* Штамп чертежа — то же имя, что и в отчёте: чертёж уходит
+     заказчику и его заказчику, и чужой организации в штампе там не
+     место. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
+  const firm = brandFirm(brand);
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -171,8 +180,8 @@ export async function POST(request: Request) {
       const net = calculateWaterNetwork({ nodes: demand.nodes, links, sourceId, sourceHeadM, material: netMaterial, lining, floors });
       const equip = equipmentPlan(demand.nodes, links, net, { sourceId, terrain, withHydrants: body.hydrants !== false });
 
-      const plan = netPlanSheet(demand.nodes, net, { object, sourceId, equipment: equip.nodes, index: 1 });
-      return zipResponse([{ name: "01_shema_seti.dxf", data: plan.d.toBytes() }], "SUVSANOAT_chertezhi_vodoprovodnoy_seti.zip");
+      const plan = netPlanSheet(demand.nodes, net, { object, sourceId, equipment: equip.nodes, index: 1, firm });
+      return zipResponse([{ name: "01_shema_seti.dxf", data: plan.d.toBytes() }], `${filePrefix(brand.title)}_chertezhi_vodoprovodnoy_seti.zip`);
     }
 
     /* ---------------- напорный водовод ---------------- */
@@ -207,12 +216,12 @@ export async function POST(request: Request) {
       horizonYears: num(body.horizonYears),
     });
 
-    const sheets = mainProfileSheets(res, { object, index: 1 });
+    const sheets = mainProfileSheets(res, { object, index: 1, firm });
     const entries: ZipEntry[] = sheets.map((s, i) => ({
       name: `${String(i + 1).padStart(2, "0")}_profil_vodovoda_${i + 1}.dxf`,
       data: s.d.toBytes(),
     }));
-    return zipResponse(entries, "SUVSANOAT_chertezhi_vodovoda.zip");
+    return zipResponse(entries, `${filePrefix(brand.title)}_chertezhi_vodovoda.zip`);
   } catch (e) {
     console.error("water-dxf POST:", e);
     const msg = e instanceof Error ? e.message : "Не удалось построить чертежи.";

@@ -25,9 +25,10 @@ import {
   isNoteInput,
   kmkClausesFor,
   noteUserPrompt,
-  NOTE_SYSTEM_PROMPT,
+  noteSystemPrompt,
 } from "../../engineering/analysis/pro-result/note-template";
 import { sessionFromRequest } from "../../../lib/session";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-sonnet-5";
@@ -47,7 +48,8 @@ function allowed(ip: string): boolean {
 
 export async function POST(request: Request) {
   /* записку получают только вошедшие пользователи (дублирует proxy.ts) */
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
@@ -65,7 +67,14 @@ export async function POST(request: Request) {
     body.norms = kmkClausesFor(body.stages.map((s) => s.key));
   }
 
-  const template = buildTemplateNote(body);
+  /* Под чьим именем выходит записка и называть ли завод-изготовитель.
+     Имя завода ставится только на нашем бренде: покупатель доступа
+     оборудование не изготавливает. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
+  const company = brand.title;
+  const maker = brand.slug === "suvsanoat" ? brand.title : "";
+
+  const template = buildTemplateNote(body, { company, maker });
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
     return Response.json({ ok: true, source: "template", text: template, reason: "no key" });
@@ -94,7 +103,7 @@ export async function POST(request: Request) {
         model,
         max_tokens: 3500,
         temperature: 0.2,
-        system: NOTE_SYSTEM_PROMPT,
+        system: noteSystemPrompt(maker),
         messages: [{ role: "user", content: noteUserPrompt(body) }],
       }),
     });

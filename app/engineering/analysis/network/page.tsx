@@ -15,6 +15,8 @@
  * ================================================================== */
 
 import { CSSProperties, useMemo, useRef, useState } from "react";
+import { useBrand } from "../../BrandHeader";
+import { filePrefix } from "../../../../lib/file-prefix";
 import {
   calculateNetwork,
   MATERIALS,
@@ -59,6 +61,10 @@ export default function NetworkPage() {
 }
 
 function NetworkPageContent() {
+  /* Имя файла — по владельцу доступа: документ уходит ему и его
+     заказчику. */
+  const brand = useBrand();
+  const pfx = filePrefix(brand?.title);
   const [mode, setMode] = useState<Mode>("table");
   const [text, setText] = useState("");
   const [nodes, setNodes] = useState<NetworkNode[]>([]);
@@ -289,14 +295,14 @@ function NetworkPageContent() {
             }
           : null,
       },
-      "SUVSANOAT_zapiska_set.docx",
+      `${pfx}_zapiska_set.docx`,
       setDocBusy,
     );
   }
 
   async function downloadDxf() {
     if (!input) return;
-    await download("/api/network-dxf", { input, object }, "SUVSANOAT_chertezhi_seti.zip", setDxfBusy);
+    await download("/api/network-dxf", { input, object }, `${pfx}_chertezhi_seti.zip`, setDxfBusy);
   }
 
   async function downloadXlsx() {
@@ -318,7 +324,7 @@ function NetworkPageContent() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "SUVSANOAT_vedomost_seti.xlsx";
+      a.download = `${pfx}_vedomost_seti.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {

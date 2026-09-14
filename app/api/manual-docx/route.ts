@@ -27,6 +27,8 @@ import { calculateOpex } from "../../../calculations/opex";
 import { calculateReagents } from "../../../calculations/reagents";
 import { BOD5_TO_BODFULL } from "../../../norms/kmk-2-04-03-19";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/file-prefix";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const MAX_BODY_BYTES = 512 * 1024;
 
@@ -45,9 +47,13 @@ function fileSlug(s: string): string {
 }
 
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
+
+  /* Имя владельца доступа — для названия файла и подписей документа. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
     return Response.json({ ok: false, error: "Слишком большой запрос." }, { status: 413 });
@@ -106,10 +112,15 @@ export async function POST(request: Request) {
       opex,
       reagents,
       date: typeof body.date === "string" ? body.date.slice(0, 40) : undefined,
+      /* Руководство выходит под владельцем доступа; завод называется
+         только на нашем бренде — покупатель доступа оборудование не
+         изготавливает. */
+      company: brand.title,
+      maker: brand.slug === "suvsanoat" ? brand.title : "",
     });
     const buffer = new ArrayBuffer(docx.byteLength);
     new Uint8Array(buffer).set(docx);
-    const name = `SUVSANOAT_rukovodstvo_${fileSlug(note.object || note.industry) || "obj"}_${Math.round(Q)}m3.docx`;
+    const name = `${filePrefix(brand.title)}_rukovodstvo_${fileSlug(note.object || note.industry) || "obj"}_${Math.round(Q)}m3.docx`;
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

@@ -2,6 +2,7 @@
 
 import React, { CSSProperties, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 import BrandHeader from "../../../components/BrandHeader";
 import BrandFooter from "../../../components/BrandFooter";
 import {
@@ -337,7 +338,7 @@ function Card({
         style={{
           fontSize: 21,
           fontWeight: 800,
-          color: accent ? "#00d9ff" : "#f4f7f8",
+          color: accent ? "var(--sv-accent)" : "var(--sv-ink)",
         }}
       >
         {value}
@@ -376,11 +377,12 @@ function PrintHeader({
   reportDate: string;
   page: number;
 }) {
+  const db = useDocBrand();
   return (
     <div className="pdf-header">
       <div className="pdf-brand">
-        <img src="/suvsanoat-logo.png" alt="SUVSANOAT" />
-        <span>SUVSANOAT<br /><small>ENGINEERING SYSTEMS</small></span>
+        {db.logo && <img src={db.logo} alt={db.name} />}
+        <span>{db.name}{db.line2 ? <><br /><small>{db.line2}</small></> : null}</span>
       </div>
       <div className="pdf-header-title">ИНЖЕНЕРНЫЙ РАСЧЁТ</div>
       <div className="pdf-header-meta">
@@ -392,11 +394,12 @@ function PrintHeader({
 }
 
 function PrintFooter({ page }: { page: number }) {
+  const db = useDocBrand();
   return (
     <div className="pdf-footer">
-      <span>www.suvsanoat.uz</span>
-      <span>+998 77 304 34 00</span>
-      <span>suvsanoat@gmail.com</span>
+      {db.contacts.map((c) => (
+        <span key={c}>{c}</span>
+      ))}
       <strong>{page} / 8</strong>
     </div>
   );
@@ -498,6 +501,7 @@ function PrintDocument({
   reportDate: string;
   reportTime: string;
 }) {
+  const db = useDocBrand();
   const equipment = buildFinalEquipment(
     calc.result.equipment || [],
     technology,
@@ -514,11 +518,11 @@ function PrintDocument({
       <div className="pdf-page pdf-cover">
         <div>
           <div className="pdf-cover-top">
-            <img src="/suvsanoat-logo.png" alt="SUVSANOAT" />
+            {db.logo && <img src={db.logo} alt={db.name} />}
             <div className="pdf-contact">
-              <div>◎ &nbsp; www.suvsanoat.uz</div>
-              <div>⌕ &nbsp; +998 77 304 34 00</div>
-              <div>✉ &nbsp; suvsanoat@gmail.com</div>
+              {db.contacts.map((c) => (
+                <div key={c}>◎ &nbsp; {c}</div>
+              ))}
             </div>
           </div>
 
@@ -549,7 +553,7 @@ function PrintDocument({
 
         <div className="pdf-cover-bottom">
           <strong>РАСЧЁТ ВЫПОЛНЕН</strong>
-          <b>SUVSANOAT ENGINEERING SYSTEMS</b>
+          <b>{[db.name, db.line2].filter(Boolean).join(" ")}</b>
         </div>
         <PrintFooter page={1} />
       </div>
@@ -860,7 +864,7 @@ function PrintDocument({
 
         <div className="pdf-sign">
           <span>РАСЧЁТ ВЫПОЛНЕН</span>
-          <b>SUVSANOAT ENGINEERING SYSTEMS</b>
+          <b>{[db.name, db.line2].filter(Boolean).join(" ")}</b>
           <small>{reportNumber} · {reportDate}</small>
         </div>
 
@@ -871,6 +875,7 @@ function PrintDocument({
 }
 
 function CompleteContent() {
+  const db = useDocBrand();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -1828,14 +1833,16 @@ function CompleteContent() {
       <style dangerouslySetInnerHTML={{ __html: printStyles }} />
       <div style={container}>
         <div className="print-cover">
-          <img
-            src="/suvsanoat-logo.png"
-            alt="SUVSANOAT"
-            className="print-cover-logo"
-          />
+          {db.logo && (
+            <img
+              src={db.logo}
+              alt={db.name}
+              className="print-cover-logo"
+            />
+          )}
 
           <div className="print-cover-kicker">
-            SUVSANOAT ENGINEERING SYSTEMS
+            {[db.name, db.line2].filter(Boolean).join(" ")}
           </div>
 
           <h1 className="print-cover-title">
@@ -1884,10 +1891,10 @@ function CompleteContent() {
           </div>
 
           <div className="print-cover-company">
-            <strong>SUVSANOAT ENGINEERING SYSTEMS</strong>
-            <span>www.suvsanoat.uz</span>
-            <span>+998 77 304 34 00</span>
-            <span>suvsanoat@gmail.com</span>
+            <strong>{[db.name, db.line2].filter(Boolean).join(" ")}</strong>
+            {db.contacts.map((c) => (
+              <span key={c}>{c}</span>
+            ))}
           </div>
         </div>
 
@@ -1900,7 +1907,7 @@ function CompleteContent() {
         </button>
 
         <div style={eyebrow}>
-          SUVSANOAT ENGINEERING AI
+          {[db.name, "ENGINEERING AI"].filter(Boolean).join(" ")}
         </div>
 
         <h1 style={title}>
@@ -2674,7 +2681,7 @@ function CompleteContent() {
             <div
               style={{
                 ...diagramBox,
-                borderColor: "#00d9ff",
+                borderColor: "var(--sv-accent)",
               }}
             >
               {technology}
@@ -2683,7 +2690,7 @@ function CompleteContent() {
               <span
                 style={{
                   fontSize: 12,
-                  color: "#8ca4ad",
+                  color: "var(--sv-muted)",
                 }}
               >
                 {f(calc.volume, 1)} м³
@@ -2765,8 +2772,8 @@ export default function Complete() {
 
 const page: CSSProperties = {
   minHeight: "100vh",
-  background: "#06151d",
-  color: "#f4f7f8",
+  background: "var(--sv-bg)",
+  color: "var(--sv-ink)",
   fontFamily: "Arial, Helvetica, sans-serif",
 };
 
@@ -2787,7 +2794,7 @@ const back: CSSProperties = {
 };
 
 const eyebrow: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: "3px",
@@ -2802,22 +2809,22 @@ const title: CSSProperties = {
 
 const lead: CSSProperties = {
   maxWidth: 850,
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 17,
   lineHeight: 1.7,
   margin: "24px 0 48px",
 };
 
 const section: CSSProperties = {
-  border: "1px solid #1c3742",
+  border: "1px solid var(--sv-line)",
   borderRadius: 14,
-  background: "#081b24",
+  background: "var(--sv-card)",
   padding: 28,
   marginBottom: 22,
 };
 
 const sectionLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: "2px",
@@ -2833,13 +2840,13 @@ const grid: CSSProperties = {
 
 const card: CSSProperties = {
   padding: 19,
-  border: "1px solid #1c3742",
+  border: "1px solid var(--sv-line)",
   background: "#0a2029",
   borderRadius: 9,
 };
 
 const smallLabel: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.4px",
@@ -2855,13 +2862,13 @@ const techBox: CSSProperties = {
 };
 
 const techName: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 25,
   fontWeight: 800,
 };
 
 const paragraph: CSSProperties = {
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   lineHeight: 1.7,
   margin: "10px 0 0",
 };
@@ -2875,13 +2882,13 @@ const formulaBox: CSSProperties = {
 };
 
 const formulaText: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 19,
   fontWeight: 800,
 };
 
 const note: CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 12,
   lineHeight: 1.7,
   margin: "15px 0 0",
@@ -2892,13 +2899,13 @@ const equipmentRow: CSSProperties = {
   gridTemplateColumns: "50px 1fr",
   gap: 14,
   padding: 18,
-  border: "1px solid #1c3742",
+  border: "1px solid var(--sv-line)",
   background: "#0a2029",
   borderRadius: 8,
 };
 
 const equipmentNo: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
 };
@@ -2915,7 +2922,7 @@ const diagram: CSSProperties = {
   justifyContent: "center",
   gap: 10,
   flexWrap: "wrap",
-  border: "1px solid #1c3742",
+  border: "1px solid var(--sv-line)",
   borderRadius: 10,
   padding: 20,
   background:
@@ -2941,7 +2948,7 @@ const diagramBox: CSSProperties = {
 };
 
 const arrow: CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 26,
   fontWeight: 800,
 };
@@ -2957,8 +2964,8 @@ const primary: CSSProperties = {
   padding: "16px 26px",
   border: 0,
   borderRadius: 7,
-  background: "#f5f8fa",
-  color: "#06151d",
+  background: "var(--sv-ink)",
+  color: "var(--sv-bg)",
   fontWeight: 800,
   cursor: "pointer",
 };
@@ -2968,7 +2975,7 @@ const secondary: CSSProperties = {
   border: "1px solid #29444e",
   borderRadius: 7,
   background: "transparent",
-  color: "#f4f7f8",
+  color: "var(--sv-ink)",
   fontWeight: 700,
   cursor: "pointer",
 };

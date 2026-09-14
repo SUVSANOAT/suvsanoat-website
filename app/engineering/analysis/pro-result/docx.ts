@@ -229,7 +229,7 @@ function coreXml(meta: { title: string; subject?: string; creator?: string }): s
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <dc:title>${esc(meta.title)}</dc:title><dc:subject>${esc(meta.subject ?? "")}</dc:subject>
-<dc:creator>${esc(meta.creator ?? "SUVSANOAT")}</dc:creator><cp:lastModifiedBy>${esc(meta.creator ?? "SUVSANOAT")}</cp:lastModifiedBy>
+<dc:creator>${esc(meta.creator ?? "")}</dc:creator><cp:lastModifiedBy>${esc(meta.creator ?? "")}</cp:lastModifiedBy>
 <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
 </cp:coreProperties>`;
 }
@@ -388,7 +388,22 @@ export type TzAnswer = {
   where: string;
 };
 
-export const TZ_ANSWER_SYSTEM_PROMPT = `Ты — главный инженер-технолог компании SUVSANOAT (Ташкент, Узбекистан). Тебе дают: (1) готовый предварительный расчёт очистных сооружений в JSON и (2) перечень требований технического задания заказчика. Твоя задача — составить таблицу ответа на техническое задание по пунктам.
+/* Имя завода в задании модели — не украшение: модель пишет от его
+   лица, и на чужом адресе оно ушло бы в документ заказчика. Пусто —
+   модель пишет от лица инженера-технолога, без названия. */
+export function tzAnswerSystemPrompt(maker = ""): string {
+  return TZ_ANSWER_SYSTEM_PROMPT_BASE.replace(
+    "{{ROLE}}",
+    maker ? `главный инженер-технолог компании ${maker} (Ташкент, Узбекистан)` : "главный инженер-технолог",
+  );
+}
+
+/* Старое имя оставлено ради тех вызовов, которые могли остаться в
+   коде: пусть лучше документ выйдет без названия завода, чем сборка
+   упадёт на забытом импорте. Именно так она и упала один раз. */
+export const TZ_ANSWER_SYSTEM_PROMPT = /* @__PURE__ */ (() => tzAnswerSystemPrompt(""))();
+
+const TZ_ANSWER_SYSTEM_PROMPT_BASE = `Ты — {{ROLE}}. Тебе дают: (1) готовый предварительный расчёт очистных сооружений в JSON и (2) перечень требований технического задания заказчика. Твоя задача — составить таблицу ответа на техническое задание по пунктам.
 
 Правила, нарушать нельзя:
 1. Ты НЕ считаешь и НЕ проектируешь. Ты только сопоставляешь пункт ТЗ с тем, что УЖЕ есть в переданных данных расчёта. Никаких новых чисел, объёмов, концентраций, марок, сроков и цен.
@@ -444,6 +459,18 @@ export type NoteLang = "ru" | "uz" | "en" | "zh";
 
 export type NoteDocxOptions = {
   lang?: NoteLang;
+  /**
+   * Имя завода-изготовителя для частей A/B. Пусто — документ пишет
+   * безлично («заводское изготовление»). Подставлять сюда имя
+   * покупателя доступа нельзя: он не изготавливает оборудование.
+   */
+  maker?: string;
+  /**
+   * Организация, выдавшая записку: она же стоит в титуле и в
+   * свойствах файла. Это не то же, что maker: записку выдаёт тот, у
+   * кого доступ, а изготавливает завод.
+   */
+  company?: string;
   /** требования ТЗ из разбора документа (tz-extract.ts) */
   requirements?: TzRequirement[];
   /** сопоставление требований с решением; пусто — колонки помечаются как ручные */
@@ -468,13 +495,32 @@ const LABELS = {
   ru: {
     title: "Пояснительная записка",
     subtitle: "Предварительное решение по очистке сточных вод",
-    company: "SUVSANOAT",
   },
 } as const;
 
 /** Подписи документа. Кроме русского пока ничего нет — вызов возвращает ru. */
 function labels(_lang: NoteLang) {
   return LABELS.ru;
+}
+
+/* ==================================================================
+ * КТО ИЗГОТАВЛИВАЕТ — ЭТО НЕ ОФОРМЛЕНИЕ
+ *
+ * Разделение спецификации на части A и B говорит о происхождении
+ * позиции: A изготавливает завод, B закупается. Пока имя завода было
+ * вписано в код, записка, выданная по купленному доступу, утверждала,
+ * что оборудование делает SUVSANOAT.
+ *
+ * Подставить вместо него имя покупателя нельзя: проектный институт
+ * ничего не изготавливает, и такой документ утверждал бы неправду.
+ * Поэтому когда завод не назван, текст становится безличным:
+ * «заводское изготовление». Смысл разделения сохраняется, ложного
+ * утверждения нет.
+ * ================================================================== */
+
+/** Имя завода-изготовителя; пусто — безличные формулировки. */
+function makerName(opts: { maker?: string }): string {
+  return (opts.maker ?? "").trim();
 }
 
 function f(v: number, digits = 0): string {
@@ -485,11 +531,15 @@ function today(): string {
   return new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-const MAKES: Record<string, string> = {
-  own: "изготовление SUVSANOAT (стеклопластик, Ташкент)",
-  "own-partial": "корпус и обвязка — SUVSANOAT, технологические узлы — комплектация",
-  supply: "комплектация от партнёров",
-};
+function makes(maker: string): Record<string, string> {
+  return {
+    own: maker ? `изготовление ${maker} (стеклопластик, Ташкент)` : "заводское изготовление",
+    "own-partial": maker
+      ? `корпус и обвязка — ${maker}, технологические узлы — комплектация`
+      : "корпус и обвязка — заводское изготовление, технологические узлы — комплектация",
+    supply: "комплектация от партнёров",
+  };
+}
 
 /** пункты ҚМҚ по ключу ступени — из уже собранного перечня, ничего нового */
 function clausesForStage(key: string, all: string[]): string {
@@ -500,11 +550,15 @@ function clausesForStage(key: string, all: string[]): string {
 
 export function buildNoteBlocks(n: NoteInput, opts: NoteDocxOptions = {}): DocxBlock[] {
   const L = labels(opts.lang ?? "ru");
+  const maker = makerName(opts);
+  const MAKES = makes(maker);
   const b: DocxBlock[] = [];
   const norms = n.norms?.length ? n.norms : kmkClausesFor(n.stages.map((s) => s.key));
 
   /* ---------- 1. Титульный блок ---------- */
-  b.push({ t: "p", text: L.company, style: "small" });
+  /* Титульная подпись — организация, выдавшая записку. Пусто —
+     строки просто нет: пустой заголовок хуже отсутствующего. */
+  if (opts.company) b.push({ t: "p", text: opts.company, style: "small" });
   b.push({ t: "p", text: L.title, style: "title" });
   b.push({ t: "p", text: L.subtitle, style: "subtitle" });
   b.push({
@@ -517,7 +571,7 @@ export function buildNoteBlocks(n: NoteInput, opts: NoteDocxOptions = {}): DocxB
       ["Исполнение по расходу", n.scale],
       ["Стадия", "предварительная (П), онлайн-расчёт"],
       ["Дата", today()],
-      ["Исполнитель", opts.author ? `${L.company}, ${opts.author}` : `${L.company}, Ташкент`],
+      ["Исполнитель", [opts.company, opts.author].filter(Boolean).join(", ") || "—"],
       ["Нормативная база", kmkDocLine()],
     ],
     widths: [28, 72],
@@ -785,7 +839,7 @@ export function buildNoteBlocks(n: NoteInput, opts: NoteDocxOptions = {}): DocxB
     t: "p",
     text:
       "Состав оборудования определён технологией, а не тем, что производит завод. Разделение на части A и B " +
-      "показывает лишь происхождение позиции: часть A изготавливает SUVSANOAT, часть B закупается " +
+      `показывает лишь происхождение позиции: часть A ${maker ? `изготавливает ${maker}` : "изготавливается на заводе"}, часть B закупается ` +
       "комплектующими. На состав решения это разделение не влияет.",
   });
 
@@ -810,7 +864,7 @@ export function buildNoteBlocks(n: NoteInput, opts: NoteDocxOptions = {}): DocxB
   const specHead = ["№", "Ступень", "Позиция", "Расчётный параметр", "Кол-во", "Примечание"];
   const specWidths = [5, 20, 24, 25, 10, 16];
 
-  b.push({ t: "h", level: 2, text: "4.1. Часть A — изготавливает SUVSANOAT" });
+  b.push({ t: "h", level: 2, text: maker ? `4.1. Часть A — изготавливает ${maker}` : "4.1. Часть A — заводское изготовление" });
   if (partA.length) {
     b.push({ t: "table", head: specHead, rows: partA.map(specRow), widths: specWidths });
   } else {
@@ -821,7 +875,7 @@ export function buildNoteBlocks(n: NoteInput, opts: NoteDocxOptions = {}): DocxB
     b.push({
       t: "p",
       text:
-        "Готовые изделия SUVSANOAT, подходящие под позиции части A: " +
+        `Готовые изделия${maker ? ` ${maker}` : " завода-изготовителя"}, подходящие под позиции части A: ` +
         picks.map((k) => `${k.count > 1 ? k.count + " × " : ""}${k.code} (${k.params})`).join("; ") +
         ".",
       style: "small",
@@ -953,6 +1007,6 @@ export function buildNoteDocx(n: NoteInput, opts: NoteDocxOptions = {}): Uint8Ar
   return buildDocxFile(buildNoteBlocks(n, opts), {
     title: `${L.title}. ${n.object || n.industry}`,
     subject: L.subtitle,
-    creator: L.company,
+    creator: opts.company ?? "",
   });
 }

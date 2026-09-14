@@ -31,6 +31,8 @@ import { calculateWaterNetwork, type NetLink, type NetNode } from "../../../calc
 import { buildSpecification } from "../../../calculations/water-spec";
 import { buildSpecSheets } from "../../../calculations/spec-xlsx";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/brands";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_POINTS = 5000;
@@ -120,9 +122,14 @@ function xlsxResponse(bytes: Uint8Array, filename: string) {
 }
 
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
+
+  /* Ведомость — такой же документ, как отчёт: имя владельца в
+     свойствах файла и в названии берётся из бренда. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -179,6 +186,7 @@ export async function POST(request: Request) {
       });
       const sheets = buildSpecSheets({
         heading: "Водопроводная сеть населённого пункта",
+        company: brand.title,
         object,
         spec,
         assumptions: [...demand.assumptions, ...net.assumptions],
@@ -187,9 +195,9 @@ export async function POST(request: Request) {
       const xlsx = buildXlsxFile(sheets, {
         title: `Ведомость водопроводной сети — ${object ?? "объект"}`,
         subject: "Ведомость материалов и оборудования",
-        creator: "SUVSANOAT",
+        creator: brand.title,
       });
-      return xlsxResponse(xlsx, "SUVSANOAT_vedomost_vodoprovodnoy_seti.xlsx");
+      return xlsxResponse(xlsx, `${filePrefix(brand.title)}_vedomost_vodoprovodnoy_seti.xlsx`);
     }
 
     /* ---------------- напорный водовод ---------------- */
@@ -239,6 +247,7 @@ export async function POST(request: Request) {
     });
     const sheets = buildSpecSheets({
       heading: "Напорный водовод и каскад насосных станций",
+      company: brand.title,
       object,
       spec,
       assumptions: res.assumptions,
@@ -247,9 +256,9 @@ export async function POST(request: Request) {
     const xlsx = buildXlsxFile(sheets, {
       title: `Ведомость напорного водовода — ${object ?? "объект"}`,
       subject: "Ведомость материалов и оборудования",
-      creator: "SUVSANOAT",
+      creator: brand.title,
     });
-    return xlsxResponse(xlsx, "SUVSANOAT_vedomost_napornogo_vodovoda.xlsx");
+    return xlsxResponse(xlsx, `${filePrefix(brand.title)}_vedomost_napornogo_vodovoda.xlsx`);
   } catch (e) {
     console.error("vedomost-xlsx POST:", e);
     const msg = e instanceof Error ? e.message : "Не удалось собрать ведомость.";

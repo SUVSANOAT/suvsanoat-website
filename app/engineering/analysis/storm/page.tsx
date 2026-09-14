@@ -11,6 +11,8 @@
  * ================================================================== */
 
 import { CSSProperties, useMemo, useState } from "react";
+import { useBrand } from "../../BrandHeader";
+import { filePrefix } from "../../../../lib/file-prefix";
 import {
   calculateStorm,
   TABLE_4,
@@ -33,6 +35,9 @@ export default function StormPage() {
 }
 
 function StormPageContent() {
+  /* Имя файла — по владельцу доступа. */
+  const brand = useBrand();
+  const pfx = filePrefix(brand?.title);
   const [q20, setQ20] = useState("");
   const [zone, setZone] = useState<ClimateZone>("plains");
   const [period, setPeriod] = useState("1");
@@ -138,7 +143,7 @@ function StormPageContent() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
-      a.download = "SUVSANOAT_livnevaya_set.zip";
+      a.download = `${pfx}_livnevaya_set.zip`;
       a.click();
       URL.revokeObjectURL(href);
     } catch {

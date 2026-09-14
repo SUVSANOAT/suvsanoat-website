@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 import styles from "../../engineering.module.css";
 import {
   KMK_2_04_03_19,
@@ -28,7 +29,7 @@ import {
 
 /*
  * =========================================================
- * SUVSANOAT ENGINEERING
+ * ИНЖЕНЕРНЫЙ РАСЧЁТ
  *
  * ШАГ 02 — РАСЧЁТНЫЕ РАСХОДЫ СТОЧНЫХ ВОД
  *
@@ -177,6 +178,7 @@ function getSmallFlowCalculation(
 
 
 function SuvsanoatBrandHeader() {
+  const db = useDocBrand();
   return (
     <header
       style={{
@@ -191,9 +193,9 @@ function SuvsanoatBrandHeader() {
         background: "rgba(8,27,36,.82)",
       }}
     >
-      <img
-        src="/suvsanoat-logo.png"
-        alt="SUVSANOAT ENGINEERING SYSTEMS"
+      {db.logo && <img
+        src={db.logo}
+        alt={db.name}
         style={{
           display: "block",
           width: 270,
@@ -201,7 +203,7 @@ function SuvsanoatBrandHeader() {
           maxWidth: "48vw",
           objectFit: "contain",
         }}
-      />
+      />}
 
       <div
         style={{
@@ -210,38 +212,39 @@ function SuvsanoatBrandHeader() {
           justifyContent: "flex-end",
           gap: 14,
           flexWrap: "wrap",
-          color: "#8fa6b1",
+          color: "var(--sv-muted)",
           fontSize: 12,
           lineHeight: 1.4,
         }}
       >
-        <a
-          href="https://www.suvsanoat.uz"
+        {db.site && <a
+          href={`https://${db.site}`}
           target="_blank"
           rel="noreferrer"
-          style={{ color: "#00d9ff", textDecoration: "none", fontWeight: 800 }}
+          style={{ color: "var(--sv-accent)", textDecoration: "none", fontWeight: 800 }}
         >
-          www.suvsanoat.uz
-        </a>
+          {db.site}
+        </a>}
         <span>+998 77 304 34 00</span>
-        <a
-          href="mailto:suvsanoat@gmail.com"
-          style={{ color: "#8fa6b1", textDecoration: "none" }}
+        {db.email && <a
+          href={`mailto:${db.email}`}
+          style={{ color: "var(--sv-muted)", textDecoration: "none" }}
         >
-          suvsanoat@gmail.com
-        </a>
+          {db.email}
+        </a>}
       </div>
     </header>
   );
 }
 
 function SuvsanoatBrandFooter() {
+  const db = useDocBrand();
   return (
     <footer
       style={{
         marginTop: 42,
         paddingTop: 22,
-        borderTop: "1px solid #1c3742",
+        borderTop: "1px solid var(--sv-line)",
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "space-between",
@@ -260,7 +263,7 @@ function SuvsanoatBrandFooter() {
             letterSpacing: ".08em",
           }}
         >
-          SUVSANOAT ENGINEERING SYSTEMS
+          {[db.name, db.line2].filter(Boolean).join(" ")}
         </div>
         <div>
           Расчёт, предварительный инженерный подбор и техническая аналитика.
@@ -268,15 +271,15 @@ function SuvsanoatBrandFooter() {
       </div>
 
       <div style={{ textAlign: "right" }}>
-        <a
-          href="https://www.suvsanoat.uz"
+        {db.site && <a
+          href={`https://${db.site}`}
           target="_blank"
           rel="noreferrer"
-          style={{ color: "#00d9ff", textDecoration: "none", fontWeight: 800 }}
+          style={{ color: "var(--sv-accent)", textDecoration: "none", fontWeight: 800 }}
         >
-          www.suvsanoat.uz
-        </a>
-        <div>+998 77 304 34 00 · suvsanoat@gmail.com</div>
+          {db.site}
+        </a>}
+        <div>{[db.phone, db.email].filter(Boolean).join(" · ")}</div>
       </div>
     </footer>
   );
@@ -961,7 +964,7 @@ function FlowContent() {
 
                   <div
                     style={{
-                      color: "#f5f8fa",
+                      color: "var(--sv-ink)",
                       fontSize: 14,
                       fontWeight: 700,
                       lineHeight: 1.6,

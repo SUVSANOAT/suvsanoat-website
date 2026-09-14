@@ -2,6 +2,7 @@
 
 import React, { Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 
 import {
   KMK_2_04_03_19,
@@ -153,7 +154,7 @@ function Card({
         style={{
           fontSize: 21,
           fontWeight: 800,
-          color: accent ? "#00d9ff" : "#f4f7f8",
+          color: accent ? "var(--sv-accent)" : "var(--sv-ink)",
         }}
       >
         {value}
@@ -222,6 +223,7 @@ function Section({
 }
 
 function NormsContent() {
+  const db = useDocBrand();
   const router = useRouter();
   const params = useSearchParams();
 
@@ -414,7 +416,7 @@ function NormsContent() {
         </button>
 
         <div style={eyebrow}>
-          SUVSANOAT ENGINEERING AI
+          {[db.name, "ENGINEERING AI"].filter(Boolean).join(" ")}
         </div>
 
         <h1 style={title}>
@@ -1302,7 +1304,7 @@ function NormsContent() {
 
               Нормативный модуль является частью
               предварительного инженерного
-              расчёта SUVSANOAT Engineering AI.
+              расчёта{db.name ? ` ${db.name}` : ""} Engineering AI.
               Окончательное проектное решение
               должно быть подтверждено инженером
               и рабочей проектной документацией.
@@ -1376,8 +1378,8 @@ export default function NormsPage() {
 
 const page: React.CSSProperties = {
   minHeight: "100vh",
-  background: "#06151d",
-  color: "#f4f7f8",
+  background: "var(--sv-bg)",
+  color: "var(--sv-ink)",
   fontFamily:
     "Arial, Helvetica, sans-serif",
 };
@@ -1400,7 +1402,7 @@ const back: React.CSSProperties = {
 };
 
 const eyebrow: React.CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: "3px",
@@ -1416,22 +1418,22 @@ const title: React.CSSProperties = {
 
 const lead: React.CSSProperties = {
   maxWidth: 850,
-  color: "#8ca4ad",
+  color: "var(--sv-muted)",
   fontSize: 17,
   lineHeight: 1.7,
   margin: "24px 0 48px",
 };
 
 const section: React.CSSProperties = {
-  border: "1px solid #1c3742",
+  border: "1px solid var(--sv-line)",
   borderRadius: 14,
-  background: "#081b24",
+  background: "var(--sv-card)",
   padding: 28,
   marginBottom: 22,
 };
 
 const sectionLabel: React.CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: "2px",
@@ -1454,7 +1456,7 @@ const card: React.CSSProperties = {
 };
 
 const smallLabel: React.CSSProperties = {
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 10,
   fontWeight: 800,
   letterSpacing: "1.5px",
@@ -1462,14 +1464,14 @@ const smallLabel: React.CSSProperties = {
 };
 
 const normDocument: React.CSSProperties = {
-  border: "1px solid #1c3742",
+  border: "1px solid var(--sv-line)",
   borderRadius: 10,
   padding: 20,
   background: "#071821",
 };
 
 const documentCode: React.CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 20,
   fontWeight: 900,
 };
@@ -1488,7 +1490,7 @@ const documentText: React.CSSProperties = {
 
 const documentSource: React.CSSProperties = {
   marginTop: 8,
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 13,
 };
 
@@ -1501,7 +1503,7 @@ const basisBox: React.CSSProperties = {
 };
 
 const basisTitle: React.CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 18,
   fontWeight: 800,
   marginBottom: 8,
@@ -1517,9 +1519,9 @@ const formula: React.CSSProperties = {
   marginTop: 12,
   padding: "11px 13px",
   borderRadius: 8,
-  background: "#06151d",
+  background: "var(--sv-bg)",
   border: "1px solid #1d3a46",
-  color: "#f4f7f8",
+  color: "var(--sv-ink)",
   fontFamily:
     "Consolas, 'Courier New', monospace",
   fontSize: 14,
@@ -1528,8 +1530,8 @@ const formula: React.CSSProperties = {
 const tableRange: React.CSSProperties = {
   marginTop: 15,
   paddingTop: 15,
-  borderTop: "1px solid #1c3742",
-  color: "#8ca4ad",
+  borderTop: "1px solid var(--sv-line)",
+  color: "var(--sv-muted)",
   lineHeight: 1.8,
   fontSize: 13,
 };
@@ -1543,9 +1545,9 @@ const table: React.CSSProperties = {
 const th: React.CSSProperties = {
   textAlign: "left",
   padding: 13,
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   background: "#071821",
-  borderBottom: "1px solid #1c3742",
+  borderBottom: "1px solid var(--sv-line)",
 };
 
 const td: React.CSSProperties = {
@@ -1565,7 +1567,7 @@ const conclusion: React.CSSProperties = {
 };
 
 const conclusionTitle: React.CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 900,
   letterSpacing: "2px",
@@ -1580,7 +1582,7 @@ const paragraph: React.CSSProperties = {
 
 const note: React.CSSProperties = {
   marginTop: 16,
-  color: "#657983",
+  color: "var(--sv-faint2)",
   fontSize: 12,
   lineHeight: 1.6,
 };
@@ -1594,8 +1596,8 @@ const actions: React.CSSProperties = {
 
 const secondary: React.CSSProperties = {
   border: "1px solid #244450",
-  background: "#081b24",
-  color: "#f4f7f8",
+  background: "var(--sv-card)",
+  color: "var(--sv-ink)",
   borderRadius: 9,
   padding: "14px 20px",
   cursor: "pointer",
@@ -1604,7 +1606,7 @@ const secondary: React.CSSProperties = {
 };
 
 const primary: React.CSSProperties = {
-  border: "1px solid #00d9ff",
+  border: "1px solid var(--sv-accent)",
   background: "#00a9d4",
   color: "#ffffff",
   borderRadius: 9,

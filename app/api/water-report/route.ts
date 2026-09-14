@@ -36,7 +36,8 @@ import { WATER_PIPE, type Lining, type WaterPipeKind } from "../../../calculatio
 import { buildReportBlocks, reportDocxMeta } from "../../../calculations/water-report";
 import { buildSpecification } from "../../../calculations/water-spec";
 import { sessionFromRequest } from "../../../lib/session";
-import { getBrand, getBrandByHost, userBrandSlug } from "../../../lib/brands";
+import { filePrefix } from "../../../lib/brands";
+import { resolveBrand } from "../../../lib/report-brand";
 import { loadBrandLogo } from "../../../lib/brand-logo";
 import { dbUrl } from "../../../lib/auth";
 
@@ -96,12 +97,7 @@ function parseLinks(raw: unknown): NetLink[] {
 
 async function reportBrand(login: string, host: string | null) {
   try {
-    const slug = dbUrl() ? await userBrandSlug(login) : null;
-    /* Если у человека своего бренда нет, берётся бренд домена: на
-       отдельном адресе отчёт обязан выходить под его знаком, а не под
-       нашим. */
-    const byHost = slug ? null : await getBrandByHost(host);
-    const brand = byHost ?? (await getBrand(slug));
+    const brand = await resolveBrand(login, host);
     return { title: brand.title, subtitle: brand.subtitle, logo: await loadBrandLogo(brand.logo_url) };
   } catch {
     return undefined;
@@ -179,11 +175,15 @@ export async function POST(request: Request) {
       installReservePct: num(body.installReservePct),
     });
 
+    /* Бренд запрашивается один раз: он нужен и внутри документа
+       (знак в шапке), и в имени файла. */
+    const brand = await reportBrand(session.u, request.headers.get("host"));
+
     const peopleByNode: Record<string, number | undefined> = {};
     nodes.forEach((n) => (peopleByNode[n.id] = n.people));
 
     const report = {
-      brand: await reportBrand(session.u, request.headers.get("host")),
+      brand,
       object: String(body.object ?? "").slice(0, 160) || undefined,
       settlement,
       terrain,
@@ -205,7 +205,7 @@ export async function POST(request: Request) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="SUVSANOAT_raschet_vodoprovodnoy_seti.docx"`,
+        "Content-Disposition": `attachment; filename="${filePrefix(brand?.title)}_raschet_vodoprovodnoy_seti.docx"`,
         "Content-Length": String(docx.byteLength),
         "Cache-Control": "no-store",
       },

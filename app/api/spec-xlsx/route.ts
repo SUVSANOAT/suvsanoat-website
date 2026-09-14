@@ -23,6 +23,8 @@ import type { PackageOptions } from "../../../drawings/package/build";
 import { buildSpecWorkbook } from "../../engineering/analysis/pro-result/xlsx";
 import { mergeAssumptions } from "../../../lib/assumptions";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/file-prefix";
+import { resolveBrand } from "../../../lib/report-brand";
 
 /** предел размера тела запроса: контур участка длинным не бывает */
 const MAX_BODY_BYTES = 256 * 1024;
@@ -164,6 +166,9 @@ export async function POST(request: Request) {
   const session = await sessionFromRequest(request);
   if (!session) return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
 
+  /* Имя владельца доступа — для названия файла и подписей документа. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
+
   const read = await readBody(request);
   if ("error" in read) return Response.json({ ok: false, error: read.error }, { status: 400 });
 
@@ -185,7 +190,7 @@ export async function POST(request: Request) {
     /* копия в собственный ArrayBuffer — корректное тело ответа */
     const buffer = new ArrayBuffer(xlsx.byteLength);
     new Uint8Array(buffer).set(xlsx);
-    const name = `SUVSANOAT_specifikaciya_${fileSlug(input.object) || "obj"}_${Math.round(input.q)}m3.xlsx`;
+    const name = `${filePrefix(brand.title)}_specifikaciya_${fileSlug(input.object) || "obj"}_${Math.round(input.q)}m3.xlsx`;
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

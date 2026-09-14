@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 import {
   KMK_2_04_03_19_DOC,
   TABLE_2_NOTES,
@@ -1114,8 +1115,8 @@ function Loading() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#06151d",
-        color: "#f5f8fa",
+        background: "var(--sv-bg)",
+        color: "var(--sv-ink)",
         padding: "70px 24px 100px",
       }}
     >
@@ -1128,7 +1129,7 @@ function Loading() {
       >
         <div
           style={{
-            color: "#00d9ff",
+            color: "var(--sv-accent)",
             fontSize: 12,
             fontWeight: 800,
             letterSpacing: "0.18em",
@@ -1156,6 +1157,7 @@ function Loading() {
 }
 
 function EquipmentContent() {
+  const db = useDocBrand();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1668,8 +1670,8 @@ function EquipmentContent() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#06151d",
-        color: "#f5f8fa",
+        background: "var(--sv-bg)",
+        color: "var(--sv-ink)",
         padding: "38px 24px 100px",
       }}
     >
@@ -1681,14 +1683,14 @@ function EquipmentContent() {
         }}
       >
         {/* =========================================================
-            SUVSANOAT — OFFICIAL BRAND HEADER
+            ФИРМЕННАЯ ШАПКА — данные берутся из бренда адреса
             ========================================================= */}
         <header
           style={{
             width: "100%",
             boxSizing: "border-box",
-            border: "1px solid #174454",
-            background: "#071b24",
+            border: "1px solid var(--sv-accent-line)",
+            background: "var(--sv-card)",
             borderRadius: 14,
             padding: "18px 24px",
             marginBottom: 46,
@@ -1706,8 +1708,8 @@ function EquipmentContent() {
               minWidth: 240,
             }}
           >
-            <img
-              src="/suvsanoat-logo.png"
+            {db.logo && <img
+              src={db.logo}
               alt="Suvsanoat Engineering Systems"
               style={{
                 display: "block",
@@ -1720,7 +1722,7 @@ function EquipmentContent() {
                 event.currentTarget.onerror = null;
                 event.currentTarget.src = "/logo.png";
               }}
-            />
+            />}
           </div>
 
           <div
@@ -1734,23 +1736,23 @@ function EquipmentContent() {
               lineHeight: 1.5,
             }}
           >
-            <a
-              href="https://www.suvsanoat.uz"
+            {db.site && <a
+              href={`https://${db.site}`}
               target="_blank"
               rel="noreferrer"
               style={{
-                color: "#00d9ff",
+                color: "var(--sv-accent)",
                 fontWeight: 800,
                 textDecoration: "none",
               }}
             >
-              www.suvsanoat.uz
-            </a>
+              {db.site}
+            </a>}
 
             <a
               href="tel:+998773043400"
               style={{
-                color: "#b7cbd3",
+                color: "var(--sv-th)",
                 textDecoration: "none",
                 whiteSpace: "nowrap",
               }}
@@ -1758,16 +1760,16 @@ function EquipmentContent() {
               +998 77 304 34 00
             </a>
 
-            <a
-              href="mailto:suvsanoat@gmail.com"
+            {db.email && <a
+              href={`mailto:${db.email}`}
               style={{
-                color: "#b7cbd3",
+                color: "var(--sv-th)",
                 textDecoration: "none",
                 whiteSpace: "nowrap",
               }}
             >
-              suvsanoat@gmail.com
-            </a>
+              {db.email}
+            </a>}
           </div>
         </header>
 
@@ -1789,7 +1791,7 @@ function EquipmentContent() {
 
         <div
           style={{
-            color: "#00d9ff",
+            color: "var(--sv-accent)",
             fontSize: 12,
             fontWeight: 800,
             letterSpacing: "0.18em",
@@ -1807,7 +1809,7 @@ function EquipmentContent() {
           }}
         >
           Объект:{" "}
-          <strong style={{ color: "#00d9ff" }}>
+          <strong style={{ color: "var(--sv-accent)" }}>
             {object}
           </strong>
         </div>
@@ -1821,7 +1823,7 @@ function EquipmentContent() {
             }}
           >
             Расчётное количество людей:{" "}
-            <strong style={{ color: "#f5f8fa" }}>
+            <strong style={{ color: "var(--sv-ink)" }}>
               {people}
             </strong>
           </div>
@@ -1836,7 +1838,7 @@ function EquipmentContent() {
             }}
           >
             Продолжительность работы:{" "}
-            <strong style={{ color: "#f5f8fa" }}>
+            <strong style={{ color: "var(--sv-ink)" }}>
               {hours} ч/сут
             </strong>
           </div>
@@ -1851,7 +1853,7 @@ function EquipmentContent() {
             }}
           >
             Расчётный расход:{" "}
-            <strong style={{ color: "#f5f8fa" }}>
+            <strong style={{ color: "var(--sv-ink)" }}>
               {flow} м³/сутки
             </strong>
           </div>
@@ -1865,7 +1867,7 @@ function EquipmentContent() {
             padding: "10px 16px",
             border: "1px solid #14566a",
             background: "#08222c",
-            color: "#00d9ff",
+            color: "var(--sv-accent)",
             fontWeight: 800,
             fontSize: 14,
             marginBottom: 28,
@@ -1931,7 +1933,7 @@ function EquipmentContent() {
 
               <div
                 style={{
-                  color: "#00d9ff",
+                  color: "var(--sv-accent)",
                   fontSize: 11,
                   fontWeight: 800,
                   letterSpacing: "0.12em",
@@ -2026,7 +2028,7 @@ function EquipmentContent() {
                 lineHeight: 1.7,
               }}
             >
-              <strong style={{ color: "#00d9ff" }}>
+              <strong style={{ color: "var(--sv-accent)" }}>
                 НОРМАТИВНОЕ ОСНОВАНИЕ:
               </strong>{" "}
               {hydraulicCalculation.nonuniformitySource}. Средний расход
@@ -2159,7 +2161,7 @@ function EquipmentContent() {
                 <div
                   style={{
                     marginTop: 8,
-                    color: "#00d9ff",
+                    color: "var(--sv-accent)",
                     fontSize: 11,
                     fontWeight: 800,
                     letterSpacing: "0.10em",
@@ -2264,7 +2266,7 @@ function EquipmentContent() {
                 lineHeight: 1.7,
               }}
             >
-              <strong style={{ color: "#00d9ff" }}>
+              <strong style={{ color: "var(--sv-accent)" }}>
                 ЦИКЛ SBR — ПРЕДВАРИТЕЛЬНАЯ СХЕМА:
               </strong>
               <br />
@@ -2309,7 +2311,7 @@ function EquipmentContent() {
                 <div style={{ color: "#829daa", fontSize: 12, fontWeight: 800, letterSpacing: "0.16em" }}>
                   КОМБИНИРОВАННЫЙ РАСЧЁТ ANBR + MBR
                 </div>
-                <div style={{ marginTop: 8, color: "#00d9ff", fontSize: 11, fontWeight: 800, letterSpacing: "0.10em" }}>
+                <div style={{ marginTop: 8, color: "var(--sv-accent)", fontSize: 11, fontWeight: 800, letterSpacing: "0.10em" }}>
                   ANBR → MBR / ПРЕДВАРИТЕЛЬНЫЙ БАЛАНС НАГРУЗКИ
                 </div>
               </div>
@@ -2346,7 +2348,7 @@ function EquipmentContent() {
             </div>
 
             <div style={{ marginTop: 20, padding: "16px 18px", border: "1px solid #18323e", background: "#061820", color: "#718b96", fontSize: 12, lineHeight: 1.7 }}>
-              <strong style={{ color: "#00d9ff" }}>БАЛАНС:</strong>
+              <strong style={{ color: "var(--sv-accent)" }}>БАЛАНС:</strong>
               <br />
               Исходная БПК₅ → ANBR → остаточная БПК₅ → MBR → очищенная вода.
               <br /><br />
@@ -2396,7 +2398,7 @@ function EquipmentContent() {
                 <div
                   style={{
                     marginTop: 8,
-                    color: "#00d9ff",
+                    color: "var(--sv-accent)",
                     fontSize: 11,
                     fontWeight: 800,
                     letterSpacing: "0.10em",
@@ -2543,7 +2545,7 @@ function EquipmentContent() {
                 lineHeight: 1.7,
               }}
             >
-              <strong style={{ color: "#00d9ff" }}>
+              <strong style={{ color: "var(--sv-accent)" }}>
                 ОСНОВАНИЕ И ДОПУЩЕНИЯ:
               </strong>
               <br />
@@ -2605,7 +2607,7 @@ function EquipmentContent() {
                 <div
                   style={{
                     marginTop: 8,
-                    color: "#00d9ff",
+                    color: "var(--sv-accent)",
                     fontSize: 11,
                     fontWeight: 800,
                     letterSpacing: "0.10em",
@@ -2709,7 +2711,7 @@ function EquipmentContent() {
                 lineHeight: 1.7,
               }}
             >
-              <strong style={{ color: "#00d9ff" }}>
+              <strong style={{ color: "var(--sv-accent)" }}>
                 ОСНОВАНИЕ И ДОПУЩЕНИЯ:
               </strong>
               <br />
@@ -2823,7 +2825,7 @@ function EquipmentContent() {
                 lineHeight: 1.7,
               }}
             >
-              <strong style={{ color: "#00d9ff" }}>ОСНОВАНИЕ:</strong>
+              <strong style={{ color: "var(--sv-accent)" }}>ОСНОВАНИЕ:</strong>
               <br />
               • {DISINFECTION.chlorineDose.ref}: доза активного хлора после
               биологической очистки {DISINFECTION.chlorineDose.afterBio} г/м³
@@ -2908,7 +2910,7 @@ function EquipmentContent() {
 
             <div
               style={{
-                color: "#00d9ff",
+                color: "var(--sv-accent)",
                 fontSize: 12,
                 fontWeight: 800,
               }}
@@ -2975,7 +2977,7 @@ function EquipmentContent() {
                 width: "23%",
                 minWidth: 150,
                 height: 170,
-                border: "2px solid #00d9ff",
+                border: "2px solid var(--sv-accent)",
                 background: "#082832",
                 display: "flex",
                 flexDirection: "column",
@@ -2988,7 +2990,7 @@ function EquipmentContent() {
             >
               <strong
                 style={{
-                  color: "#00d9ff",
+                  color: "var(--sv-accent)",
                   fontSize: 20,
                 }}
               >
@@ -3085,7 +3087,7 @@ function EquipmentContent() {
 
             <div
               style={{
-                color: "#00d9ff",
+                color: "var(--sv-accent)",
                 fontSize: 12,
                 fontWeight: 800,
               }}
@@ -3112,7 +3114,7 @@ function EquipmentContent() {
             >
               <div
                 style={{
-                  color: "#00d9ff",
+                  color: "var(--sv-accent)",
                   fontSize: 12,
                   fontWeight: 800,
                 }}
@@ -3254,8 +3256,8 @@ function EquipmentContent() {
             style={{
               padding: "16px 28px",
               border: "none",
-              background: "#f5f8fa",
-              color: "#06151d",
+              background: "var(--sv-ink)",
+              color: "var(--sv-bg)",
               cursor: "pointer",
               fontSize: 15,
               fontWeight: 800,
@@ -3285,33 +3287,33 @@ function EquipmentContent() {
           style={{
             marginTop: 52,
             paddingTop: 22,
-            borderTop: "1px solid #173640",
+            borderTop: "1px solid var(--sv-line)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 18,
             flexWrap: "wrap",
-            color: "#66808b",
+            color: "var(--sv-faint)",
             fontSize: 12,
             lineHeight: 1.6,
           }}
         >
-          <span>SUVSANOAT ENGINEERING SYSTEMS</span>
+          <span>{[db.name, db.line2].filter(Boolean).join(" ")}</span>
 
-          <span>Инженерный расчёт подготовлен SUVSANOAT</span>
+          <span>{db.name ? `Инженерный расчёт подготовлен ${db.name}` : "Инженерный расчёт"}</span>
 
-          <a
-            href="https://www.suvsanoat.uz"
+          {db.site && <a
+            href={`https://${db.site}`}
             target="_blank"
             rel="noreferrer"
             style={{
-              color: "#00d9ff",
+              color: "var(--sv-accent)",
               fontWeight: 700,
               textDecoration: "none",
             }}
           >
-            www.suvsanoat.uz
-          </a>
+            {db.site}
+          </a>}
         </footer>
       </div>
     </main>
@@ -3348,7 +3350,7 @@ function CalculationCard({
 
       <div
         style={{
-          color: "#00d9ff",
+          color: "var(--sv-accent)",
           fontSize: 22,
           fontWeight: 800,
           lineHeight: 1.2,
@@ -3419,7 +3421,7 @@ function PlanArrow({
         position: "absolute",
         left,
         top: "48%",
-        color: "#00d9ff",
+        color: "var(--sv-accent)",
         fontSize: 24,
       }}
     >

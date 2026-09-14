@@ -63,6 +63,8 @@ export type MainSheetMeta = {
   object: string;
   no?: string;
   index?: number;
+  /** разработчик в штампе; пусто — наш */
+  firm?: { name: string; subtitle?: string; contact?: string };
   rev?: string;
   date?: string;
   stage?: string;
@@ -123,6 +125,7 @@ function oneSheet(
     no: meta.no ?? sheetNo(objectCode(meta.object), "M", (meta.index ?? 1) + page - 1),
     title: "Продольный профиль напорного водовода" + part,
     object: meta.object,
+    firm: meta.firm,
     scale: hScale,
     rev: meta.rev,
     date: meta.date,

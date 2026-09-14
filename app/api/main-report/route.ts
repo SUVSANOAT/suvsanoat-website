@@ -30,7 +30,8 @@ import {
   segmentReportDocxMeta,
 } from "../../../calculations/main-report";
 import { sessionFromRequest } from "../../../lib/session";
-import { getBrand, getBrandByHost, userBrandSlug } from "../../../lib/brands";
+import { filePrefix } from "../../../lib/brands";
+import { resolveBrand } from "../../../lib/report-brand";
 import { loadBrandLogo } from "../../../lib/brand-logo";
 import { dbUrl } from "../../../lib/auth";
 
@@ -85,12 +86,7 @@ function docxResponse(bytes: Uint8Array, filename: string) {
  */
 async function reportBrand(login: string, host: string | null) {
   try {
-    const slug = dbUrl() ? await userBrandSlug(login) : null;
-    /* Если у человека своего бренда нет, берётся бренд домена: на
-       отдельном адресе отчёт обязан выходить под его знаком, а не под
-       нашим. */
-    const byHost = slug ? null : await getBrandByHost(host);
-    const brand = byHost ?? (await getBrand(slug));
+    const brand = await resolveBrand(login, host);
     return { title: brand.title, subtitle: brand.subtitle, logo: await loadBrandLogo(brand.logo_url) };
   } catch {
     return undefined;
@@ -148,9 +144,10 @@ export async function POST(request: Request) {
         pumpEff: num(body.pumpEff),
         motorEff: num(body.motorEff),
       });
-      const input = { object, material, lining, qM3H, geoLiftM, pipeLengthM, startElevM: num(body.startElevM), seg, brand: await reportBrand(session.u, request.headers.get("host")) };
+      const brand = await reportBrand(session.u, request.headers.get("host"));
+      const input = { object, material, lining, qM3H, geoLiftM, pipeLengthM, startElevM: num(body.startElevM), seg, brand };
       const docx = buildDocxFile(buildSegmentReportBlocks(input), segmentReportDocxMeta(input));
-      return docxResponse(docx, "SUVSANOAT_raschet_uchastka_vodovoda.docx");
+      return docxResponse(docx, `${filePrefix(brand?.title)}_raschet_uchastka_vodovoda.docx`);
     }
 
     /* ---------------- весь водовод ---------------- */
@@ -204,9 +201,10 @@ export async function POST(request: Request) {
       sectionSpacingM: num(body.sectionSpacingM),
     });
 
-    const input = { object, material, lining, qM3Day, hoursPerDay, lines, res, stages, spec, tariffPerKWh: num(body.tariffPerKWh), brand: await reportBrand(session.u, request.headers.get("host")) };
+    const brand = await reportBrand(session.u, request.headers.get("host"));
+    const input = { object, material, lining, qM3Day, hoursPerDay, lines, res, stages, spec, tariffPerKWh: num(body.tariffPerKWh), brand };
     const docx = buildDocxFile(buildMainReportBlocks(input), mainReportDocxMeta(input));
-    return docxResponse(docx, "SUVSANOAT_raschet_napornogo_vodovoda.docx");
+    return docxResponse(docx, `${filePrefix(brand?.title)}_raschet_napornogo_vodovoda.docx`);
   } catch (e) {
     console.error("main-report POST:", e);
     const msg = e instanceof Error ? e.message : "Не удалось собрать отчёт.";

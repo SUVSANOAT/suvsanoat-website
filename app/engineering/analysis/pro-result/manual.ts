@@ -3,7 +3,7 @@
  *
  * Пояснительная записка отвечает на вопрос «почему так спроектировано».
  * Руководство отвечает на другой: «что делать оператору в понедельник
- * утром». Это разные документы для разных людей, и второй SUVSANOAT
+ * утром». Это разные документы для разных людей, и второй завод
  * пишет руками к каждой поставке, хотя всё его содержимое у программы
  * уже есть: режимы, блокировки, реагенты, пусковой период, показатели.
  *
@@ -41,6 +41,14 @@ export type ManualInput = {
   /** дата и обозначение документа */
   date?: string;
   docNo?: string;
+  /** организация, выдавшая руководство; пусто — строки в титуле нет */
+  company?: string;
+  /**
+   * Завод-изготовитель для пометки «часть A». Пусто — безлично:
+   * подставлять сюда имя покупателя доступа нельзя, он оборудование
+   * не изготавливает.
+   */
+  maker?: string;
 };
 
 /* ------------------------------------------------------------------
@@ -237,7 +245,7 @@ export function buildManualBlocks(m: ManualInput): DocxBlock[] {
   const has = (k: string) => stageKeys.includes(k);
 
   /* ---------------- титул ---------------- */
-  B.push({ t: "p", text: "SUVSANOAT", style: "subtitle" });
+  if (m.company) B.push({ t: "p", text: m.company, style: "subtitle" });
   B.push({ t: "p", text: "РУКОВОДСТВО ПО ЭКСПЛУАТАЦИИ", style: "title" });
   B.push({ t: "p", text: `Очистные сооружения ${n.object ? `«${n.object}»` : ""} производительностью ${fmt(n.Q)} м³/сут`, style: "subtitle" });
   B.push({ t: "p", text: `${n.industry}${n.group ? ` (${n.group})` : ""}`, style: "subtitle" });
@@ -263,7 +271,7 @@ export function buildManualBlocks(m: ManualInput): DocxBlock[] {
 
   /* ---------------- 3. оборудование ---------------- */
   B.push({ t: "h", level: 1, text: "3. Состав оборудования" });
-  B.push({ t: "p", text: "A — производство SUVSANOAT, B — покупные комплектующие. Паспорта и руководства на оборудование группы B прилагаются производителями; настоящее руководство описывает работу станции как целого.", style: "small" });
+  B.push({ t: "p", text: `A — ${m.maker ? `производство ${m.maker}` : "заводское изготовление"}, B — покупные комплектующие. Паспорта и руководства на оборудование группы B прилагаются производителями; настоящее руководство описывает работу станции как целого.`, style: "small" });
   n.stages.forEach((s) => {
     if (!s.items.length && !s.picks.length) return;
     B.push({ t: "h", level: 2, text: `${s.index}. ${s.title}` });
@@ -414,6 +422,6 @@ export function buildManualDocx(m: ManualInput): Uint8Array {
   return buildDocxFile(buildManualBlocks(m), {
     title: `Руководство по эксплуатации — ${m.note.object || m.note.industry}, ${Math.round(m.note.Q)} м³/сут`,
     subject: "Руководство по эксплуатации очистных сооружений",
-    creator: "SUVSANOAT",
+    creator: m.company ?? "",
   });
 }

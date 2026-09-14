@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 
 import {
   GENERIC_INDUSTRY_ID,
@@ -62,11 +63,11 @@ const DEFAULT_TECH: string = MEMBRANE_REQUIRED_BY_DEFAULT ? REQUIRED_TECHNOLOGY 
  * specificFlow) — цифры на обеих страницах обязаны совпадать.
  * ================================================================== */
 
-const BG = "#06151d";
+const BG = "var(--sv-bg)";
 const PANEL = "rgba(255,255,255,0.04)";
 const LINE = "rgba(255,255,255,0.12)";
-const ACCENT = "#3ec3e6";
-const FAINT = "#8fa6b1";
+const ACCENT = "var(--sv-accent)";
+const FAINT = "var(--sv-muted)";
 
 const KEY_ORDER: PollutantKey[] = ["cod", "bod", "ss", "fats", "petro", "tn", "tp", "surf"];
 
@@ -224,14 +225,16 @@ const inputStyle = {
   borderRadius: 8,
   border: `1px solid ${LINE}`,
   background: "rgba(0,0,0,0.25)",
-  color: "#f5f8fa",
+  color: "var(--sv-ink)",
   fontSize: 15,
   boxSizing: "border-box",
 } as const;
 
 function IndustryContent() {
   const { language } = useLanguage();
-  const U = useMemo(() => ui(language), [language]);
+  const db = useDocBrand();
+  /* Подписи с именем владельца — под тем, чей это адрес. */
+  const U = useMemo(() => ui(language, db.name), [language, db.name]);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -702,7 +705,7 @@ function IndustryContent() {
     : INDUSTRIES.filter((item) => item.group === groupId);
 
   return (
-    <main style={{ minHeight: "100vh", background: BG, color: "#f5f8fa", padding: "60px 24px 110px" }}>
+    <main style={{ minHeight: "100vh", background: BG, color: "var(--sv-ink)", padding: "60px 24px 110px" }}>
       <div style={{ width: "100%", maxWidth: 980, margin: "0 auto" }}>
         {/* Шапка шага: назад слева, выбор языка справа. Переключатель
             обязан быть на каждой странице расчёта — общей шапки у сайта
@@ -747,7 +750,7 @@ function IndustryContent() {
                 borderRadius: 10,
                 border: `1px solid ${LINE}`,
                 background: "transparent",
-                color: "#eaf6fa",
+                color: "var(--sv-accent-soft)",
                 fontSize: 14,
               }}
             />
@@ -797,7 +800,7 @@ function IndustryContent() {
                   borderRadius: 8,
                   border: `1px solid ${LINE}`,
                   background: "transparent",
-                  color: tzBusy ? FAINT : "#eaf6fa",
+                  color: tzBusy ? FAINT : "var(--sv-accent-soft)",
                   fontSize: 14,
                   cursor: tzBusy ? "default" : "pointer",
                 }}
@@ -862,7 +865,7 @@ function IndustryContent() {
                 {tzResult.missing.length > 0 && (
                   <div style={{ marginTop: 16 }}>
                     <div style={{ fontSize: 12, color: FAINT, marginBottom: 6 }}>{U.tzMissing}</div>
-                    <ul style={{ margin: 0, paddingLeft: 18, color: "#cfdde3", fontSize: 12.5, lineHeight: 1.6 }}>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: "var(--sv-ink3)", fontSize: 12.5, lineHeight: 1.6 }}>
                       {tzResult.missing.map((m) => (
                         <li key={m}>{m}</li>
                       ))}
@@ -875,7 +878,7 @@ function IndustryContent() {
                     <div style={{ fontSize: 12, letterSpacing: "0.08em", color: ACCENT, marginBottom: 6 }}>
                       {U.tzRequirements}
                     </div>
-                    <ul style={{ margin: 0, paddingLeft: 18, color: "#cfdde3", fontSize: 12.5, lineHeight: 1.6 }}>
+                    <ul style={{ margin: 0, paddingLeft: 18, color: "var(--sv-ink3)", fontSize: 12.5, lineHeight: 1.6 }}>
                       {tzResult.requirements.map((r, i) => (
                         <li key={`${r.no}-${i}`}>
                           {r.no ? `${r.no} ` : ""}
@@ -946,7 +949,7 @@ function IndustryContent() {
                   borderRadius: 999,
                   border: `1px solid ${group.id === groupId ? ACCENT : LINE}`,
                   background: group.id === groupId ? "rgba(62,195,230,0.12)" : "transparent",
-                  color: group.id === groupId ? "#eaf6fa" : FAINT,
+                  color: group.id === groupId ? "var(--sv-accent-soft)" : FAINT,
                   fontSize: 14,
                   cursor: "pointer",
                 }}
@@ -976,7 +979,7 @@ function IndustryContent() {
                   borderRadius: 10,
                   border: `1px solid ${item.id === industryId ? ACCENT : LINE}`,
                   background: item.id === industryId ? "rgba(62,195,230,0.10)" : PANEL,
-                  color: "#f5f8fa",
+                  color: "var(--sv-ink)",
                   cursor: "pointer",
                 }}
               >
@@ -998,7 +1001,7 @@ function IndustryContent() {
               borderRadius: 10,
               border: `1px dashed ${generic ? ACCENT : LINE}`,
               background: generic ? "rgba(62,195,230,0.10)" : "transparent",
-              color: "#f5f8fa",
+              color: "var(--sv-ink)",
               cursor: "pointer",
               marginBottom: 30,
             }}
@@ -1043,7 +1046,7 @@ function IndustryContent() {
                         borderRadius: 10,
                         border: `1px solid ${flowMode === item.id ? ACCENT : LINE}`,
                         background: flowMode === item.id ? "rgba(62,195,230,0.12)" : "transparent",
-                        color: "#f5f8fa",
+                        color: "var(--sv-ink)",
                         cursor: "pointer",
                       }}
                     >
@@ -1269,7 +1272,7 @@ function IndustryContent() {
                         borderRadius: 999,
                         border: `1px solid ${discharge === d.id ? ACCENT : LINE}`,
                         background: discharge === d.id ? "rgba(62,195,230,0.14)" : "transparent",
-                        color: discharge === d.id ? "#eaf6fa" : FAINT,
+                        color: discharge === d.id ? "var(--sv-accent-soft)" : FAINT,
                         fontSize: 13,
                         cursor: "pointer",
                       }}
@@ -1291,7 +1294,7 @@ function IndustryContent() {
                         {U.basisLabel}: {t(d.source, language)}
                       </p>
 
-                      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "#cfdde3", cursor: "pointer" }}>
+                      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "var(--sv-ink3)", cursor: "pointer" }}>
                         <input type="checkbox" checked={hasTu} onChange={(e) => setHasTu(e.target.checked)} />
                         {U.hasTu}
                       </label>
@@ -1313,7 +1316,7 @@ function IndustryContent() {
                                 style={{
                                   display: "block", marginTop: 6, width: "100%", padding: "9px 10px",
                                   borderRadius: 8, border: `1px solid ${LINE}`, background: "rgba(0,0,0,0.25)",
-                                  color: "#f5f8fa", fontSize: 14, boxSizing: "border-box",
+                                  color: "var(--sv-ink)", fontSize: 14, boxSizing: "border-box",
                                 }}
                               />
                             </label>
@@ -1353,7 +1356,7 @@ function IndustryContent() {
                       padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontSize: 14,
                       border: `1px solid ${hasLab === true ? ACCENT : LINE}`,
                       background: hasLab === true ? "rgba(62,195,230,0.12)" : "transparent",
-                      color: hasLab === true ? "#eaf6fa" : FAINT,
+                      color: hasLab === true ? "var(--sv-accent-soft)" : FAINT,
                     }}
                   >
                     {U.labYes}
@@ -1365,7 +1368,7 @@ function IndustryContent() {
                       padding: "10px 20px", borderRadius: 8, cursor: "pointer", fontSize: 14,
                       border: `1px solid ${hasLab === false ? ACCENT : LINE}`,
                       background: hasLab === false ? "rgba(62,195,230,0.12)" : "transparent",
-                      color: hasLab === false ? "#eaf6fa" : FAINT,
+                      color: hasLab === false ? "var(--sv-accent-soft)" : FAINT,
                     }}
                   >
                     {U.labNo}
@@ -1399,7 +1402,7 @@ function IndustryContent() {
                                 style={{
                                   display: "block", marginTop: 5, width: "100%", padding: "9px 11px",
                                   borderRadius: 8, border: `1px solid ${LINE}`,
-                                  background: "rgba(0,0,0,0.25)", color: "#f5f8fa", fontSize: 15,
+                                  background: "rgba(0,0,0,0.25)", color: "var(--sv-ink)", fontSize: 15,
                                 }}
                               />
                             ) : (
@@ -1435,7 +1438,7 @@ function IndustryContent() {
                             style={{
                               display: "block", marginTop: 5, width: "100%", padding: "9px 11px",
                               borderRadius: 8, border: `1px solid ${LINE}`,
-                              background: "rgba(0,0,0,0.25)", color: "#f5f8fa", fontSize: 15,
+                              background: "rgba(0,0,0,0.25)", color: "var(--sv-ink)", fontSize: 15,
                             }}
                           />
                         ) : (
@@ -1462,7 +1465,7 @@ function IndustryContent() {
 
                     {industry.special && industry.special.length > 0 && (
                       <div style={{ marginTop: 18 }}>
-                        <div style={{ fontSize: 12, letterSpacing: "0.08em", color: "#ffb74d", marginBottom: 8 }}>
+                        <div style={{ fontSize: 12, letterSpacing: "0.08em", color: "var(--sv-warn2)", marginBottom: 8 }}>
                           {U.specialIndustryTitle}
                         </div>
                         {industry.special.map((spec) => (
@@ -1511,7 +1514,7 @@ function IndustryContent() {
                         {U.mbrBannerTitle}
                       </div>
                       <p style={{ fontSize: 13, margin: "0 0 8px", lineHeight: 1.6 }}>{U.mbrBannerText}</p>
-                      <p style={{ fontSize: 12.5, color: "#cfdde3", margin: "0 0 8px", lineHeight: 1.6 }}>
+                      <p style={{ fontSize: 12.5, color: "var(--sv-ink3)", margin: "0 0 8px", lineHeight: 1.6 }}>
                         {U.mbrBannerExplain}
                       </p>
                       <p style={{ fontSize: 12, color: FAINT, margin: 0, lineHeight: 1.6 }}>{U.mbrFineScreen}</p>
@@ -1534,7 +1537,7 @@ function IndustryContent() {
                         borderRadius: 10,
                         border: `1px solid ${tech === "auto" ? ACCENT : LINE}`,
                         background: tech === "auto" ? "rgba(62,195,230,0.10)" : "transparent",
-                        color: "#f5f8fa",
+                        color: "var(--sv-ink)",
                         cursor: "pointer",
                       }}
                     >
@@ -1558,14 +1561,14 @@ function IndustryContent() {
                           borderRadius: 10,
                           border: `1px solid ${tech === item.id ? ACCENT : LINE}`,
                           background: tech === item.id ? "rgba(62,195,230,0.10)" : "transparent",
-                          color: "#f5f8fa",
+                          color: "var(--sv-ink)",
                           cursor: "pointer",
                         }}
                       >
                         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>
                           {t(item.title, language)}
                         </div>
-                        <div style={{ fontSize: 12, color: "#cfdde3", marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, color: "var(--sv-ink3)", marginBottom: 6 }}>
                           {t(item.subtitle, language)}
                         </div>
                         <div style={{ fontSize: 12, color: FAINT, lineHeight: 1.5, marginBottom: 6 }}>
@@ -1589,7 +1592,7 @@ function IndustryContent() {
                         padding: "12px 14px",
                       }}
                     >
-                      <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "#ffb74d", marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, letterSpacing: "0.1em", color: "var(--sv-warn2)", marginBottom: 8 }}>
                         {U.mbrWaiverTitle}
                       </div>
                       <p style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>{requirementNote(false)}</p>
@@ -1669,7 +1672,7 @@ function IndustryContent() {
                             borderRadius: 999,
                             border: `1px solid ${siteShape === item.id ? ACCENT : LINE}`,
                             background: siteShape === item.id ? "rgba(62,195,230,0.14)" : "transparent",
-                            color: siteShape === item.id ? "#eaf6fa" : FAINT,
+                            color: siteShape === item.id ? "var(--sv-accent-soft)" : FAINT,
                             fontSize: 13,
                             cursor: "pointer",
                           }}
@@ -1821,7 +1824,7 @@ function IndustryContent() {
             type="submit"
             style={{
               padding: "14px 34px", borderRadius: 10, border: 0, cursor: "pointer",
-              background: ACCENT, color: "#06232e", fontSize: 16, fontWeight: 700,
+              background: ACCENT, color: "var(--sv-bg2)", fontSize: 16, fontWeight: 700,
             }}
           >
             {U.calcButton} →

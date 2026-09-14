@@ -15,6 +15,7 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useBrand } from "./BrandHeader";
 
 type Props = {
   children: ReactNode;
@@ -25,6 +26,8 @@ type Props = {
 export default function RequireAuth({ children, title = "Проверяем доступ…" }: Props) {
   const router = useRouter();
   const [state, setState] = useState<"checking" | "ok" | "denied">("checking");
+  /* Надпись над окном входа — имя того, чей это адрес. */
+  const brand = useBrand();
 
   useEffect(() => {
     let alive = true;
@@ -55,7 +58,7 @@ export default function RequireAuth({ children, title = "Проверяем до
   return (
     <main style={page}>
       <div style={box}>
-        <div style={eyebrow}>SUVSANOAT · ИНЖИНИРИНГ</div>
+        <div style={eyebrow}>{brand?.title ? `${brand.title} · ` : ""}ИНЖИНИРИНГ</div>
         <h1 style={h1}>{state === "checking" ? title : "Нужен вход"}</h1>
         <p style={text}>
           {state === "checking"

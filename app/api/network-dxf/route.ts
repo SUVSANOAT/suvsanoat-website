@@ -21,6 +21,8 @@ import { networkProfileSheets } from "../../../drawings/network/profile";
 import { networkPlanSheet } from "../../../drawings/network/plan";
 import { makeZip, type ZipEntry } from "../../../drawings/core/zip";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/brands";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const MAX_BODY_BYTES = 512 * 1024;
 const MAX_NODES = 500;
@@ -62,9 +64,13 @@ const CATEGORIES = ["city-over-100k", "city-under-100k", "town-under-50k"] as co
 const SOURCES = ["survey", "google", "assumed"] as const;
 
 export async function POST(request: Request) {
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "Нужен вход в раздел «Инжиниринг»." }, { status: 401 });
   }
+
+  /* Имя файла — по владельцу доступа, а не по нам. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -121,7 +127,7 @@ export async function POST(request: Request) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="SUVSANOAT_chertezhi_seti.zip"`,
+        "Content-Disposition": `attachment; filename="${filePrefix(brand.title)}_chertezhi_seti.zip"`,
         "Content-Length": String(zip.byteLength),
         "Cache-Control": "no-store",
       },

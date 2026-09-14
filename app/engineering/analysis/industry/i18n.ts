@@ -448,16 +448,19 @@ export const UI = {
 
   /* --- сноски --- */
   disclaimer: L(
-    "Документ сформирован автоматически и является предварительным инженерным решением SUVSANOAT. Не заменяет проектную документацию.",
-    "Hujjat avtomatik shakllantirilgan va SUVSANOAT ning dastlabki muhandislik yechimi hisoblanadi. Loyiha hujjatlarini almashtirmaydi.",
-    "This document is generated automatically and is a preliminary engineering solution by SUVSANOAT. It does not replace design documentation.",
-    "本文件由系统自动生成，为 SUVSANOAT 初步工程方案，不能替代设计文件。"
+    "Документ сформирован автоматически и является предварительным инженерным решением{{OF}}. Не заменяет проектную документацию.",
+    "Hujjat avtomatik shakllantirilgan va{{NING}} dastlabki muhandislik yechimi hisoblanadi. Loyiha hujjatlarini almashtirmaydi.",
+    "This document is generated automatically and is a preliminary engineering solution{{BY}}. It does not replace design documentation.",
+    "本文件由系统自动生成，为{{ZH}}初步工程方案，不能替代设计文件。"
   ),
+  /* Кто именно изготавливает — не называется ни на одном языке:
+     состав решения от этого не зависит, а документ уходит заказчику и
+     дальше. */
   supplyNote: L(
-    "Состав оборудования определён технологией и расходом: часть позиций SUVSANOAT производит сам, часть поставляет — на состав решения это не влияет.",
-    "Uskunalar tarkibi texnologiya va sarf bo‘yicha aniqlangan: bir qismini SUVSANOAT o‘zi ishlab chiqaradi, bir qismini yetkazib beradi — bu yechim tarkibiga ta’sir qilmaydi.",
-    "The equipment scope is defined by the technology and the flow: SUVSANOAT manufactures some items and supplies others, which does not affect the solution.",
-    "设备组成由工艺和流量决定：部分由 SUVSANOAT 自制，部分为采购，不影响方案本身。"
+    "Состав оборудования определён технологией и расходом: часть позиций изготавливается на заводе, часть поставляется — на состав решения это не влияет.",
+    "Uskunalar tarkibi texnologiya va sarf bo‘yicha aniqlangan: bir qismi zavodda ishlab chiqariladi, bir qismi yetkazib beriladi — bu yechim tarkibiga ta’sir qilmaydi.",
+    "The equipment scope is defined by the technology and the flow: some items are manufactured at the works and others are supplied, which does not affect the solution.",
+    "设备组成由工艺和流量决定：部分为工厂制造，部分为采购，不影响方案本身。"
   ),
   dxfNote: L(
     "DXF (формат R12) открывается в AutoCAD, NanoCAD, ZWCAD, BricsCAD — «Сохранить как» → DWG. Если чертёж не виден сразу — команда «Показать границы» (Z ↵ E ↵).",
@@ -465,8 +468,8 @@ export const UI = {
     "The DXF (R12) opens in AutoCAD, NanoCAD, ZWCAD, BricsCAD — Save As → DWG. If nothing is visible, run Zoom → Extents (Z ↵ E ↵).",
     "DXF（R12）可用 AutoCAD、NanoCAD、ZWCAD、BricsCAD 打开，另存为 DWG。若看不到图形，执行 Zoom → Extents（Z ↵ E ↵）。"
   ),
-  noteAiBadge: L("ТЕХНИЧЕСКАЯ ЗАПИСКА · СОСТАВЛЕНА ИИ ПО РАСЧЁТУ SUVSANOAT", "TEXNIK IZOHNOMA · SUVSANOAT HISOBI ASOSIDA SI TOMONIDAN", "TECHNICAL NOTE · WRITTEN BY AI FROM THE SUVSANOAT CALCULATION", "技术说明书 · 由 AI 依据 SUVSANOAT 计算撰写"),
-  noteTemplateBadge: L("ТЕХНИЧЕСКАЯ ЗАПИСКА · ШАБЛОН ПО РАСЧЁТУ SUVSANOAT", "TEXNIK IZOHNOMA · SUVSANOAT HISOBI BO‘YICHA SHABLON", "TECHNICAL NOTE · TEMPLATE FROM THE SUVSANOAT CALCULATION", "技术说明书 · 依据计算的模板"),
+  noteAiBadge: L("ТЕХНИЧЕСКАЯ ЗАПИСКА · СОСТАВЛЕНА ИИ ПО РАСЧЁТУ{{OF_UP}}", "TEXNIK IZOHNOMA ·{{UP}} HISOBI ASOSIDA SI TOMONIDAN", "TECHNICAL NOTE · WRITTEN BY AI FROM THE{{UP}} CALCULATION", "技术说明书 · 由 AI 依据{{ZH}}计算撰写"),
+  noteTemplateBadge: L("ТЕХНИЧЕСКАЯ ЗАПИСКА · ШАБЛОН ПО РАСЧЁТУ{{OF_UP}}", "TEXNIK IZOHNOMA ·{{UP}} HISOBI BO‘YICHA SHABLON", "TECHNICAL NOTE · TEMPLATE FROM THE{{UP}} CALCULATION", "技术说明书 · 依据计算的模板"),
   noteDownload: L("Скачать .md", ".md yuklab olish", "Download .md", "下载 .md"),
   notePdf: L("PDF (расчёт + записка)", "PDF (hisob + izohnoma)", "PDF (calculation + note)", "PDF（计算＋说明书）"),
   /* --- участок под очистные сооружения (анкета) --- */
@@ -742,10 +745,32 @@ export function tempWinterWarning(annual: string, factor: string): L10n {
 
 export type UiStrings = Record<keyof typeof UI, string>;
 
-export function ui(lang: Language): UiStrings {
+/* ==================================================================
+ * ИМЯ ВЛАДЕЛЬЦА В ПОДПИСЯХ
+ *
+ * Несколько строк называют того, кто выдал документ. Имя не вписано в
+ * них, а подставляется: на адресе заказчика это его организация.
+ * Метки разные, потому что в каждом языке имя встаёт в свою форму —
+ * «решением SUVSANOAT», «SUVSANOAT ning», «by SUVSANOAT». Если имя
+ * не передано, подстановка убирает метку целиком, и фраза остаётся
+ * грамматически целой: «…является предварительным инженерным
+ * решением.» — без повисшего предлога.
+ * ================================================================== */
+function fillBrand(text: string, brand: string): string {
+  const b = brand.trim();
+  return text
+    .split("{{OF_UP}}").join(b ? ` ${b.toUpperCase()}` : "")
+    .split("{{UP}}").join(b ? ` ${b.toUpperCase()}` : "")
+    .split("{{OF}}").join(b ? ` ${b}` : "")
+    .split("{{NING}}").join(b ? ` ${b} ning` : "")
+    .split("{{BY}}").join(b ? ` by ${b}` : "")
+    .split("{{ZH}}").join(b ? ` ${b} ` : "");
+}
+
+export function ui(lang: Language, brand = ""): UiStrings {
   const out = {} as UiStrings;
   for (const key of Object.keys(UI) as (keyof typeof UI)[]) {
-    out[key] = t(UI[key], lang);
+    out[key] = fillBrand(t(UI[key], lang), brand);
   }
   return out;
 }

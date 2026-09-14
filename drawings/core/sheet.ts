@@ -1,5 +1,5 @@
 /* ==================================================================
- * ЛИСТ А1 СО ШТАМПОМ SUVSANOAT
+ * ЛИСТ А1 СО ШТАМПОМ
  *
  * DXF — модельное пространство в миллиметрах 1:1. Лист А1 (841×594)
  * рисуется увеличенным в `scale` раз, так что при печати в масштабе
@@ -43,6 +43,19 @@ export type SheetMeta = {
   date?: string;
   notes?: string[];
   legend?: { layer: "CONTOUR" | "HATCH" | "WATER" | "PIPE" | "EQUIP" | "SITE"; text: string }[];
+  /**
+   * Разработчик в штампе. Раньше имя было вписано в код — и чертёж,
+   * выданный проектировщику по купленному доступу, выходил со штампом
+   * чужой организации. Пусто — остаётся наше, как было.
+   */
+  firm?: { name: string; subtitle?: string; contact?: string };
+};
+
+/** разработчик по умолчанию — наш */
+const OWN_FIRM = {
+  name: "SUVSANOAT",
+  subtitle: "Проектирование и производство очистного оборудования",
+  contact: "Ташкент, ул. Укчи 3 · suvsanoat.uz",
 };
 
 function today(): string {
@@ -298,7 +311,8 @@ export class Sheet {
     /* --- исполнители --- */
     const cols = [0, W / 3, (2 * W) / 3];
     const heads = ["Разработал", "Проверил", "Утвердил"];
-    const names = ["SUVSANOAT Engineering", "инженер SUVSANOAT", "гл. инженер"];
+    const firm = m.firm ?? OWN_FIRM;
+    const names = [`${firm.name} Engineering`, `инженер ${firm.name}`, "гл. инженер"];
     cols.forEach((c, i) => {
       if (i) d.line(x + P(c), y + P(26), x + P(c), y + P(40), "FRAME");
       d.text(x + P(c + 2), y + P(35.5), this.ts * 0.8, heads[i], { align: "left" });
@@ -324,13 +338,21 @@ export class Sheet {
     d.text(x + P(W / 2), y + P(94.5), this.ts * 0.85, "предпроектная проработка", { align: "center" });
 
     /* --- разработчик --- */
-    d.text(x + P(W / 2), y + P(124), this.th * 1.3, "SUVSANOAT", { align: "center" });
-    d.text(x + P(W / 2), y + P(118), this.ts * 0.85, "Проектирование и производство очистного оборудования", { align: "center" });
-    d.text(x + P(W / 2), y + P(113.5), this.ts * 0.8, "Ташкент, ул. Укчи 3 · suvsanoat.uz", { align: "center" });
+    /* Длинное наименование в отведённую строку не влезет, поэтому
+       шрифт уменьшается по числу знаков — как в чертёжном штампе от
+       руки: имя организации не сокращают, его пишут мельче. */
+    const nameSize = firm.name.length > 22 ? this.th * 0.8 : firm.name.length > 14 ? this.th : this.th * 1.3;
+    d.text(x + P(W / 2), y + P(124), nameSize, firm.name, { align: "center" });
+    if (firm.subtitle) {
+      wrap(firm.subtitle, 52, 2).forEach((line, i) =>
+        d.text(x + P(W / 2), y + P(118 - i * 4), this.ts * 0.85, line, { align: "center" })
+      );
+    }
+    if (firm.contact) d.text(x + P(W / 2), y + P(113.5 - (firm.subtitle ? 4 : 0)), this.ts * 0.8, firm.contact, { align: "center" });
 
     /* --- правовая плашка --- */
     const legal = wrap(
-      "Права защищены. Чертёж выдан по результатам онлайн-расчёта SUVSANOAT и является предварительным техническим решением. Не является рабочей документацией и не может быть использован для строительства без проверки инженером и разработки проекта в установленном порядке.",
+      `Права защищены. Чертёж выдан по результатам онлайн-расчёта ${firm.name} и является предварительным техническим решением. Не является рабочей документацией и не может быть использован для строительства без проверки инженером и разработки проекта в установленном порядке.`,
       46,
       6
     );

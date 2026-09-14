@@ -73,6 +73,8 @@ import { layoutSite, requiredArea } from "../../../../drawings/site/layout";
 import { downloadDxf, printDxf } from "./dxf";
 import { buildModelsDxf, buildSchemeDxf, type SchemeInput } from "./pro-drawings";
 import { buildTemplateNote, kmkClausesFor, kmkDocLine, type NoteInput } from "./note-template";
+import { useBrand } from "../../BrandHeader";
+import { filePrefix } from "../../../../lib/file-prefix";
 import NoteView from "./NoteView";
 
 /* ==================================================================
@@ -681,7 +683,15 @@ function useAssumptions(): Assumptions {
 
 function ProResultContent() {
   const { language } = useLanguage();
-  const U = useMemo(() => ui(language), [language]);
+  /* Записка и подписи выходят под тем, у кого доступ; изготовитель
+     называется только если это наш завод: проектный институт
+     оборудование не изготавливает, и подставлять туда его имя нельзя.
+     Бренд объявлен выше подписей — они его используют. */
+  const brand = useBrand();
+  const noteCompany = brand?.title ?? "";
+  const noteMaker = brand?.slug === "suvsanoat" ? "SUVSANOAT" : "";
+  const pfx = filePrefix(brand?.title);
+  const U = useMemo(() => ui(language, brand?.title ?? ""), [language, brand?.title]);
   const router = useRouter();
   const sp = useSearchParams();
   const a = useAssumptions();
@@ -1267,7 +1277,7 @@ function ProResultContent() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = filenameFrom(res.headers.get("content-disposition")) || `SUVSANOAT_chertezhi_${Math.round(Q)}m3.zip`;
+        link.download = filenameFrom(res.headers.get("content-disposition")) || `${pfx}_chertezhi_${Math.round(Q)}m3.zip`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -1372,7 +1382,7 @@ function ProResultContent() {
         temperature: calc?.techResult?.temperature,
         discharge: t(discharge?.name, language) || undefined,
       },
-      `SUVSANOAT_zapiska_${Math.round(Q)}m3.docx`,
+      `${pfx}_zapiska_${Math.round(Q)}m3.docx`,
       setDocBusy,
     );
   }
@@ -1395,7 +1405,7 @@ function ProResultContent() {
         yearKWh: calc?.power.yearly,
         date: new Date().toLocaleDateString("ru-RU"),
       },
-      `SUVSANOAT_rukovodstvo_${Math.round(Q)}m3.docx`,
+      `${pfx}_rukovodstvo_${Math.round(Q)}m3.docx`,
       setManBusy,
     );
   }
@@ -1406,7 +1416,7 @@ function ProResultContent() {
     await downloadBinary(
       "/api/spec-xlsx",
       { input: drawingInput, opts: { housingDistM } },
-      `SUVSANOAT_specifikaciya_${Math.round(Q)}m3.xlsx`,
+      `${pfx}_specifikaciya_${Math.round(Q)}m3.xlsx`,
       setXlsBusy,
     );
   }
@@ -1523,9 +1533,9 @@ function ProResultContent() {
       }
       const data = await res.json();
       if (data?.ok && typeof data.text === "string") setNote({ text: data.text, source: data.source, reason: data.reason });
-      else setNote({ text: buildTemplateNote(input), source: "template", reason: "server error" });
+      else setNote({ text: buildTemplateNote(input, { company: noteCompany, maker: noteMaker }), source: "template", reason: "server error" });
     } catch {
-      setNote({ text: buildTemplateNote(input), source: "template", reason: "network" });
+      setNote({ text: buildTemplateNote(input, { company: noteCompany, maker: noteMaker }), source: "template", reason: "network" });
     } finally {
       setNoteBusy(false);
       setTimeout(() => document.getElementById("techNote")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -1538,7 +1548,7 @@ function ProResultContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `SUVSANOAT_zapiska_${industry.id}_${Math.round(Q)}m3.md`;
+    a.download = `${pfx}_zapiska_${industry.id}_${Math.round(Q)}m3.md`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1564,7 +1574,7 @@ function ProResultContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "SUVSANOAT_shema_avtomatizacii.dxf";
+    a.download = `${pfx}_shema_avtomatizacii.dxf`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1572,13 +1582,13 @@ function ProResultContent() {
   function dxfScheme() {
     const input = schemeInput();
     if (!input) return;
-    downloadDxf(buildSchemeDxf(input), `SUVSANOAT_shema_${input.industry.id}_${Math.round(Q)}m3.dxf`);
+    downloadDxf(buildSchemeDxf(input), `${pfx}_shema_${input.industry.id}_${Math.round(Q)}m3.dxf`);
   }
 
   function dxfModels() {
     const input = schemeInput();
     if (!input) return;
-    downloadDxf(buildModelsDxf(input), `SUVSANOAT_gabarity_${input.industry.id}_${Math.round(Q)}m3.dxf`);
+    downloadDxf(buildModelsDxf(input), `${pfx}_gabarity_${input.industry.id}_${Math.round(Q)}m3.dxf`);
   }
 
   function printScheme() {

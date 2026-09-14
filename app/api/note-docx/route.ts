@@ -33,7 +33,7 @@ import {
   buildNoteDocx,
   parseTzAnswers,
   tzAnswerUserPrompt,
-  TZ_ANSWER_SYSTEM_PROMPT,
+  tzAnswerSystemPrompt,
   type NoteDocxOptions,
   type NoteLang,
   type TzAnswer,
@@ -43,10 +43,12 @@ import {
   isNoteInput,
   kmkClausesFor,
   noteUserPrompt,
-  NOTE_SYSTEM_PROMPT,
+  noteSystemPrompt,
   type NoteInput,
 } from "../../engineering/analysis/pro-result/note-template";
 import { sessionFromRequest } from "../../../lib/session";
+import { filePrefix } from "../../../lib/file-prefix";
+import { resolveBrand } from "../../../lib/report-brand";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-sonnet-5";
@@ -196,9 +198,17 @@ function answersFrom(text: string | null, reqs: TzRequirement[]): TzAnswer[] {
 
 export async function POST(request: Request) {
   /* записку получают только вошедшие пользователи (дублирует proxy.ts) */
-  if (!(await sessionFromRequest(request))) {
+  const session = await sessionFromRequest(request);
+  if (!session) {
     return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
+
+  /* Под чьим именем выходит записка и называть ли завод-изготовитель.
+     Имя завода ставится только на нашем бренде: покупатель доступа
+     оборудование не изготавливает. */
+  const brand = await resolveBrand(session.u, request.headers.get("host"));
+  const company = brand.title;
+  const maker = brand.slug === "suvsanoat" ? brand.title : "";
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
@@ -240,9 +250,9 @@ export async function POST(request: Request) {
     try {
       const reqs = opts.requirements ?? [];
       const [narrative, answers] = await Promise.all([
-        askClaude(key, model, NOTE_SYSTEM_PROMPT, noteUserPrompt(input), 3500, controller.signal),
+        askClaude(key, model, noteSystemPrompt(maker), noteUserPrompt(input), 3500, controller.signal),
         reqs.length
-          ? askClaude(key, model, TZ_ANSWER_SYSTEM_PROMPT, tzAnswerUserPrompt(input, reqs), 3000, controller.signal)
+          ? askClaude(key, model, tzAnswerSystemPrompt(maker), tzAnswerUserPrompt(input, reqs), 3000, controller.signal)
           : Promise.resolve(null),
       ]);
       /* короткий или неразмеченный ответ в документ не попадает */
@@ -261,11 +271,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const docx = buildNoteDocx(input, opts);
+    const docx = buildNoteDocx(input, { ...opts, company, maker });
     /* копия в собственный ArrayBuffer — корректное тело ответа (как в /api/drawings) */
     const buffer = new ArrayBuffer(docx.byteLength);
     new Uint8Array(buffer).set(docx);
-    const name = `SUVSANOAT_zapiska_${fileSlug(input.object || input.industry) || "obj"}_${Math.round(input.Q)}m3.docx`;
+    const name = `${filePrefix(brand.title)}_zapiska_${fileSlug(input.object || input.industry) || "obj"}_${Math.round(input.Q)}m3.docx`;
     return new Response(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

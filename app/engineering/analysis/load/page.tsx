@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useDocBrand } from "../../doc-brand";
 import {
   KMK_2_04_03_19_DOC,
   BIO_INLET_LIMITS,
@@ -9,12 +10,8 @@ import {
   domesticConcentrations,
 } from "../../../../norms/kmk-2-04-03-19";
 
-const BRAND = {
-  website: "www.suvsanoat.uz",
-  phone: "+998 77 304 34 00",
-  email: "suvsanoat@gmail.com",
-  logo: "/suvsanoat-logo.png",
-};
+/* Данные бланка берутся из бренда адреса (doc-brand.ts): на адресе
+   заказчика здесь его имя и логотип, а наших контактов нет. */
 
 function LoadContent() {
   const router = useRouter();
@@ -236,7 +233,7 @@ function LoadContent() {
                       : "1px solid rgba(255,255,255,.12)",
                   color:
                     step === "03"
-                      ? "#00d9ff"
+                      ? "var(--sv-accent)"
                       : "rgba(255,255,255,.35)",
                 }}
               >
@@ -265,7 +262,7 @@ function LoadContent() {
             Объект:{" "}
             <strong
               style={{
-                color: "#00d9ff",
+                color: "var(--sv-accent)",
               }}
             >
               {object}
@@ -433,7 +430,7 @@ function LoadContent() {
         >
           <div
             style={{
-              color: "#00d9ff",
+              color: "var(--sv-accent)",
               fontSize: 12,
               fontWeight: 800,
               letterSpacing: ".16em",
@@ -513,7 +510,7 @@ function LoadContent() {
             >
               <div
                 style={{
-                  color: "#00d9ff",
+                  color: "var(--sv-accent)",
                   fontSize: 12,
                   fontWeight: 800,
                   letterSpacing: ".16em",
@@ -625,6 +622,7 @@ function LoadContent() {
  * ========================================================= */
 
 function BrandHeader() {
+  const BRAND = useDocBrand();
   return (
     <header
       style={{
@@ -646,9 +644,9 @@ function BrandHeader() {
           alignItems: "center",
         }}
       >
-        <img
+        {BRAND.logo && <img
           src={BRAND.logo}
-          alt="Suvsanoat"
+          alt={BRAND.name}
           style={{
             display: "block",
             width: 230,
@@ -656,7 +654,7 @@ function BrandHeader() {
             maxHeight: 70,
             objectFit: "contain",
           }}
-        />
+        />}
       </div>
 
       <div
@@ -670,12 +668,12 @@ function BrandHeader() {
         }}
       >
         <a
-          href="https://www.suvsanoat.uz"
+          href={`https://${BRAND.site}`}
           target="_blank"
           rel="noreferrer"
           style={brandLink}
         >
-          {BRAND.website}
+          {BRAND.site}
         </a>
 
         <span
@@ -703,6 +701,7 @@ function BrandHeader() {
  * ========================================================= */
 
 function BrandFooter() {
+  const BRAND = useDocBrand();
   return (
     <footer
       style={{
@@ -724,16 +723,16 @@ function BrandFooter() {
           gap: 14,
         }}
       >
-        <img
+        {BRAND.logo && <img
           src={BRAND.logo}
-          alt="Suvsanoat"
+          alt={BRAND.name}
           style={{
             width: 150,
             height: "auto",
             maxHeight: 45,
             objectFit: "contain",
           }}
-        />
+        />}
 
         <div
           style={{
@@ -742,7 +741,7 @@ function BrandFooter() {
             lineHeight: 1.5,
           }}
         >
-          SUVSANOAT ENGINEERING
+          {[BRAND.name, "ENGINEERING"].filter(Boolean).join(" ")}
           <br />
           Инженерные системы очистки воды
         </div>
@@ -757,7 +756,7 @@ function BrandFooter() {
         }}
       >
         <div>
-          {BRAND.website}
+          {BRAND.site}
         </div>
 
         <div>
@@ -873,7 +872,7 @@ function Summary({
     >
       <div
         style={{
-          color: "#00d9ff",
+          color: "var(--sv-accent)",
           fontSize: 10,
           fontWeight: 800,
           letterSpacing: ".16em",
@@ -958,7 +957,7 @@ const backButton: React.CSSProperties = {
 };
 
 const stepLabel: React.CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: ".22em",
@@ -995,7 +994,7 @@ const primaryButton: React.CSSProperties = {
 };
 
 const brandLink: React.CSSProperties = {
-  color: "#00d9ff",
+  color: "var(--sv-accent)",
   textDecoration: "none",
   fontWeight: 700,
 };
